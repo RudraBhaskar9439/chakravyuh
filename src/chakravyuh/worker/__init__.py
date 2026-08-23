@@ -1,0 +1,1 @@
+"""Asynchronous recovery worker process."""

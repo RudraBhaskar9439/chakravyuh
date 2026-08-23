@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+node_modules
+**/node_modules
+.next
+**/.next
+.data
+.env
+.env.*
+!.env.example
+tmp
+sources
+htmlcov
+coverage.xml
+

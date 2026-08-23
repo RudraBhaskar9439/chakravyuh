@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chakravyuh"
+version = "0.1.0"
+description = "A self-healing money graph for payment revenue recovery"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { text = "Proprietary" }
+authors = [{ name = "Chakravyuh Contributors" }]
+dependencies = [
+  "asyncpg>=0.30,<1",
+  "fastapi>=0.116,<1",
+  "httpx>=0.28,<1",
+  "neo4j>=5.28,<7",
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.10,<3",
+  "redis>=6,<8",
+  "sqlalchemy[asyncio]>=2.0.41,<3",
+  "structlog>=25.4,<26",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.16,<2",
+  "pytest>=8.4,<9",
+  "pytest-asyncio>=1.0,<2",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+chakravyuh-api = "chakravyuh.api.main:run"
+chakravyuh-worker = "chakravyuh.worker.main:run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chakravyuh"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers --cov=chakravyuh --cov-report=term-missing --cov-fail-under=90"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["chakravyuh"]
+
+[tool.coverage.report]
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+  "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["A", "ASYNC", "B", "C4", "DTZ", "E", "F", "FAST", "I", "N", "PERF", "PIE", "PTH", "RUF", "S", "SIM", "T20", "UP", "W"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S105", "S106"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["neo4j.*"]
+ignore_missing_imports = true
+

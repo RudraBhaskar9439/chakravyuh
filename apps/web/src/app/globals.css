@@ -1,0 +1,141 @@
+:root {
+  color-scheme: dark;
+  --background: #090908;
+  --surface: #12110f;
+  --border: #2d2921;
+  --text: #f4ecdd;
+  --muted: #aaa294;
+  --gold: #e5aa4f;
+  --healthy: #62d09b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 75% 15%, rgb(229 170 79 / 10%), transparent 28rem), var(--background);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+main {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: clamp(72px, 12vw, 150px) 0 72px;
+}
+
+.hero {
+  max-width: 780px;
+}
+
+.eyebrow {
+  margin: 0 0 24px;
+  color: var(--gold);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(4rem, 12vw, 8rem);
+  font-weight: 620;
+  letter-spacing: -0.07em;
+  line-height: 0.88;
+}
+
+.tagline {
+  margin: 30px 0 0;
+  color: var(--gold);
+  font-size: clamp(1.35rem, 3vw, 2rem);
+}
+
+.summary {
+  max-width: 650px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  line-height: 1.7;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 30px;
+  padding: 9px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgb(18 17 15 / 75%);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--healthy);
+  box-shadow: 0 0 12px var(--healthy);
+}
+
+.principles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: clamp(72px, 12vw, 140px);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+article {
+  min-height: 190px;
+  padding: 26px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgb(18 17 15 / 60%);
+}
+
+article p {
+  margin: 0 0 42px;
+  color: var(--gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+article h2 {
+  margin: 0 0 10px;
+  font-size: 1.35rem;
+}
+
+article span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (width <= 760px) {
+  .principles {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+  }
+}

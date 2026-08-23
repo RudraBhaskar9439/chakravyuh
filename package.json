@@ -1,0 +1,12 @@
+{
+  "name": "chakravyuh-workspace",
+  "private": true,
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "web:dev": "pnpm --filter @chakravyuh/web dev",
+    "web:check": "pnpm --filter @chakravyuh/web check",
+    "web:test": "pnpm --filter @chakravyuh/web test",
+    "web:build": "pnpm --filter @chakravyuh/web build"
+  }
+}
+
