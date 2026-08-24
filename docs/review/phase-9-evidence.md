@@ -1,6 +1,6 @@
 # Phase 9 verification evidence
 
-- Status: release gate in progress
+- Status: approved
 - Date: 2026-08-24
 
 ## Implemented safety case
@@ -61,7 +61,10 @@ and no provider mutation or fabricated payment was attempted.
 
 ## Private CI
 
-Pending implementation commit and private CI completion.
+- Implementation commit: `959413a2471d98186d822a3253746f6dde6fadd2`.
+- Private CI run: <https://github.com/RudraBhaskar9439/chakravyuh/actions/runs/32755435010>.
+- Repository policy, backend, web, and production-container jobs all passed.
+- GitHub reported zero open Dependabot alerts at approval time.
 
 ## Deliberate limitations
 

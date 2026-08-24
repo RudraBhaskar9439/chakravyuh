@@ -34,10 +34,9 @@
 - [x] Real PostgreSQL and Neo4j proof covers diagnosis through maker-checker capture receipt and idempotent replay.
 - [x] Real database proof rejects proposal tampering and execution-result deletion.
 - [x] Migration upgrades to head and matches SQLAlchemy metadata.
-- [ ] Full local quality gate, production containers, private CI, and dependency audit are recorded.
+- [x] Full local quality gate, production containers, private CI, and dependency audit are recorded.
 
 ## Review outcome
 
-The local quality, service, migration, container, secret, and responsive-browser gates passed. Final
-approval awaits the private GitHub CI run and dependency audit under the owner's standing
-authorization of 2026-08-24.
+Approved. The local quality, real-service, migration, container, secret, responsive-browser, private
+CI, and dependency gates passed under the owner's standing authorization of 2026-08-24.

@@ -15,8 +15,8 @@ phases may extend an earlier schema only through a migration.
 | 6 | Invariant engine, incident lifecycle, and labelled fault-injection evaluation set | Approved |
 | 7 | Evidence-subgraph assembly and schema-constrained AI diagnosis with abstention | Approved |
 | 8 | Operator graph, incident explanation, and approval interface | Approved |
-| 9 | Deterministic policy engine and bounded Test Mode recovery adapters | In progress |
-| 10 | Load, chaos, security, evaluation, deployment, and judge-demo hardening | Not started |
+| 9 | Deterministic policy engine and bounded Test Mode recovery adapters | Approved |
+| 10 | Load, chaos, security, evaluation, deployment, and judge-demo hardening | In progress |
 
 No model training is required before Phase 7. The detection source of truth remains deterministic;
 the model will explain evidence and propose an allowlisted action, not decide whether money moves.
