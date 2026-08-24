@@ -1,6 +1,6 @@
 # Phase 8 verification evidence
 
-- Status: release gate in progress
+- Status: approved
 - Date: 2026-08-24
 
 ## Implemented safety case
@@ -41,7 +41,10 @@ request-ID propagation, no-store responses, bounded filters/cursors, and audited
 
 ## Private CI
 
-Pending implementation commit and private CI completion.
+- Implementation commit: `37e3f3c637d9b60e4152f2a8a0c24ae230f8e00e`.
+- Private CI run: <https://github.com/RudraBhaskar9439/chakravyuh/actions/runs/32752182489>.
+- Repository policy, backend, web, and production-container jobs all passed.
+- GitHub reported zero open Dependabot alerts at approval time.
 
 ## Deliberate limitations
 
