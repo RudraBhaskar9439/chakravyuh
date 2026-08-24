@@ -1,6 +1,6 @@
 # Phase 4 verification evidence
 
-- Status: local implementation proof complete; private CI pending
+- Status: approved under standing owner authorization
 - Date: 2026-08-24
 
 ## Quality gate
@@ -62,8 +62,11 @@ attempts after the combined test and runtime exercises.
 
 ## Private CI
 
-Pending the Phase 4 implementation push. The successful run URL and exact commit are added before
-the phase is closed.
+Implementation commit `f9652dd7443a9083d2cba2ac1bb0da566cdeb3d4` passed private GitHub Actions
+run [`32740784739`](https://github.com/RudraBhaskar9439/chakravyuh/actions/runs/32740784739).
+The run passed the private-repository policy, real-PostgreSQL backend gate, frontend gate, migration
+check, non-root image check, installed worker/simulator/replay command checks, and both production
+container builds. GitHub reported zero open Dependabot alerts after the run.
 
 ## Deliberate limitations
 
