@@ -1,6 +1,6 @@
 # Phase 7 verification evidence
 
-- Status: release verification in progress
+- Status: approved under standing owner authorization
 - Date: 2026-08-24
 
 ## Implemented safety case
@@ -55,7 +55,20 @@ fixture; it is not a model-accuracy claim on production traffic.
 - The backend image runs as non-root UID 10001, reports version 0.7.0 and migration head
   `20260824_0007`, and contains the isolated `chakravyuh-diagnosis-worker` command.
 
-## Pending release evidence
+## Private CI
 
-The implementation commit and private GitHub Actions run will be appended before the phase status
-advances.
+Implementation commit `ccdd684edeec2a7eba06f8538790d33d2627edd7` passed private GitHub Actions
+run [`32749399238`](https://github.com/RudraBhaskar9439/chakravyuh/actions/runs/32749399238).
+The run passed the private-repository policy, fresh PostgreSQL and Neo4j migration plus drift checks,
+lint, formatting, strict typing, all backend and frontend tests, the production web build, both
+production image builds, non-root execution, all installed-command checks, and the in-container
+invariant benchmark. GitHub reported zero open Dependabot alerts after the run.
+
+## Deliberate limitations
+
+- The live call proves provider compatibility and deterministic guard acceptance for one synthetic
+  fixture, not diagnosis accuracy or reliability on production merchant traffic.
+- Phase 7 produces explanations and recommendations only. No action proposal, approval, or Razorpay
+  mutation can result from a diagnosis.
+- Real-traffic shadow labels, drift measurement, retention, provider failover, and capacity limits
+  remain Phase 10 deployment gates.

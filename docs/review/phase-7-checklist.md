@@ -38,9 +38,9 @@
 - [x] A live configured Gemini call completed with grounded citations and a guard-approved result.
 - [x] Migration upgrades to head and matches SQLAlchemy metadata.
 - [x] Full local quality gate and production-container checks are recorded in Phase 7 evidence.
-- [ ] Private CI is recorded in Phase 7 evidence.
+- [x] Private CI is recorded in Phase 7 evidence.
 
 ## Review outcome
 
-Covered by the owner's standing authorization of 2026-08-24. Phase 7 is approved only after the
-remaining release gate is checked and recorded in `phase-7-evidence.md`.
+Approved under the owner's standing authorization of 2026-08-24. The complete release gate and
+private CI run are recorded in `phase-7-evidence.md`.
