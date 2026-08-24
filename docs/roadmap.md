@@ -12,8 +12,8 @@ phases may extend an earlier schema only through a migration.
 | 3 | Durable normalization worker, replay, and dead-letter handling | Approved |
 | 4 | Deterministic temporal payment-state reducer and synthetic journey generator | Approved |
 | 5 | Rebuildable Neo4j projection and projection-lag observability | Approved |
-| 6 | Invariant engine, incident lifecycle, and labelled fault-injection evaluation set | In progress |
-| 7 | Evidence-subgraph assembly and schema-constrained AI diagnosis with abstention | Not started |
+| 6 | Invariant engine, incident lifecycle, and labelled fault-injection evaluation set | Approved |
+| 7 | Evidence-subgraph assembly and schema-constrained AI diagnosis with abstention | In progress |
 | 8 | Operator graph, incident explanation, and approval interface | Not started |
 | 9 | Deterministic policy engine and bounded Test Mode recovery adapters | Not started |
 | 10 | Load, chaos, security, evaluation, deployment, and judge-demo hardening | Not started |
