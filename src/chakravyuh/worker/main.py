@@ -10,9 +10,15 @@ from typing import Protocol
 import structlog
 
 from chakravyuh import __version__
+from chakravyuh.application.journey_reduction import ProcessJourneyReductionBatch
 from chakravyuh.application.normalization import NormalizationBatchResult, ProcessNormalizationBatch
+from chakravyuh.application.pipeline import PipelineBatchResult, ProcessPipelineBatch
 from chakravyuh.config import Settings, get_settings
+from chakravyuh.domain.journeys import TemporalPaymentJourneyReducer
 from chakravyuh.infrastructure.database import Database
+from chakravyuh.infrastructure.postgres.journey_reduction_repository import (
+    PostgresJourneyReductionRepository,
+)
 from chakravyuh.infrastructure.postgres.normalization_repository import (
     PostgresNormalizationRepository,
 )
@@ -23,7 +29,7 @@ logger = structlog.get_logger(__name__)
 
 
 class BatchProcessor(Protocol):
-    async def execute(self) -> NormalizationBatchResult: ...
+    async def execute(self) -> NormalizationBatchResult | PipelineBatchResult: ...
 
 
 async def worker_main(
@@ -46,12 +52,23 @@ async def worker_main(
         if runtime_database is None:
             runtime_database = Database(runtime_settings)
             owned_database = runtime_database
-        repository = PostgresNormalizationRepository(runtime_database)
-        processor = ProcessNormalizationBatch(
-            repository,
+        worker_id = _worker_id()
+        normalization = ProcessNormalizationBatch(
+            PostgresNormalizationRepository(runtime_database),
             RazorpayWebhookNormalizer(),
-            worker_id=_worker_id(),
+            worker_id=worker_id,
             batch_size=runtime_settings.worker_batch_size,
+        )
+        journey_reduction = ProcessJourneyReductionBatch(
+            PostgresJourneyReductionRepository(runtime_database),
+            TemporalPaymentJourneyReducer(),
+            worker_id=worker_id,
+            batch_size=runtime_settings.journey_reduction_batch_size,
+            max_events_per_journey=runtime_settings.journey_max_events,
+        )
+        processor = ProcessPipelineBatch(
+            normalization,
+            journey_reduction,
         )
 
     await logger.ainfo(
@@ -59,6 +76,7 @@ async def worker_main(
         environment=runtime_settings.environment,
         version=__version__,
         batch_size=runtime_settings.worker_batch_size,
+        journey_batch_size=runtime_settings.journey_reduction_batch_size,
     )
     try:
         while not event.is_set():
@@ -66,7 +84,7 @@ async def worker_main(
                 result = await processor.execute()
             except Exception as failure:
                 await logger.aerror(
-                    "normalization_batch_failed",
+                    "pipeline_batch_failed",
                     error_type=type(failure).__name__,
                 )
                 await _wait_for_shutdown(event, runtime_settings.worker_error_backoff_seconds)
@@ -76,7 +94,7 @@ async def worker_main(
                 await _wait_for_shutdown(event, runtime_settings.worker_poll_interval_seconds)
                 continue
             await logger.ainfo(
-                "normalization_batch_committed",
+                "pipeline_batch_committed",
                 claimed=result.claimed,
                 completed=result.completed,
                 dead_lettered=result.dead_lettered,

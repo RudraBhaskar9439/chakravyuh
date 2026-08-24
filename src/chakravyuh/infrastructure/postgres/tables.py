@@ -240,3 +240,174 @@ normalization_replays = Table(
     CheckConstraint("length(trim(requested_by)) >= 1", name="ck_replay_requested_by"),
     CheckConstraint("length(trim(reason)) >= 1", name="ck_replay_reason"),
 )
+
+journey_reduction_work = Table(
+    "journey_reduction_work",
+    metadata,
+    Column("merchant_id", String(255), primary_key=True),
+    Column("correlation_id", String(255), primary_key=True),
+    Column("generation", Integer, nullable=False),
+    Column("applied_generation", Integer, nullable=False, server_default="0"),
+    Column("status", String(32), nullable=False, server_default="pending"),
+    Column("attempt_count", Integer, nullable=False, server_default="0"),
+    Column(
+        "available_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column("last_error_code", String(64), nullable=True),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("generation >= 1", name="ck_journey_work_generation"),
+    CheckConstraint(
+        "applied_generation BETWEEN 0 AND generation",
+        name="ck_journey_work_applied_generation",
+    ),
+    CheckConstraint("attempt_count >= 0", name="ck_journey_work_attempt_count"),
+    CheckConstraint(
+        "status IN ('pending', 'completed', 'dead_letter')",
+        name="ck_journey_work_status",
+    ),
+    CheckConstraint(
+        "(status = 'pending' AND applied_generation < generation "
+        "AND last_error_code IS NULL) OR "
+        "(status = 'completed' AND applied_generation = generation "
+        "AND last_error_code IS NULL) OR "
+        "(status = 'dead_letter' AND applied_generation < generation "
+        "AND last_error_code IS NOT NULL)",
+        name="ck_journey_work_consistent_outcome",
+    ),
+    schema="operations",
+)
+
+Index(
+    "ix_journey_reduction_work_claim",
+    journey_reduction_work.c.status,
+    journey_reduction_work.c.available_at,
+    journey_reduction_work.c.merchant_id,
+    journey_reduction_work.c.correlation_id,
+)
+
+payment_journey_states = Table(
+    "payment_journey_states",
+    metadata,
+    Column("merchant_id", String(255), primary_key=True),
+    Column("correlation_id", String(255), primary_key=True),
+    Column("generation", Integer, nullable=False),
+    Column("event_count", Integer, nullable=False),
+    Column("reducer_version", String(64), nullable=False),
+    Column("state_hash", String(64), nullable=False),
+    Column("last_occurred_at", DateTime(timezone=True), nullable=False),
+    Column("state", JSONB, nullable=False),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("generation >= 1", name="ck_journey_state_generation"),
+    CheckConstraint("event_count >= 1", name="ck_journey_state_event_count"),
+    CheckConstraint("state_hash ~ '^[0-9a-f]{64}$'", name="ck_journey_state_hash"),
+    CheckConstraint("jsonb_typeof(state) = 'object'", name="ck_journey_state_object"),
+    schema="state",
+)
+
+payment_journey_revisions = Table(
+    "payment_journey_revisions",
+    metadata,
+    Column("revision_id", Uuid(as_uuid=True), primary_key=True),
+    Column("merchant_id", String(255), nullable=False),
+    Column("correlation_id", String(255), nullable=False),
+    Column("generation", Integer, nullable=False),
+    Column("event_count", Integer, nullable=False),
+    Column("reducer_version", String(64), nullable=False),
+    Column("state_hash", String(64), nullable=False),
+    Column("state", JSONB, nullable=False),
+    Column(
+        "reduced_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    UniqueConstraint(
+        "merchant_id",
+        "correlation_id",
+        "generation",
+        name="uq_journey_revision_generation",
+    ),
+    CheckConstraint("generation >= 1", name="ck_journey_revision_generation"),
+    CheckConstraint("event_count >= 1", name="ck_journey_revision_event_count"),
+    CheckConstraint("state_hash ~ '^[0-9a-f]{64}$'", name="ck_journey_revision_hash"),
+    CheckConstraint("jsonb_typeof(state) = 'object'", name="ck_journey_revision_object"),
+)
+
+Index(
+    "ix_journey_revisions_correlation",
+    payment_journey_revisions.c.merchant_id,
+    payment_journey_revisions.c.correlation_id,
+    payment_journey_revisions.c.generation,
+)
+
+journey_reduction_attempts = Table(
+    "journey_reduction_attempts",
+    metadata,
+    Column("attempt_id", Uuid(as_uuid=True), primary_key=True),
+    Column("merchant_id", String(255), nullable=False),
+    Column("correlation_id", String(255), nullable=False),
+    Column("generation", Integer, nullable=False),
+    Column("attempt_number", Integer, nullable=False),
+    Column("worker_id", String(255), nullable=False),
+    Column("reducer_version", String(64), nullable=False),
+    Column("outcome", String(32), nullable=False),
+    Column("error_code", String(64), nullable=True),
+    Column("state_hash", String(64), nullable=True),
+    Column(
+        "attempted_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    UniqueConstraint(
+        "merchant_id",
+        "correlation_id",
+        "attempt_number",
+        name="uq_journey_reduction_attempt_number",
+    ),
+    CheckConstraint("generation >= 1", name="ck_journey_attempt_generation"),
+    CheckConstraint("attempt_number >= 1", name="ck_journey_attempt_number"),
+    CheckConstraint(
+        "outcome IN ('completed', 'dead_letter')",
+        name="ck_journey_attempt_outcome",
+    ),
+    CheckConstraint(
+        "(outcome = 'completed' AND error_code IS NULL "
+        "AND state_hash ~ '^[0-9a-f]{64}$') OR "
+        "(outcome = 'dead_letter' AND error_code IS NOT NULL AND state_hash IS NULL)",
+        name="ck_journey_attempt_consistent_outcome",
+    ),
+)
+
+journey_reduction_replays = Table(
+    "journey_reduction_replays",
+    metadata,
+    Column("replay_id", Uuid(as_uuid=True), primary_key=True),
+    Column("merchant_id", String(255), nullable=False),
+    Column("correlation_id", String(255), nullable=False),
+    Column("generation", Integer, nullable=False),
+    Column("requested_by", String(255), nullable=False),
+    Column("reason", Text, nullable=False),
+    Column(
+        "requested_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("generation >= 1", name="ck_journey_replay_generation"),
+    CheckConstraint("length(trim(requested_by)) >= 1", name="ck_journey_replay_requested_by"),
+    CheckConstraint("length(trim(reason)) >= 1", name="ck_journey_replay_reason"),
+)

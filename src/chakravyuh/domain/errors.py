@@ -27,3 +27,21 @@ class NormalizationError(ValueError):
 
 class ReplayNotAllowedError(RuntimeError):
     """A normalization item was not in a state that permits audited replay."""
+
+
+class JourneyReductionErrorCode(StrEnum):
+    """Stable reasons why one correlation cannot currently be reduced."""
+
+    JOURNEY_TOO_LARGE = "journey_too_large"
+
+
+class JourneyReductionError(ValueError):
+    """A bounded permanent failure while reducing one correlation."""
+
+    def __init__(self, code: JourneyReductionErrorCode) -> None:
+        self.code = code
+        super().__init__(code.value)
+
+
+class JourneyReductionReplayNotAllowedError(RuntimeError):
+    """A journey reduction was not dead-lettered and cannot be replayed."""

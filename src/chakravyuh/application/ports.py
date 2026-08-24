@@ -13,7 +13,9 @@ from chakravyuh.domain.incidents import Incident
 from chakravyuh.domain.webhooks import RawWebhookEvent
 
 if TYPE_CHECKING:
+    from chakravyuh.application.journey_reduction import JourneyReductionBatchResult
     from chakravyuh.application.normalization import NormalizationBatchResult
+    from chakravyuh.domain.journeys import PaymentJourneyState
 
 
 class Clock(Protocol):
@@ -66,6 +68,42 @@ class NormalizationWorkRepository(Protocol):
         requested_by: str,
         reason: str,
     ) -> UUID: ...
+
+
+class JourneyReducer(Protocol):
+    """Pure, versioned reduction of one complete merchant correlation."""
+
+    version: str
+
+    def reduce(self, events: list[NormalizedEvent]) -> PaymentJourneyState: ...
+
+
+class JourneyReductionRepository(Protocol):
+    """Durably claim and materialize temporal payment journeys."""
+
+    async def process_batch(
+        self,
+        *,
+        reducer: JourneyReducer,
+        worker_id: str,
+        batch_size: int,
+        max_events_per_journey: int,
+    ) -> JourneyReductionBatchResult: ...
+
+    async def request_replay(
+        self,
+        merchant_id: str,
+        correlation_id: str,
+        *,
+        requested_by: str,
+        reason: str,
+    ) -> UUID: ...
+
+    async def get(
+        self,
+        merchant_id: str,
+        correlation_id: str,
+    ) -> PaymentJourneyState | None: ...
 
 
 class DatabaseLifecycle(Protocol):

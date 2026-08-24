@@ -2,9 +2,9 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is being implemented in review-gated phases. Phase 3 adds deterministic Razorpay event
-normalization, a PostgreSQL-backed worker, dead-letter handling, and audited replay. No outbound
-Razorpay call or financial action exists yet.
+The project is being implemented in auditable phases. Phase 4 adds a deterministic temporal reducer,
+immutable journey revisions, audited rebuilds, and an offline synthetic payment-journey generator.
+No outbound Razorpay call or financial action exists yet.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -81,6 +81,35 @@ After deploying reviewed normalizer support, an authorized operator can replay o
 Replay is intentionally a host/database-authorized operation rather than a public HTTP endpoint.
 See [Phase 3 architecture](docs/architecture/phase-3-durable-normalization.md) for the transaction
 and failure guarantees.
+
+## Temporal payment journeys
+
+Every committed normalized event marks its merchant correlation dirty in PostgreSQL. The same worker
+then rebuilds the correlation from its complete immutable history, using event time plus stable
+tie-breakers rather than arrival order. A successful reduction atomically writes:
+
+- one replaceable current state in `state.payment_journey_states`;
+- one immutable, content-hashed revision in `ledger.payment_journey_revisions`;
+- one immutable attempt record; and
+- the completed queue generation.
+
+Generate an offline proof without credentials or network access:
+
+    chakravyuh-simulate --scenario out_of_order_delivery --seed 42
+
+The output includes delivered events, expected payment status, reduced state, and its SHA-256 hash.
+Available scenarios cover success, authorization without capture, capture without order payment,
+failed-then-recovered payment, partial refund, out-of-order delivery, and duplicate delivery.
+
+After a reviewed reducer release or a corrected safety limit, an authorized operator can request a
+rebuild without deleting history:
+
+    chakravyuh-journey-replay merchant-id correlation-id \
+      --requested-by operator@example.com \
+      --reason "Reviewed temporal reducer release deployed"
+
+See [Phase 4 architecture](docs/architecture/phase-4-temporal-journeys.md) for ordering, transaction,
+and replay guarantees.
 
 ## Quality gate
 

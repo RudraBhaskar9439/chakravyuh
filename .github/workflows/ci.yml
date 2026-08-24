@@ -83,4 +83,6 @@ jobs:
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'test "$(id -u)" != "0"'
       - run: docker run --rm chakravyuh-api:test alembic heads
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-worker'
+      - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-simulate'
+      - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-journey-replay'
       - run: docker build --file apps/web/Dockerfile --tag chakravyuh-web:test .

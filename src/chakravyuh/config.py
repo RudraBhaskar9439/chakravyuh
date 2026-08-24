@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     postgres_statement_timeout_ms: int = Field(default=5_000, ge=100, le=60_000)
     postgres_readiness_timeout_seconds: float = Field(default=2, gt=0, le=10)
     worker_batch_size: int = Field(default=50, ge=1, le=500)
+    journey_reduction_batch_size: int = Field(default=50, ge=1, le=500)
+    journey_max_events: int = Field(default=10_000, ge=1, le=100_000)
     worker_poll_interval_seconds: float = Field(default=1, gt=0, le=60)
     worker_error_backoff_seconds: float = Field(default=5, gt=0, le=300)
     redis_dsn: str = "redis://localhost:6379/0"

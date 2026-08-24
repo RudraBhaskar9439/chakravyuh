@@ -35,6 +35,17 @@ class NormalizationOutcome(StrEnum):
     DEAD_LETTER = "dead_letter"
 
 
+class JourneyReductionStatus(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    DEAD_LETTER = "dead_letter"
+
+
+class JourneyReductionOutcome(StrEnum):
+    COMPLETED = "completed"
+    DEAD_LETTER = "dead_letter"
+
+
 class PaymentStatus(StrEnum):
     CREATED = "created"
     AUTHORIZED = "authorized"
@@ -42,6 +53,12 @@ class PaymentStatus(StrEnum):
     PARTIALLY_REFUNDED = "partially_refunded"
     REFUNDED = "refunded"
     FAILED = "failed"
+
+
+class JourneyRelationshipType(StrEnum):
+    PAYMENT_FOR_ORDER = "payment_for_order"
+    REFUND_FOR_PAYMENT = "refund_for_payment"
+    PAYMENT_LINK_FOR_ORDER = "payment_link_for_order"
 
 
 class MerchantOrderStatus(StrEnum):

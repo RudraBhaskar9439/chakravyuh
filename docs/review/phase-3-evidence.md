@@ -1,7 +1,9 @@
 # Phase 3 verification evidence
 
-- Status: implementation complete; awaiting owner review
+- Status: approved
 - Date: 2026-08-24
+
+The owner approved Phase 3 on 2026-08-24 through the explicit instruction to start Phase 4.
 
 ## Quality gate
 
