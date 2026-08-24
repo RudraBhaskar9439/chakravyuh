@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from chakravyuh.application.invariant_evaluation import InvariantEvaluationBatchResult
     from chakravyuh.application.journey_reduction import JourneyReductionBatchResult
     from chakravyuh.application.normalization import NormalizationBatchResult
+    from chakravyuh.domain.diagnoses import DiagnosisReceipt, DiagnosisWorkClaim
+    from chakravyuh.domain.evidence import DiagnosisSeed, EvidenceSubgraph, GraphEvidenceSnapshot
     from chakravyuh.domain.invariants import InvariantEvaluationResult
     from chakravyuh.domain.journeys import PaymentJourneyState
     from chakravyuh.domain.projections import (
@@ -137,6 +139,52 @@ class InvariantEvaluationRepository(Protocol):
         batch_size: int,
         max_events_per_journey: int,
     ) -> InvariantEvaluationBatchResult: ...
+
+
+class GraphEvidenceReader(Protocol):
+    async def snapshot(
+        self,
+        seed: DiagnosisSeed,
+        *,
+        max_facts: int,
+        max_relationships: int,
+    ) -> GraphEvidenceSnapshot: ...
+
+    async def close(self) -> None: ...
+
+
+class EvidenceAssembler(Protocol):
+    async def assemble(self, seed: DiagnosisSeed) -> EvidenceSubgraph: ...
+
+
+class StructuredDiagnostician(Protocol):
+    async def diagnose(self, evidence: EvidenceSubgraph) -> DiagnosisReceipt: ...
+
+    async def close(self) -> None: ...
+
+
+class DiagnosisRepository(Protocol):
+    async def claim_batch(
+        self,
+        *,
+        worker_id: str,
+        batch_size: int,
+        lease_seconds: int,
+    ) -> Sequence[DiagnosisWorkClaim]: ...
+
+    async def load(self, claim: DiagnosisWorkClaim) -> DiagnosisSeed: ...
+
+    async def complete(self, claim: DiagnosisWorkClaim, receipt: DiagnosisReceipt) -> None: ...
+
+    async def fail(
+        self,
+        claim: DiagnosisWorkClaim,
+        *,
+        error_code: str,
+        retryable: bool,
+        max_failures: int,
+        retry_delay_seconds: float,
+    ) -> bool: ...
 
 
 class DatabaseLifecycle(Protocol):

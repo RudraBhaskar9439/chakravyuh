@@ -4,6 +4,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -782,4 +783,167 @@ Index(
     "ix_incident_revisions_incident",
     incident_revisions.c.incident_id,
     incident_revisions.c.recorded_at,
+)
+
+diagnosis_work = Table(
+    "diagnosis_work",
+    metadata,
+    Column(
+        "incident_id",
+        Uuid(as_uuid=True),
+        ForeignKey("state.incidents.incident_id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+    Column(
+        "source_revision_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.incident_revisions.revision_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("target_version", Integer, nullable=False),
+    Column("applied_version", Integer, nullable=False, server_default="0"),
+    Column("status", String(32), nullable=False, server_default="pending"),
+    Column("attempt_count", Integer, nullable=False, server_default="0"),
+    Column("failure_count", Integer, nullable=False, server_default="0"),
+    Column("desired_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("available_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("lease_owner", String(255), nullable=True),
+    Column("lease_expires_at", DateTime(timezone=True), nullable=True),
+    Column("last_error_code", String(64), nullable=True),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("target_version >= 1", name="ck_diagnosis_work_target_version"),
+    CheckConstraint(
+        "applied_version BETWEEN 0 AND target_version",
+        name="ck_diagnosis_work_applied_version",
+    ),
+    CheckConstraint("attempt_count >= 0", name="ck_diagnosis_work_attempt_count"),
+    CheckConstraint("failure_count >= 0", name="ck_diagnosis_work_failure_count"),
+    CheckConstraint(
+        "status IN ('pending', 'processing', 'completed', 'dead_letter')",
+        name="ck_diagnosis_work_status",
+    ),
+    CheckConstraint(
+        "(status = 'pending' AND applied_version < target_version "
+        "AND lease_owner IS NULL AND lease_expires_at IS NULL) OR "
+        "(status = 'processing' AND applied_version < target_version "
+        "AND lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL) OR "
+        "(status = 'completed' AND applied_version = target_version "
+        "AND lease_owner IS NULL AND lease_expires_at IS NULL "
+        "AND last_error_code IS NULL) OR "
+        "(status = 'dead_letter' AND applied_version < target_version "
+        "AND lease_owner IS NULL AND lease_expires_at IS NULL "
+        "AND last_error_code IS NOT NULL)",
+        name="ck_diagnosis_work_consistent_status",
+    ),
+    schema="operations",
+)
+
+Index(
+    "ix_diagnosis_work_claim",
+    diagnosis_work.c.status,
+    diagnosis_work.c.available_at,
+    diagnosis_work.c.desired_at,
+)
+
+diagnoses = Table(
+    "diagnoses",
+    metadata,
+    Column("diagnosis_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "incident_id",
+        Uuid(as_uuid=True),
+        ForeignKey("state.incidents.incident_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column(
+        "source_revision_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.incident_revisions.revision_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("target_version", Integer, nullable=False),
+    Column("model", String(128), nullable=False),
+    Column("provider_interaction_id", String(255), nullable=True),
+    Column("prompt_hash", String(64), nullable=False),
+    Column("subgraph_hash", String(64), nullable=False),
+    Column("disposition", String(32), nullable=False),
+    Column("confidence", Float, nullable=False),
+    Column("guard_reason", String(64), nullable=True),
+    Column("evidence_subgraph", JSONB, nullable=False),
+    Column("result", JSONB, nullable=False),
+    Column("diagnosed_at", DateTime(timezone=True), nullable=False),
+    Column("recorded_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint(
+        "incident_id",
+        "target_version",
+        name="uq_diagnoses_incident_target",
+    ),
+    CheckConstraint("target_version >= 1", name="ck_diagnoses_target_version"),
+    CheckConstraint("prompt_hash ~ '^[0-9a-f]{64}$'", name="ck_diagnoses_prompt_hash"),
+    CheckConstraint("subgraph_hash ~ '^[0-9a-f]{64}$'", name="ck_diagnoses_subgraph_hash"),
+    CheckConstraint("confidence BETWEEN 0 AND 1", name="ck_diagnoses_confidence"),
+    CheckConstraint(
+        "disposition IN ('diagnosed', 'abstained')",
+        name="ck_diagnoses_disposition",
+    ),
+    CheckConstraint(
+        "(disposition = 'diagnosed' AND guard_reason IS NULL) OR disposition = 'abstained'",
+        name="ck_diagnoses_guard_reason",
+    ),
+    CheckConstraint(
+        "jsonb_typeof(evidence_subgraph) = 'object'",
+        name="ck_diagnoses_evidence_object",
+    ),
+    CheckConstraint("jsonb_typeof(result) = 'object'", name="ck_diagnoses_result_object"),
+)
+
+Index("ix_diagnoses_incident_recorded", diagnoses.c.incident_id, diagnoses.c.recorded_at)
+
+diagnosis_attempts = Table(
+    "diagnosis_attempts",
+    metadata,
+    Column("attempt_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "incident_id",
+        Uuid(as_uuid=True),
+        ForeignKey("state.incidents.incident_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column(
+        "source_revision_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.incident_revisions.revision_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("target_version", Integer, nullable=False),
+    Column("attempt_number", Integer, nullable=False),
+    Column("worker_id", String(255), nullable=False),
+    Column("outcome", String(32), nullable=False),
+    Column("error_code", String(64), nullable=True),
+    Column(
+        "diagnosis_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.diagnoses.diagnosis_id", ondelete="RESTRICT"),
+        nullable=True,
+    ),
+    Column("model", String(128), nullable=True),
+    Column("attempted_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint(
+        "incident_id",
+        "attempt_number",
+        name="uq_diagnosis_attempt_number",
+    ),
+    CheckConstraint("target_version >= 1", name="ck_diagnosis_attempt_target_version"),
+    CheckConstraint("attempt_number >= 1", name="ck_diagnosis_attempt_number"),
+    CheckConstraint(
+        "outcome IN ('completed', 'retry', 'dead_letter')",
+        name="ck_diagnosis_attempt_outcome",
+    ),
+    CheckConstraint(
+        "(outcome = 'completed' AND error_code IS NULL "
+        "AND diagnosis_id IS NOT NULL AND model IS NOT NULL) OR "
+        "(outcome IN ('retry', 'dead_letter') AND error_code IS NOT NULL "
+        "AND diagnosis_id IS NULL)",
+        name="ck_diagnosis_attempt_consistent_outcome",
+    ),
 )

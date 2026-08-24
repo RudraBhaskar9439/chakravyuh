@@ -77,6 +77,61 @@ class IncidentRevisionReason(StrEnum):
     REOPENED = "reopened"
 
 
+class DiagnosisWorkStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    DEAD_LETTER = "dead_letter"
+
+
+class DiagnosisAttemptOutcome(StrEnum):
+    COMPLETED = "completed"
+    RETRY = "retry"
+    DEAD_LETTER = "dead_letter"
+
+
+class DiagnosisDisposition(StrEnum):
+    DIAGNOSED = "diagnosed"
+    ABSTAINED = "abstained"
+
+
+class DiagnosisRootCause(StrEnum):
+    ASYNCHRONOUS_STATE_LAG = "asynchronous_state_lag"
+    MERCHANT_STATE_NOT_UPDATED = "merchant_state_not_updated"
+    CAPTURE_NOT_COMPLETED = "capture_not_completed"
+    RECOVERY_WORKFLOW_NOT_CLOSED = "recovery_workflow_not_closed"
+    DUPLICATE_RECOVERY_WORKFLOW = "duplicate_recovery_workflow"
+    PROVIDER_EVENT_REGRESSION = "provider_event_regression"
+    UNKNOWN = "unknown"
+
+
+class DiagnosisAbstentionReason(StrEnum):
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+    CONTRADICTORY_EVIDENCE = "contradictory_evidence"
+    LOW_CONFIDENCE = "low_confidence"
+    INVALID_CITATIONS = "invalid_citations"
+    UNSUPPORTED_ACTION = "unsupported_action"
+    UNSUPPORTED_ROOT_CAUSE = "unsupported_root_cause"
+    UNSUPPORTED_INCIDENT = "unsupported_incident"
+
+
+class EvidenceFactKind(StrEnum):
+    INVARIANT = "invariant"
+    JOURNEY = "journey"
+    ENTITY = "entity"
+    EVENT = "event"
+
+
+class EvidenceRelationshipType(StrEnum):
+    SUPPORTS = "supports"
+    CONTAINS = "contains"
+    HAS_EVENT = "has_event"
+    DESCRIBES = "describes"
+    PAYMENT_FOR_ORDER = "payment_for_order"
+    REFUND_FOR_PAYMENT = "refund_for_payment"
+    PAYMENT_LINK_FOR_ORDER = "payment_link_for_order"
+
+
 class PaymentStatus(StrEnum):
     CREATED = "created"
     AUTHORIZED = "authorized"

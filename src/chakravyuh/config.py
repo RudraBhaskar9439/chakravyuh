@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from chakravyuh.domain.webhooks import MAX_STORED_WEBHOOK_BYTES
@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         env_prefix="CHAKRAVYUH_",
         case_sensitive=False,
         extra="ignore",
+        populate_by_name=True,
     )
 
     environment: Literal["local", "test", "staging", "production"] = "local"
@@ -63,6 +64,19 @@ class Settings(BaseSettings):
     graph_projection_max_failures: int = Field(default=5, ge=1, le=100)
     graph_projection_retry_delay_seconds: float = Field(default=2, ge=0, le=3_600)
     graph_projection_lag_threshold_seconds: float = Field(default=60, gt=0, le=86_400)
+    diagnosis_batch_size: int = Field(default=10, ge=1, le=100)
+    diagnosis_lease_seconds: int = Field(default=60, ge=1, le=3_600)
+    diagnosis_max_failures: int = Field(default=5, ge=1, le=100)
+    diagnosis_retry_delay_seconds: float = Field(default=5, ge=0, le=3_600)
+    diagnosis_max_facts: int = Field(default=128, ge=1, le=1_000)
+    diagnosis_max_relationships: int = Field(default=256, ge=0, le=5_000)
+    diagnosis_minimum_confidence: float = Field(default=0.7, ge=0, le=1)
+    gemini_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GEMINI_API_KEY", "CHAKRAVYUH_GEMINI_API_KEY"),
+    )
+    gemini_model: str = Field(default="gemini-3.5-flash", min_length=1, max_length=128)
+    gemini_timeout_seconds: float = Field(default=30, gt=0, le=120)
 
     razorpay_key_id: str | None = None
     razorpay_key_secret: SecretStr | None = None
@@ -100,6 +114,7 @@ class Settings(BaseSettings):
     @field_validator(
         "razorpay_key_secret",
         "razorpay_webhook_secret",
+        "gemini_api_key",
         mode="before",
     )
     @classmethod

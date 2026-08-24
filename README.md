@@ -2,9 +2,9 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is being implemented in auditable phases. Phase 6 adds deterministic payment invariants,
-scheduled grace windows, an atomic and auditable incident lifecycle, and a held-out labelled fault
-benchmark. No outbound Razorpay call or financial action exists yet.
+The project is being implemented in auditable phases. Phase 7 adds bounded evidence-subgraph
+assembly, schema-constrained Gemini diagnosis, deterministic abstention, and a leased immutable
+diagnosis audit. No outbound Razorpay call or financial action exists yet.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -36,6 +36,7 @@ Run the API and web application in separate terminals:
     make api
     make worker
     make projector
+    make diagnosis-worker
     make web
 
 The API liveness endpoint is http://localhost:8000/health/live. The web application is available at http://localhost:3000.
@@ -158,6 +159,22 @@ append-only; stable incident IDs survive evidence changes, resolution, and recur
 [Phase 6 architecture](docs/architecture/phase-6-invariants-and-incidents.md) for the rule, timing,
 transaction, and audit contract.
 
+## Grounded AI diagnosis
+
+Every non-resolved incident revision now advances an isolated diagnosis queue. The diagnosis worker
+loads the immutable PostgreSQL checkpoint, reads one bounded allowlisted Neo4j subgraph, requires an
+exact generation and state-hash match, and calls Gemini with strict JSON Schema output, disabled
+provider storage, and no tools.
+
+    make diagnosis-worker
+
+The deterministic post-model guard requires real citations including invariant evidence, an
+incident-allowlisted root cause and action, and minimum confidence. Anything unsafe or weak becomes
+an explicit abstention. The model cannot create or resolve incidents and its recommendation cannot
+execute. Receipts, attempts, prompt hashes, evidence hashes, retries, dead letters, and guard
+interventions are immutable audit records. See
+[Phase 7 architecture](docs/architecture/phase-7-grounded-ai-diagnosis.md) for the complete boundary.
+
 ## Quality gate
 
     make check
@@ -183,6 +200,7 @@ migrations before starting the API and worker processes.
     src/chakravyuh/api             HTTP transport
     src/chakravyuh/worker          Asynchronous process entrypoint
     src/chakravyuh/projector_worker Neo4j projection process entrypoint
+    src/chakravyuh/diagnosis_worker Evidence-grounded model diagnosis process entrypoint
     apps/web                       Operator interface
     docs                           Architecture decisions and review evidence
 

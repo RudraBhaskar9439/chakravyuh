@@ -1,0 +1,1 @@
+"""Gemini structured-diagnosis adapter."""

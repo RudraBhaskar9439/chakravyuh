@@ -71,3 +71,28 @@ class InvariantEvaluationError(ValueError):
     def __init__(self, code: InvariantEvaluationErrorCode) -> None:
         self.code = code
         super().__init__(code.value)
+
+
+class DiagnosisErrorCode(StrEnum):
+    INTERNAL = "diagnosis_internal_error"
+    GRAPH_UNAVAILABLE = "diagnosis_graph_unavailable"
+    GRAPH_STALE = "diagnosis_graph_stale"
+    EVIDENCE_TOO_LARGE = "diagnosis_evidence_too_large"
+    EVIDENCE_INCOMPLETE = "diagnosis_evidence_incomplete"
+    MODEL_UNAVAILABLE = "diagnosis_model_unavailable"
+    MODEL_TIMEOUT = "diagnosis_model_timeout"
+    MODEL_INCOMPLETE = "diagnosis_model_incomplete"
+    MODEL_INVALID_RESPONSE = "diagnosis_model_invalid_response"
+
+
+class DiagnosisProcessingError(Exception):
+    """Stable diagnosis failure safe for retry/dead-letter audit."""
+
+    def __init__(self, code: DiagnosisErrorCode, *, retryable: bool) -> None:
+        self.code = code
+        self.retryable = retryable
+        super().__init__(code.value)
+
+
+class DiagnosisLeaseLostError(RuntimeError):
+    """Raised when a diagnosis worker no longer owns its checkpoint lease."""
