@@ -1,6 +1,6 @@
 # Phase 5 verification evidence
 
-- Status: local verification complete; private CI pending implementation push
+- Status: approved under standing owner authorization
 - Date: 2026-08-24
 
 ## Quality gate
@@ -63,7 +63,12 @@ preserving every current-epoch journey, then duplicate completion becomes a no-o
 
 ## Private CI
 
-The implementation commit and exact private GitHub Actions run will be recorded here after the push.
+Implementation commit `3a7aeb9da63e8ce22c40442f29a71aeee0296fc0` passed private GitHub Actions
+run [`32744391727`](https://github.com/RudraBhaskar9439/chakravyuh/actions/runs/32744391727).
+The run passed the private-repository policy, isolated PostgreSQL and Neo4j backend gate, migration
+and schema-drift checks, all frontend gates, non-root image check, installed worker/projector/rebuild
+command checks, and both production container builds. GitHub reported zero open Dependabot alerts
+after the run.
 
 ## Deliberate limitations
 
