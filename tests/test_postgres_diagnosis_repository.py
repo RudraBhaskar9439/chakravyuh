@@ -13,7 +13,13 @@ from sqlalchemy.exc import DBAPIError
 
 from chakravyuh.application.evidence_assembly import AssembleEvidenceSubgraph
 from chakravyuh.application.graph_projection import ProcessGraphProjectionBatch
+from chakravyuh.application.recovery_actions import RecoveryActionControlPlane
 from chakravyuh.config import Settings
+from chakravyuh.domain.action_policy import (
+    DeterministicRecoveryPolicy,
+    RecoveryPolicyConfig,
+)
+from chakravyuh.domain.actions import ProviderPaymentState
 from chakravyuh.domain.diagnoses import (
     DiagnosisDecision,
     DiagnosisReceipt,
@@ -21,6 +27,8 @@ from chakravyuh.domain.diagnoses import (
     guard_diagnosis,
 )
 from chakravyuh.domain.enums import (
+    ActionApprovalDecision,
+    ActionExecutionStatus,
     ActionType,
     DiagnosisDisposition,
     DiagnosisRootCause,
@@ -29,14 +37,24 @@ from chakravyuh.domain.enums import (
     IncidentRevisionReason,
     IncidentStatus,
     InvariantEvaluationOutcome,
+    PaymentStatus,
+    PolicyOutcome,
 )
-from chakravyuh.domain.errors import DiagnosisLeaseLostError
+from chakravyuh.domain.errors import (
+    ActionControlError,
+    ActionControlErrorCode,
+    DiagnosisLeaseLostError,
+)
 from chakravyuh.domain.invariants import DeterministicPaymentInvariantEvaluator, InvariantPolicy
 from chakravyuh.domain.journeys import TemporalPaymentJourneyReducer
+from chakravyuh.domain.money import Money
 from chakravyuh.domain.webhooks import RawWebhookEvent
 from chakravyuh.infrastructure.database import Database
 from chakravyuh.infrastructure.neo4j.evidence_reader import Neo4jEvidenceReader
 from chakravyuh.infrastructure.neo4j.projector import Neo4jPaymentGraphProjector
+from chakravyuh.infrastructure.postgres.action_repository import (
+    PostgresRecoveryActionRepository,
+)
 from chakravyuh.infrastructure.postgres.diagnosis_repository import PostgresDiagnosisRepository
 from chakravyuh.infrastructure.postgres.graph_projection_repository import (
     PostgresGraphProjectionRepository,
@@ -52,6 +70,13 @@ from chakravyuh.infrastructure.postgres.normalization_repository import (
 )
 from chakravyuh.infrastructure.postgres.operator_read_model import PostgresOperatorReadModel
 from chakravyuh.infrastructure.postgres.tables import (
+    action_access_audit,
+    action_approval_decisions,
+    action_execution_claims,
+    action_execution_results,
+    action_mutation_authorizations,
+    action_policy_decisions,
+    action_proposals,
     diagnoses,
     diagnosis_attempts,
     diagnosis_work,
@@ -117,6 +142,68 @@ def _captured_payment(merchant_id: str, order_id: str, payment_id: str) -> RawWe
     )
 
 
+def _authorized_payment(merchant_id: str, order_id: str, payment_id: str) -> RawWebhookEvent:
+    observed_at = datetime.now(UTC)
+    occurred_at = observed_at - timedelta(minutes=20)
+    payload = {
+        "event": "payment.authorized",
+        "payload": {
+            "payment": {
+                "entity": {
+                    "id": payment_id,
+                    "order_id": order_id,
+                    "status": "authorized",
+                    "captured": False,
+                    "amount": 10_000,
+                    "currency": "INR",
+                }
+            }
+        },
+    }
+    return RawWebhookEvent(
+        merchant_id=merchant_id,
+        source=EventSource.RAZORPAY_WEBHOOK,
+        source_event_id=f"event-{uuid4()}",
+        event_type="payment.authorized",
+        account_id="test-account",
+        occurred_at=occurred_at,
+        observed_at=observed_at,
+        payload=payload,
+        raw_body=json.dumps(payload, sort_keys=True).encode(),
+    )
+
+
+class _CaptureGateway:
+    def __init__(self, payment_id: str) -> None:
+        self.payment_id = payment_id
+        self.captured = False
+        self.fetch_count = 0
+        self.capture_count = 0
+
+    async def fetch_payment(self, payment_id: str) -> ProviderPaymentState:
+        assert payment_id == self.payment_id
+        self.fetch_count += 1
+        return self._state()
+
+    async def capture_payment(self, payment_id: str, amount: Money) -> ProviderPaymentState:
+        assert payment_id == self.payment_id
+        assert amount == Money(amount_subunits=10_000, currency="INR")
+        self.capture_count += 1
+        self.captured = True
+        return self._state()
+
+    async def close(self) -> None:
+        return None
+
+    def _state(self) -> ProviderPaymentState:
+        return ProviderPaymentState(
+            payment_id=self.payment_id,
+            status=PaymentStatus.CAPTURED if self.captured else PaymentStatus.AUTHORIZED,
+            amount=Money(amount_subunits=10_000, currency="INR"),
+            captured=self.captured,
+        )
+
+
 async def _prepare_incident(
     database: Database,
     projector: Neo4jPaymentGraphProjector,
@@ -124,9 +211,10 @@ async def _prepare_incident(
     merchant_id: str,
     order_id: str,
     payment_id: str,
+    raw_event: RawWebhookEvent | None = None,
 ) -> UUID:
     assert await PostgresWebhookEventStore(database).append(
-        _captured_payment(merchant_id, order_id, payment_id)
+        raw_event or _captured_payment(merchant_id, order_id, payment_id)
     )
     normalizer = PostgresNormalizationRepository(database)
     while (
@@ -184,6 +272,12 @@ async def _prepare_incident(
             )
         )
     assert isinstance(incident_id, UUID)
+    async with database.transaction() as session:
+        await session.execute(
+            update(diagnosis_work)
+            .where(diagnosis_work.c.incident_id == incident_id)
+            .values(desired_at=func.now() - timedelta(days=1))
+        )
     return incident_id
 
 
@@ -482,6 +576,186 @@ async def test_bounded_graph_is_checkpointed_with_append_only_grounded_receipt()
         assert resolved_work["status"] == DiagnosisWorkStatus.COMPLETED.value
         assert resolved_work["applied_version"] == resolved_work["target_version"]
         assert resolved_work["source_revision_id"] == resolution_revision_id
+    finally:
+        await reader.close()
+        await projector.close()
+        await database.close()
+
+
+async def test_action_chain_is_dual_control_idempotent_and_append_only() -> None:
+    settings = _settings()
+    database = Database(settings)
+    projector = Neo4jPaymentGraphProjector(settings)
+    reader = Neo4jEvidenceReader(settings)
+    merchant_id = f"merchant-{uuid4()}"
+    order_id = f"order_{uuid4().hex}"
+    payment_id = f"pay_{uuid4().hex}"
+    try:
+        await projector.initialize_schema()
+        incident_id = await _prepare_incident(
+            database,
+            projector,
+            merchant_id=merchant_id,
+            order_id=order_id,
+            payment_id=payment_id,
+            raw_event=_authorized_payment(merchant_id, order_id, payment_id),
+        )
+        diagnosis_repository = PostgresDiagnosisRepository(database)
+        claim = await _claim_incident(
+            diagnosis_repository,
+            incident_id,
+            worker_id="action-proof-diagnostician",
+        )
+        seed = await diagnosis_repository.load(claim)
+        evidence = await AssembleEvidenceSubgraph(
+            reader,
+            max_facts=128,
+            max_relationships=256,
+        ).assemble(seed)
+        cited = next(fact.evidence_id for fact in evidence.facts if fact.kind == "invariant")
+        decision = DiagnosisDecision(
+            disposition=DiagnosisDisposition.DIAGNOSED,
+            summary="The exact payment authorization remains open beyond the capture window.",
+            root_cause=DiagnosisRootCause.CAPTURE_NOT_COMPLETED,
+            confidence=0.97,
+            cited_evidence_ids=(cited,),
+            recommended_action=ActionType.CAPTURE_PAYMENT,
+        )
+        prompt, prompt_hash = diagnosis_prompt(evidence)
+        assert prompt
+        await diagnosis_repository.complete(
+            claim,
+            DiagnosisReceipt(
+                model="gemini-action-fixture",
+                provider_interaction_id="interaction-action-fixture",
+                prompt_hash=prompt_hash,
+                evidence_subgraph=evidence,
+                diagnosis=guard_diagnosis(evidence, decision, minimum_confidence=0.7),
+                diagnosed_at=datetime.now(UTC),
+            ),
+        )
+
+        gateway = _CaptureGateway(payment_id)
+        action_repository = PostgresRecoveryActionRepository(database)
+        control = RecoveryActionControlPlane(
+            action_repository,
+            DeterministicRecoveryPolicy(
+                RecoveryPolicyConfig(
+                    actions_enabled=True,
+                    test_credentials=True,
+                    merchant_id=merchant_id,
+                    maximum_capture_subunits=20_000,
+                    minimum_capture_confidence=0.9,
+                )
+            ),
+            gateway,
+            proposal_ttl_seconds=900,
+            execution_lease_seconds=30,
+        )
+        proposal = await control.propose(
+            incident_id,
+            principal_id="maker",
+            request_id="proposal-proof",
+        )
+        repeated = await control.propose(
+            incident_id,
+            principal_id="maker",
+            request_id="proposal-retry-proof",
+        )
+        assert repeated.proposal.proposal_id == proposal.proposal.proposal_id
+        assert proposal.policy.outcome is PolicyOutcome.REQUIRE_APPROVAL
+        assert proposal.proposal.amount == Money(amount_subunits=10_000, currency="INR")
+
+        history = await control.list_for_incident(
+            incident_id,
+            principal_id="auditor",
+            request_id="history-proof",
+        )
+        assert len(history) == 1
+
+        with pytest.raises(ActionControlError) as maker_decision:
+            await control.decide(
+                proposal.proposal.proposal_id,
+                principal_id="maker",
+                request_id="maker-approval-proof",
+                decision=ActionApprovalDecision.APPROVED,
+                rationale="I cannot approve my own request.",
+            )
+        assert maker_decision.value.code is ActionControlErrorCode.MAKER_CHECKER_VIOLATION
+
+        approved = await control.decide(
+            proposal.proposal.proposal_id,
+            principal_id="checker",
+            request_id="checker-approval-proof",
+            decision=ActionApprovalDecision.APPROVED,
+            rationale=(
+                "Payment identity, amount, currency, and evidence were independently checked."
+            ),
+        )
+        assert len(approved.approvals) == 1
+        executed = await control.execute(
+            proposal.proposal.proposal_id,
+            principal_id="checker",
+            request_id="execution-proof",
+        )
+        assert executed.execution_status is ActionExecutionStatus.SUCCEEDED
+        assert executed.latest_result is not None
+        assert executed.latest_result.provider_state is not None
+        assert executed.latest_result.provider_state.status is PaymentStatus.CAPTURED
+        assert gateway.fetch_count == gateway.capture_count == 1
+
+        idempotent = await control.execute(
+            proposal.proposal.proposal_id,
+            principal_id="checker",
+            request_id="execution-retry-proof",
+        )
+        assert idempotent.latest_result == executed.latest_result
+        assert gateway.fetch_count == gateway.capture_count == 1
+
+        async with database.session_factory() as session:
+            counts = {
+                "proposals": await session.scalar(
+                    select(func.count()).select_from(action_proposals)
+                ),
+                "policies": await session.scalar(
+                    select(func.count()).select_from(action_policy_decisions)
+                ),
+                "approvals": await session.scalar(
+                    select(func.count()).select_from(action_approval_decisions)
+                ),
+                "claims": await session.scalar(
+                    select(func.count()).select_from(action_execution_claims)
+                ),
+                "mutations": await session.scalar(
+                    select(func.count()).select_from(action_mutation_authorizations)
+                ),
+                "results": await session.scalar(
+                    select(func.count()).select_from(action_execution_results)
+                ),
+                "audits": await session.scalar(
+                    select(func.count())
+                    .select_from(action_access_audit)
+                    .where(action_access_audit.c.resource_id.is_not(None))
+                ),
+            }
+        assert all((count or 0) >= 1 for count in counts.values())
+
+        with pytest.raises(DBAPIError, match="append-only"):
+            async with database.transaction() as session:
+                await session.execute(
+                    update(action_proposals)
+                    .where(action_proposals.c.proposal_id == proposal.proposal.proposal_id)
+                    .values(rationale="tampered")
+                )
+        with pytest.raises(DBAPIError, match="append-only"):
+            async with database.transaction() as session:
+                await session.execute(
+                    text(
+                        "DELETE FROM ledger.action_execution_results "
+                        "WHERE proposal_id = :proposal_id"
+                    ),
+                    {"proposal_id": proposal.proposal.proposal_id},
+                )
     finally:
         await reader.close()
         await projector.close()

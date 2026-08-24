@@ -163,18 +163,56 @@ const incidentDetail = {
   },
 };
 
+const actionView = {
+  proposal: {
+    proposal_id: "77777777-7777-4777-8777-777777777777",
+    incident_id: incidentSummary.incident_id,
+    source_revision_id: "44444444-4444-4444-8444-444444444444",
+    diagnosis_id: "55555555-5555-4555-8555-555555555555",
+    merchant_id: incidentSummary.merchant_id,
+    incident_type: "authorized_not_captured",
+    action_type: "capture_payment",
+    risk: "money_movement",
+    target: incidentSummary.affected_entity,
+    amount: incidentSummary.amount_at_risk,
+    rationale: "Capture the exact verified authorization.",
+    evidence_ids: ["event:payment.captured"],
+    confidence: 0.96,
+    idempotency_key: "f".repeat(64),
+    proposal_hash: "a".repeat(64),
+    proposed_by: "maker",
+    request_id: "proposal-request",
+    proposed_at: "2026-08-24T12:07:00Z",
+    expires_at: "2026-08-24T12:22:00Z",
+  },
+  policy: {
+    decision_id: "88888888-8888-4888-8888-888888888888",
+    proposal_id: "77777777-7777-4777-8777-777777777777",
+    outcome: "require_approval",
+    policy_version: "recovery-policy-v1",
+    reasons: [],
+    input_hash: "b".repeat(64),
+    decided_at: "2026-08-24T12:07:00Z",
+  },
+  approvals: [],
+  execution_status: "ready",
+  latest_result: null,
+  stale: false,
+  expired: false,
+};
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
 describe("operator console", () => {
-  it("states the read-only boundary before accepting a session token", () => {
+  it("states the Test Mode policy boundary before accepting a session token", () => {
     render(<Home />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Chakravyuh" })).toBeInTheDocument();
-    expect(screen.getByText("Phase 8 · Operator control plane")).toBeInTheDocument();
-    expect(screen.getByText(/read-only by design/i)).toBeInTheDocument();
+    expect(screen.getByText("Phase 9 · Guarded recovery control plane")).toBeInTheDocument();
+    expect(screen.getByText(/policy-approved Razorpay Test Mode/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Operator access token")).toHaveAttribute("type", "password");
     expect(screen.getByText(/token stays in memory/i)).toBeInTheDocument();
   });
@@ -196,6 +234,9 @@ describe("operator console", () => {
       if (url.includes("/v1/operator/incidents?")) {
         return jsonResponse({ items: [incidentSummary], next_cursor: "next-page" });
       }
+      if (url.endsWith(`/v1/operator/incidents/${incidentSummary.incident_id}/actions`)) {
+        return jsonResponse([]);
+      }
       if (url.endsWith(`/v1/operator/incidents/${incidentSummary.incident_id}`)) {
         return jsonResponse(incidentDetail);
       }
@@ -216,16 +257,14 @@ describe("operator console", () => {
       screen.getByRole("img", { name: "Connected payment evidence graph" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Subgraph SHA-256/)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Request approval · policy gate required" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Evaluate deterministic policy" })).toBeEnabled();
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
 
     fireEvent.click(screen.getByRole("button", { name: "Load more incidents" }));
     expect(await screen.findByText(/pay_next/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Load more incidents" })).not.toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
 
     for (const [, options] of fetchMock.mock.calls) {
       expect(options).toEqual(
@@ -240,6 +279,90 @@ describe("operator console", () => {
     fireEvent.click(screen.getByRole("button", { name: "End session" }));
     expect(screen.getByRole("button", { name: "Open operator console" })).toBeInTheDocument();
     expect(screen.getByLabelText("Operator access token")).toHaveValue("");
+  });
+
+  it("renders maker-checker approval and an exact Test Mode execution receipt", async () => {
+    const approved = {
+      ...actionView,
+      approvals: [
+        {
+          approval_id: "99999999-9999-4999-8999-999999999999",
+          proposal_id: actionView.proposal.proposal_id,
+          principal_id: "checker",
+          request_id: "approval-request",
+          decision: "approved",
+          rationale: "Evidence and exact amount independently verified.",
+          decided_at: "2026-08-24T12:08:00Z",
+        },
+      ],
+    };
+    const executed = {
+      ...approved,
+      execution_status: "succeeded",
+      latest_result: {
+        execution_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        proposal_id: actionView.proposal.proposal_id,
+        outcome: "succeeded",
+        error_code: null,
+        provider_state: {
+          payment_id: "pay_demo",
+          status: "captured",
+          amount: incidentSummary.amount_at_risk,
+          captured: true,
+          order_id: "order_demo",
+        },
+        already_applied: false,
+        completed_at: "2026-08-24T12:09:00Z",
+        result_hash: "c".repeat(64),
+      },
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, options) => {
+      const url = String(input);
+      if (url.endsWith("/v1/operator/overview")) {
+        return jsonResponse({
+          status_counts: { detected: 1 },
+          total_at_risk_subunits: { INR: 125000 },
+          awaiting_diagnosis_count: 0,
+          diagnosis_dead_letter_count: 0,
+        });
+      }
+      if (url.includes("/v1/operator/incidents?")) {
+        return jsonResponse({ items: [incidentSummary], next_cursor: null });
+      }
+      if (url.endsWith(`/v1/operator/incidents/${incidentSummary.incident_id}/actions`)) {
+        return jsonResponse([actionView]);
+      }
+      if (url.endsWith(`/v1/operator/incidents/${incidentSummary.incident_id}`)) {
+        return jsonResponse(incidentDetail);
+      }
+      if (url.endsWith(`/v1/operator/actions/${actionView.proposal.proposal_id}/decisions`)) {
+        expect(options?.method).toBe("POST");
+        expect(JSON.parse(String(options?.body))).toEqual(
+          expect.objectContaining({ decision: "approved" }),
+        );
+        return jsonResponse(approved);
+      }
+      if (url.endsWith(`/v1/operator/actions/${actionView.proposal.proposal_id}/execute`)) {
+        expect(options?.method).toBe("POST");
+        return jsonResponse(executed);
+      }
+      return jsonResponse({ detail: "not found" }, 404);
+    });
+
+    render(<Home />);
+    fireEvent.change(screen.getByLabelText("Operator access token"), {
+      target: { value: "checker-secret" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Open operator console" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approve as independent checker" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Execute bounded Test Mode action" }),
+    );
+
+    expect(await screen.findByText("Captured · ₹1,250")).toBeInTheDocument();
+    expect(screen.getAllByText(/^Succeeded$/)).toHaveLength(2);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(6));
   });
 });
 

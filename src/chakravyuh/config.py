@@ -79,6 +79,13 @@ class Settings(BaseSettings):
     gemini_timeout_seconds: float = Field(default=30, gt=0, le=120)
     operator_token_hashes: dict[str, str] = Field(default_factory=dict)
 
+    razorpay_actions_enabled: bool = False
+    action_proposal_ttl_seconds: int = Field(default=900, ge=60, le=3_600)
+    action_execution_lease_seconds: int = Field(default=30, ge=5, le=300)
+    action_max_capture_subunits: int = Field(default=1_000_000, ge=1, le=100_000_000)
+    action_minimum_capture_confidence: float = Field(default=0.9, ge=0, le=1)
+    razorpay_action_timeout_seconds: float = Field(default=10, gt=0, le=30)
+
     razorpay_key_id: str | None = None
     razorpay_key_secret: SecretStr | None = None
     razorpay_merchant_id: str | None = None
@@ -148,6 +155,17 @@ class Settings(BaseSettings):
         if len(self.operator_token_hashes) != len(set(self.operator_token_hashes.values())):
             msg = "operator token hashes must be unique"
             raise ValueError(msg)
+        if self.razorpay_actions_enabled:
+            if (
+                self.razorpay_key_id is None
+                or self.razorpay_key_secret is None
+                or self.razorpay_merchant_id is None
+            ):
+                msg = "Razorpay actions require a key ID, key secret, and merchant ID"
+                raise ValueError(msg)
+            if not self.razorpay_key_id.startswith("rzp_test_"):
+                msg = "Razorpay actions accept Test Mode credentials only"
+                raise ValueError(msg)
         return self
 
     @property
@@ -162,6 +180,16 @@ class Settings(BaseSettings):
         return (
             self.razorpay_webhook_secret.get_secret_value(),
             *(secret.get_secret_value() for secret in self.razorpay_previous_webhook_secrets),
+        )
+
+    @property
+    def razorpay_test_actions_configured(self) -> bool:
+        return bool(
+            self.razorpay_actions_enabled
+            and self.razorpay_key_id is not None
+            and self.razorpay_key_id.startswith("rzp_test_")
+            and self.razorpay_key_secret is not None
+            and self.razorpay_merchant_id is not None
         )
 
 

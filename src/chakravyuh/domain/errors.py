@@ -96,3 +96,40 @@ class DiagnosisProcessingError(Exception):
 
 class DiagnosisLeaseLostError(RuntimeError):
     """Raised when a diagnosis worker no longer owns its checkpoint lease."""
+
+
+class ActionControlErrorCode(StrEnum):
+    NOT_FOUND = "action_resource_not_found"
+    DIAGNOSIS_REQUIRED = "action_diagnosis_required"
+    DIAGNOSIS_ABSTAINED = "action_diagnosis_abstained"
+    STALE = "action_proposal_stale"
+    EXPIRED = "action_proposal_expired"
+    POLICY_DENIED = "action_policy_denied"
+    APPROVAL_REQUIRED = "action_approval_required"
+    MAKER_CHECKER_VIOLATION = "action_maker_checker_violation"
+    REJECTED = "action_rejected"
+    EXECUTION_IN_PROGRESS = "action_execution_in_progress"
+    EXECUTION_TERMINAL = "action_execution_terminal"
+    LEASE_LOST = "action_execution_lease_lost"
+    PROVIDER_UNAVAILABLE = "action_provider_unavailable"
+    PROVIDER_INVALID_RESPONSE = "action_provider_invalid_response"
+    PROVIDER_REJECTED = "action_provider_rejected"
+    AUTHORITATIVE_STATE_CHANGED = "action_authoritative_state_changed"
+
+
+class ActionControlError(RuntimeError):
+    """Stable, secret-free failure returned by the action control plane."""
+
+    def __init__(self, code: ActionControlErrorCode, *, retryable: bool = False) -> None:
+        self.code = code
+        self.retryable = retryable
+        super().__init__(code.value)
+
+
+class RazorpayActionError(RuntimeError):
+    """Sanitized provider failure with no response payload or credential material."""
+
+    def __init__(self, code: ActionControlErrorCode, *, retryable: bool) -> None:
+        self.code = code
+        self.retryable = retryable
+        super().__init__(code.value)

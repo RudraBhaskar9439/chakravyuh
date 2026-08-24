@@ -16,10 +16,19 @@ if TYPE_CHECKING:
     from chakravyuh.application.invariant_evaluation import InvariantEvaluationBatchResult
     from chakravyuh.application.journey_reduction import JourneyReductionBatchResult
     from chakravyuh.application.normalization import NormalizationBatchResult
+    from chakravyuh.domain.actions import (
+        ActionExecutionClaim,
+        ActionExecutionResult,
+        ActionProposalSeed,
+        ActionView,
+        ProviderPaymentState,
+    )
     from chakravyuh.domain.diagnoses import DiagnosisReceipt, DiagnosisWorkClaim
+    from chakravyuh.domain.enums import ActionApprovalDecision
     from chakravyuh.domain.evidence import DiagnosisSeed, EvidenceSubgraph, GraphEvidenceSnapshot
     from chakravyuh.domain.invariants import InvariantEvaluationResult
     from chakravyuh.domain.journeys import PaymentJourneyState
+    from chakravyuh.domain.money import Money
     from chakravyuh.domain.operators import IncidentDetail, IncidentOverview, IncidentPage
     from chakravyuh.domain.projections import (
         GraphProjectionInput,
@@ -223,7 +232,109 @@ class IncidentRepository(Protocol):
 
 
 class PolicyEngine(Protocol):
-    async def evaluate(self, proposal: ActionProposal) -> PolicyDecision: ...
+    def evaluate(self, proposal: ActionProposal) -> PolicyDecision: ...
+
+
+class RecoveryActionRepository(Protocol):
+    async def load_seed(
+        self,
+        incident_id: UUID,
+        *,
+        principal_id: str,
+        request_id: str,
+    ) -> ActionProposalSeed | None: ...
+
+    async def create_proposal(
+        self,
+        proposal: ActionProposal,
+        policy: PolicyDecision,
+        *,
+        principal_id: str,
+        request_id: str,
+    ) -> ActionView: ...
+
+    async def list_for_incident(
+        self,
+        incident_id: UUID,
+        *,
+        principal_id: str,
+        request_id: str,
+    ) -> Sequence[ActionView]: ...
+
+    async def decide(
+        self,
+        proposal_id: UUID,
+        *,
+        principal_id: str,
+        request_id: str,
+        decision: ActionApprovalDecision,
+        rationale: str,
+    ) -> ActionView: ...
+
+    async def claim_execution(
+        self,
+        proposal_id: UUID,
+        *,
+        principal_id: str,
+        request_id: str,
+        lease_seconds: int,
+    ) -> ActionExecutionClaim | ActionView: ...
+
+    async def mark_mutation_started(self, claim: ActionExecutionClaim) -> None: ...
+
+    async def complete_execution(
+        self,
+        claim: ActionExecutionClaim,
+        result: ActionExecutionResult,
+    ) -> ActionView: ...
+
+
+class RazorpayPaymentGateway(Protocol):
+    async def fetch_payment(self, payment_id: str) -> ProviderPaymentState: ...
+
+    async def capture_payment(
+        self,
+        payment_id: str,
+        amount: Money,
+    ) -> ProviderPaymentState: ...
+
+    async def close(self) -> None: ...
+
+
+class ActionControlPlane(Protocol):
+    async def propose(
+        self,
+        incident_id: UUID,
+        *,
+        principal_id: str,
+        request_id: str,
+    ) -> ActionView: ...
+
+    async def list_for_incident(
+        self,
+        incident_id: UUID,
+        *,
+        principal_id: str,
+        request_id: str,
+    ) -> Sequence[ActionView]: ...
+
+    async def decide(
+        self,
+        proposal_id: UUID,
+        *,
+        principal_id: str,
+        request_id: str,
+        decision: ActionApprovalDecision,
+        rationale: str,
+    ) -> ActionView: ...
+
+    async def execute(
+        self,
+        proposal_id: UUID,
+        *,
+        principal_id: str,
+        request_id: str,
+    ) -> ActionView: ...
 
 
 class GraphProjector(Protocol):

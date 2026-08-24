@@ -1,7 +1,7 @@
 """Configuration safety tests."""
 
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
 from chakravyuh.config import Settings, get_settings
 
@@ -67,3 +67,38 @@ def test_operator_token_hashes_require_bounded_principals_and_unique_sha256() ->
         Settings(operator_token_hashes={"operator": "not-a-hash"})
     with pytest.raises(ValidationError, match="must be unique"):
         Settings(operator_token_hashes={"first": valid_hash, "second": valid_hash})
+
+
+def test_outbound_actions_fail_closed_and_accept_test_mode_only() -> None:
+    with pytest.raises(ValidationError, match="require a key ID"):
+        Settings(
+            razorpay_actions_enabled=True,
+            razorpay_key_id=None,
+            razorpay_key_secret=None,
+            razorpay_merchant_id=None,
+        )
+    with pytest.raises(ValidationError, match="Test Mode credentials only"):
+        Settings(
+            razorpay_actions_enabled=True,
+            razorpay_key_id="rzp_live_forbidden",
+            razorpay_key_secret=SecretStr("secret"),
+            razorpay_merchant_id="merchant-test",
+        )
+
+    configured = Settings(
+        razorpay_actions_enabled=True,
+        razorpay_key_id="rzp_test_allowed",
+        razorpay_key_secret=SecretStr("secret"),
+        razorpay_merchant_id="merchant-test",
+    )
+    assert configured.razorpay_test_actions_configured
+
+
+def test_test_credentials_do_not_enable_actions_without_explicit_kill_switch() -> None:
+    settings = Settings(
+        razorpay_key_id="rzp_test_dormant",
+        razorpay_key_secret=SecretStr("secret"),
+        razorpay_merchant_id="merchant-test",
+    )
+
+    assert not settings.razorpay_test_actions_configured

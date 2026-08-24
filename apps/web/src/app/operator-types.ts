@@ -139,3 +139,75 @@ export type IncidentOverview = {
   awaiting_diagnosis_count: number;
   diagnosis_dead_letter_count: number;
 };
+
+export type ProviderPaymentState = {
+  payment_id: string;
+  status: string;
+  amount: Money;
+  captured: boolean;
+  order_id: string | null;
+};
+
+export type ActionProposal = {
+  proposal_id: string;
+  incident_id: string;
+  source_revision_id: string;
+  diagnosis_id: string;
+  merchant_id: string;
+  incident_type: string;
+  action_type: string;
+  risk: "read_only" | "reversible" | "money_movement";
+  target: EntityReference;
+  amount: Money | null;
+  rationale: string;
+  evidence_ids: string[];
+  confidence: number;
+  idempotency_key: string;
+  proposal_hash: string;
+  proposed_by: string;
+  request_id: string;
+  proposed_at: string;
+  expires_at: string;
+};
+
+export type ActionView = {
+  proposal: ActionProposal;
+  policy: {
+    decision_id: string;
+    proposal_id: string;
+    outcome: "allow" | "require_approval" | "deny";
+    policy_version: string;
+    reasons: string[];
+    input_hash: string;
+    decided_at: string;
+  };
+  approvals: Array<{
+    approval_id: string;
+    proposal_id: string;
+    principal_id: string;
+    request_id: string;
+    decision: "approved" | "rejected";
+    rationale: string;
+    decided_at: string;
+  }>;
+  execution_status:
+    | "ready"
+    | "processing"
+    | "retryable"
+    | "succeeded"
+    | "blocked"
+    | "uncertain"
+    | null;
+  latest_result: {
+    execution_id: string;
+    proposal_id: string;
+    outcome: "succeeded" | "retryable" | "blocked" | "uncertain";
+    error_code: string | null;
+    provider_state: ProviderPaymentState | null;
+    already_applied: boolean;
+    completed_at: string;
+    result_hash: string;
+  } | null;
+  stale: boolean;
+  expired: boolean;
+};

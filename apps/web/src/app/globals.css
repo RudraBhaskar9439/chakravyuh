@@ -398,12 +398,109 @@ input:focus-visible {
 }
 .diagnosisCard button {
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   margin-top: 18px;
+  border-color: var(--gold);
+  background: var(--gold);
+  color: #171006;
+  cursor: pointer;
+}
+.diagnosisCard button:disabled {
   border-color: var(--border-bright);
   background: transparent;
   color: #7b7468;
   cursor: not-allowed;
+}
+.actionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.actionState {
+  padding: 4px 7px;
+  border: 1px solid var(--border-bright);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.actionState-succeeded,
+.actionState-allow {
+  border-color: var(--healthy);
+  color: var(--healthy);
+}
+.actionState-uncertain,
+.actionState-blocked,
+.actionState-deny {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.policyReasons,
+.proposalMeta,
+.approvalControls > p {
+  font-size: 0.68rem;
+}
+.approvalControls {
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: rgb(230 170 76 / 4%);
+}
+.approvalControls > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.approvalControls > div {
+  display: grid;
+  grid-template-columns: 1fr 0.65fr;
+  gap: 8px;
+}
+.approvalControls button {
+  margin-top: 12px;
+  padding: 0 8px;
+  font-size: 0.68rem;
+}
+.approvalControls .rejectAction {
+  border-color: var(--border-bright);
+  background: transparent;
+  color: var(--danger);
+}
+.actionReceipt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px;
+  margin-top: 16px;
+  padding: 12px;
+  border-left: 2px solid var(--healthy);
+  background: rgb(98 208 155 / 6%);
+}
+.actionReceipt strong,
+.actionReceipt small {
+  display: block;
+}
+.actionReceipt strong {
+  font-size: 0.72rem;
+}
+.actionReceipt small {
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+.actionReceipt code {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.6rem;
+}
+.proposalMeta {
+  margin: 14px 0 0;
+  color: #746e63;
+}
+.proposalMeta code {
+  color: var(--muted);
 }
 .confidence {
   margin-top: 25px;
@@ -658,18 +755,27 @@ input:focus-visible {
     width: min(100% - 18px, 1540px);
   }
   .topbar {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
     gap: 12px;
     padding: 14px 0;
   }
   .topbarActions {
+    width: 100%;
+    min-height: 44px;
+    justify-content: space-between;
     gap: 10px;
+  }
+  .endSession,
+  .loadMore,
+  .evidenceChip {
+    min-height: 44px;
   }
   .readOnlyBadge {
     font-size: 0;
   }
   .readOnlyBadge::after {
-    content: "Read-only";
+    content: "Test Mode";
     font-size: 0.7rem;
   }
   .overview,
@@ -681,6 +787,9 @@ input:focus-visible {
   }
   .incidentHeader {
     flex-direction: column;
+  }
+  .approvalControls > div {
+    grid-template-columns: 1fr;
   }
 }
 

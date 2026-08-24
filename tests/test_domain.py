@@ -1,12 +1,12 @@
 """Domain contract tests."""
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
 
-from chakravyuh.domain.actions import ActionProposal, PolicyDecision
+from chakravyuh.domain.actions import ActionProposal, PolicyDecision, create_action_proposal
 from chakravyuh.domain.enums import (
     ActionRisk,
     ActionType,
@@ -20,8 +20,56 @@ from chakravyuh.domain.incidents import Incident, IncidentEvidence
 from chakravyuh.domain.money import Money
 
 
+class _DefaultAmount:
+    pass
+
+
+_DEFAULT_AMOUNT = _DefaultAmount()
+
+
 def payment_ref(payment_id: str = "pay_test") -> EntityReference:
     return EntityReference(entity_type=EntityType.PAYMENT, entity_id=payment_id)
+
+
+def _proposal(
+    *,
+    incident_id: UUID | None = None,
+    action_type: ActionType = ActionType.CAPTURE_PAYMENT,
+    risk: ActionRisk = ActionRisk.MONEY_MOVEMENT,
+    target: EntityReference | None = None,
+    amount: Money | _DefaultAmount | None = _DEFAULT_AMOUNT,
+    rationale: str = "Capture the exact verified authorization.",
+    evidence_ids: tuple[str, ...] = ("evidence-1",),
+    confidence: float = 0.98,
+) -> ActionProposal:
+    now = datetime.now(UTC)
+    resolved_amount = (
+        Money(amount_subunits=1_000, currency="INR")
+        if amount is _DEFAULT_AMOUNT
+        else amount
+        if isinstance(amount, Money)
+        else None
+    )
+    return create_action_proposal(
+        proposal_id=uuid4(),
+        incident_id=incident_id or uuid4(),
+        source_revision_id=uuid4(),
+        diagnosis_id=uuid4(),
+        merchant_id="merchant-1",
+        incident_type=IncidentType.AUTHORIZED_NOT_CAPTURED,
+        action_type=action_type,
+        risk=risk,
+        target=target or payment_ref(),
+        amount=resolved_amount,
+        rationale=rationale,
+        evidence_ids=evidence_ids,
+        confidence=confidence,
+        idempotency_key="a" * 64,
+        proposed_by="maker",
+        request_id="request-1",
+        proposed_at=now,
+        expires_at=now + timedelta(minutes=15),
+    )
 
 
 def test_money_normalizes_currency_and_adds_exactly() -> None:
@@ -93,9 +141,8 @@ def test_incident_action_and_policy_form_audit_chain() -> None:
         amount_at_risk=Money(amount_subunits=50_000, currency="INR"),
         evidence=(evidence,),
     )
-    proposal = ActionProposal(
+    proposal = _proposal(
         incident_id=incident.incident_id,
-        merchant_id=incident.merchant_id,
         action_type=ActionType.REPLAY_MERCHANT_EVENT,
         risk=ActionRisk.REVERSIBLE,
         target=payment_ref(),
@@ -103,13 +150,13 @@ def test_incident_action_and_policy_form_audit_chain() -> None:
         rationale="Reapply the verified captured event to the merchant order.",
         evidence_ids=(evidence.evidence_id,),
         confidence=0.98,
-        idempotency_key=f"replay:{incident.incident_id}",
     )
     decision = PolicyDecision(
         proposal_id=proposal.proposal_id,
         outcome=PolicyOutcome.ALLOW,
         policy_version="phase-1",
         reasons=("Verified provider state",),
+        input_hash="b" * 64,
     )
 
     assert proposal.incident_id == incident.incident_id
@@ -119,13 +166,4 @@ def test_incident_action_and_policy_form_audit_chain() -> None:
 
 def test_action_confidence_is_bounded() -> None:
     with pytest.raises(ValidationError):
-        ActionProposal(
-            incident_id=uuid4(),
-            merchant_id="merchant-1",
-            action_type=ActionType.CAPTURE_PAYMENT,
-            risk=ActionRisk.MONEY_MOVEMENT,
-            target=payment_ref(),
-            rationale="Invalid confidence",
-            confidence=1.1,
-            idempotency_key="capture:payment-1",
-        )
+        _proposal(confidence=1.1)

@@ -1,6 +1,8 @@
 """SQLAlchemy table metadata mirrored by reviewed Alembic migrations."""
 
 from sqlalchemy import (
+    BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -986,4 +988,263 @@ Index(
     "ix_operator_read_audit_principal_time",
     operator_read_audit.c.principal_id,
     operator_read_audit.c.recorded_at,
+)
+
+action_proposals = Table(
+    "action_proposals",
+    metadata,
+    Column("proposal_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "incident_id",
+        Uuid(as_uuid=True),
+        ForeignKey("state.incidents.incident_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column(
+        "source_revision_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.incident_revisions.revision_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column(
+        "diagnosis_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.diagnoses.diagnosis_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("merchant_id", String(255), nullable=False),
+    Column("incident_type", String(64), nullable=False),
+    Column("action_type", String(64), nullable=False),
+    Column("risk", String(32), nullable=False),
+    Column("target_type", String(64), nullable=False),
+    Column("target_id", String(255), nullable=False),
+    Column("amount_subunits", BigInteger, nullable=True),
+    Column("currency", String(3), nullable=True),
+    Column("rationale", String(2000), nullable=False),
+    Column("evidence_ids", JSONB, nullable=False),
+    Column("confidence", Float, nullable=False),
+    Column("idempotency_key", String(64), nullable=False),
+    Column("proposal_hash", String(64), nullable=False),
+    Column("proposed_by", String(64), nullable=False),
+    Column("request_id", String(255), nullable=False),
+    Column("proposed_at", DateTime(timezone=True), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("idempotency_key", name="uq_action_proposal_idempotency"),
+    CheckConstraint("confidence BETWEEN 0 AND 1", name="ck_action_proposal_confidence"),
+    CheckConstraint(
+        "idempotency_key ~ '^[0-9a-f]{64}$'",
+        name="ck_action_proposal_idempotency",
+    ),
+    CheckConstraint("proposal_hash ~ '^[0-9a-f]{64}$'", name="ck_action_proposal_hash"),
+    CheckConstraint("expires_at > proposed_at", name="ck_action_proposal_expiry"),
+    CheckConstraint(
+        "jsonb_typeof(evidence_ids) = 'array'",
+        name="ck_action_proposal_evidence_array",
+    ),
+    CheckConstraint(
+        "(amount_subunits IS NULL AND currency IS NULL) OR "
+        "(amount_subunits > 0 AND currency ~ '^[A-Z]{3}$')",
+        name="ck_action_proposal_amount",
+    ),
+)
+
+Index(
+    "ix_action_proposals_incident_time",
+    action_proposals.c.incident_id,
+    action_proposals.c.proposed_at,
+)
+
+action_policy_decisions = Table(
+    "action_policy_decisions",
+    metadata,
+    Column("decision_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "proposal_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.action_proposals.proposal_id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("outcome", String(32), nullable=False),
+    Column("policy_version", String(64), nullable=False),
+    Column("reasons", JSONB, nullable=False),
+    Column("input_hash", String(64), nullable=False),
+    Column("decided_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint(
+        "outcome IN ('allow', 'require_approval', 'deny')",
+        name="ck_action_policy_outcome",
+    ),
+    CheckConstraint("jsonb_typeof(reasons) = 'array'", name="ck_action_policy_reasons_array"),
+    CheckConstraint("input_hash ~ '^[0-9a-f]{64}$'", name="ck_action_policy_input_hash"),
+)
+
+action_approval_decisions = Table(
+    "action_approval_decisions",
+    metadata,
+    Column("approval_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "proposal_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.action_proposals.proposal_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("principal_id", String(64), nullable=False),
+    Column("request_id", String(255), nullable=False),
+    Column("decision", String(32), nullable=False),
+    Column("rationale", String(500), nullable=False),
+    Column("decided_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("proposal_id", "principal_id", name="uq_action_approval_principal"),
+    CheckConstraint(
+        "decision IN ('approved', 'rejected')",
+        name="ck_action_approval_decision",
+    ),
+)
+
+action_execution_work = Table(
+    "action_execution_work",
+    metadata,
+    Column(
+        "proposal_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.action_proposals.proposal_id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+    Column("status", String(32), nullable=False, server_default="ready"),
+    Column("attempt_count", Integer, nullable=False, server_default="0"),
+    Column("latest_execution_id", Uuid(as_uuid=True), nullable=True),
+    Column("lease_owner", String(64), nullable=True),
+    Column("lease_expires_at", DateTime(timezone=True), nullable=True),
+    Column("mutation_attempted", Boolean, nullable=False, server_default="false"),
+    Column("last_error_code", String(64), nullable=True),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "status IN ('ready', 'processing', 'retryable', 'succeeded', 'blocked', 'uncertain')",
+        name="ck_action_execution_work_status",
+    ),
+    CheckConstraint("attempt_count >= 0", name="ck_action_execution_attempt_count"),
+    CheckConstraint(
+        "(status = 'processing' AND lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL "
+        "AND latest_execution_id IS NOT NULL) OR "
+        "(status <> 'processing' AND lease_owner IS NULL AND lease_expires_at IS NULL)",
+        name="ck_action_execution_work_lease",
+    ),
+    schema="operations",
+)
+
+action_execution_claims = Table(
+    "action_execution_claims",
+    metadata,
+    Column("execution_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "proposal_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.action_proposals.proposal_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("attempt_number", Integer, nullable=False),
+    Column("operation", String(32), nullable=False),
+    Column("requested_by", String(64), nullable=False),
+    Column("request_id", String(255), nullable=False),
+    Column("lease_expires_at", DateTime(timezone=True), nullable=False),
+    Column("claimed_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("proposal_id", "attempt_number", name="uq_action_execution_claim_attempt"),
+    CheckConstraint("attempt_number >= 1", name="ck_action_execution_claim_attempt"),
+    CheckConstraint(
+        "operation IN ('execute', 'reconcile')",
+        name="ck_action_execution_claim_operation",
+    ),
+)
+
+action_mutation_authorizations = Table(
+    "action_mutation_authorizations",
+    metadata,
+    Column("authorization_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "execution_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.action_execution_claims.execution_id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "proposal_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.action_proposals.proposal_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("authorized_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+action_execution_results = Table(
+    "action_execution_results",
+    metadata,
+    Column("result_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "execution_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.action_execution_claims.execution_id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "proposal_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.action_proposals.proposal_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("outcome", String(32), nullable=False),
+    Column("error_code", String(64), nullable=True),
+    Column("provider_state", JSONB, nullable=True),
+    Column("already_applied", Boolean, nullable=False),
+    Column("result_hash", String(64), nullable=False),
+    Column("completed_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint(
+        "outcome IN ('succeeded', 'retryable', 'blocked', 'uncertain')",
+        name="ck_action_execution_result_outcome",
+    ),
+    CheckConstraint(
+        "(outcome = 'succeeded' AND error_code IS NULL AND provider_state IS NOT NULL) OR "
+        "(outcome <> 'succeeded' AND error_code IS NOT NULL)",
+        name="ck_action_execution_result_shape",
+    ),
+    CheckConstraint(
+        "provider_state IS NULL OR jsonb_typeof(provider_state) = 'object'",
+        name="ck_action_execution_provider_state_object",
+    ),
+    CheckConstraint(
+        "result_hash ~ '^[0-9a-f]{64}$'",
+        name="ck_action_execution_result_hash",
+    ),
+)
+
+action_access_audit = Table(
+    "action_access_audit",
+    metadata,
+    Column("audit_id", Uuid(as_uuid=True), primary_key=True),
+    Column("principal_id", String(64), nullable=False),
+    Column("request_id", String(255), nullable=False),
+    Column("action", String(64), nullable=False),
+    Column("resource_id", String(255), nullable=True),
+    Column("outcome", String(32), nullable=False),
+    Column("details", JSONB, nullable=False),
+    Column("recorded_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "action IN ('proposal_create', 'proposal_reuse', 'history', 'decision', "
+        "'execution_claim', 'execution_idempotent')",
+        name="ck_action_access_audit_action",
+    ),
+    CheckConstraint(
+        "outcome IN ('success', 'not_found', 'denied', 'conflict')",
+        name="ck_action_access_audit_outcome",
+    ),
+    CheckConstraint(
+        "jsonb_typeof(details) = 'object'",
+        name="ck_action_access_audit_details_object",
+    ),
+)
+
+Index(
+    "ix_action_access_audit_principal_time",
+    action_access_audit.c.principal_id,
+    action_access_audit.c.recorded_at,
 )

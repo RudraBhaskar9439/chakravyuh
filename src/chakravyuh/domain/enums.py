@@ -194,3 +194,29 @@ class PolicyOutcome(StrEnum):
     ALLOW = "allow"
     REQUIRE_APPROVAL = "require_approval"
     DENY = "deny"
+
+
+class ActionApprovalDecision(StrEnum):
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class ActionExecutionStatus(StrEnum):
+    READY = "ready"
+    PROCESSING = "processing"
+    RETRYABLE = "retryable"
+    SUCCEEDED = "succeeded"
+    BLOCKED = "blocked"
+    UNCERTAIN = "uncertain"
+
+
+class ActionExecutionOperation(StrEnum):
+    EXECUTE = "execute"
+    RECONCILE = "reconcile"
+
+
+class ActionExecutionOutcome(StrEnum):
+    SUCCEEDED = "succeeded"
+    RETRYABLE = "retryable"
+    BLOCKED = "blocked"
+    UNCERTAIN = "uncertain"

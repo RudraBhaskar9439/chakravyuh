@@ -2,9 +2,10 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is being implemented in auditable phases. Phase 8 adds an authenticated, audited,
-read-only operator console for current incidents, exact stored evidence meshes, guarded diagnoses,
-and immutable lifecycle history. No outbound Razorpay call or financial action exists yet.
+The project is being implemented in auditable phases. Phase 9 adds an authenticated, audited action
+plane around the evidence mesh. AI remains non-executable: deterministic policy, immutable
+maker-checker approval, exact-amount preflight, and a Test-Mode-only Razorpay adapter control every
+outbound operation.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -192,10 +193,34 @@ http://localhost:3000, and paste the raw token for that browser session. The bro
 to local storage, cookies, a URL, or server-rendered output.
 
 The console renders the exact evidence mesh stored with the latest diagnosis, including its
-SHA-256 hash and incident revisions. The approval control is disabled and has no mutation endpoint.
-Production transport must use TLS and an exact CORS allowlist. See
+SHA-256 hash and incident revisions. Production transport must use TLS and an exact CORS allowlist. See
 [Phase 8 architecture](docs/architecture/phase-8-operator-control-plane.md) for the authentication,
 pagination, audit, and interface contract.
+
+## Guarded Test Mode recovery
+
+Phase 9 implements only two provider actions: an authoritative payment fetch and exact-amount
+capture of an `authorized` payment. All other model recommendations are recorded as policy denials.
+The outbound kill switch defaults off, and application startup rejects enabled actions unless the
+configured key begins with `rzp_test_`.
+
+For a local Test Mode proof, configure two different operator principals, retain only their token
+hashes in `CHAKRAVYUH_OPERATOR_TOKEN_HASHES`, and then set:
+
+    CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED=true
+
+A proposal is derived entirely on the server from the latest immutable diagnosis. Read-only fetch
+can execute after policy approval. Capture additionally requires a decision from a principal other
+than the proposal maker. Before capture, the adapter fetches current Razorpay state and verifies the
+payment ID, `authorized` status, exact integer amount, and currency. It persists a mutation-started
+checkpoint before the POST.
+
+Razorpay does not provide the general payment-capture idempotency header available on its payout
+APIs. Therefore, any crash or timeout after the checkpoint permits fetch-only reconciliation and
+never a blind capture retry. Every proposal, policy decision, checker decision, execution claim,
+mutation authorization, result, and operator access event is append-only. See
+[Phase 9 architecture](docs/architecture/phase-9-guarded-test-mode-actions.md) for the complete
+safety and failure contract.
 
 ## Quality gate
 

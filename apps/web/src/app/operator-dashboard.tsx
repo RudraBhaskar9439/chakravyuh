@@ -4,6 +4,7 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 
 import { humanize, MoneyGraph } from "./money-graph";
 import type {
+  ActionView,
   IncidentDetail,
   IncidentOverview,
   IncidentPage,
@@ -20,19 +21,23 @@ export function OperatorDashboard() {
   const [incidents, setIncidents] = useState<IncidentSummary[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [detail, setDetail] = useState<IncidentDetail | null>(null);
+  const [actions, setActions] = useState<ActionView[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const loadDetail = useCallback(
     async (incidentId: string, signal?: AbortSignal) => {
       setSelectedId(incidentId);
-      const next = await fetchJson<IncidentDetail>(
-        `/v1/operator/incidents/${incidentId}`,
-        token,
-        signal,
-      );
+      const [next, actionHistory] = await Promise.all([
+        fetchJson<IncidentDetail>(`/v1/operator/incidents/${incidentId}`, token, { signal }),
+        fetchJson<ActionView[]>(`/v1/operator/incidents/${incidentId}/actions`, token, {
+          signal,
+        }),
+      ]);
       setDetail(next);
+      setActions(actionHistory);
     },
     [token],
   );
@@ -43,8 +48,10 @@ export function OperatorDashboard() {
     setLoading(true);
     setError(null);
     Promise.all([
-      fetchJson<IncidentOverview>("/v1/operator/overview", token, controller.signal),
-      fetchJson<IncidentPage>("/v1/operator/incidents?limit=50", token, controller.signal),
+      fetchJson<IncidentOverview>("/v1/operator/overview", token, { signal: controller.signal }),
+      fetchJson<IncidentPage>("/v1/operator/incidents?limit=50", token, {
+        signal: controller.signal,
+      }),
     ])
       .then(async ([nextOverview, page]) => {
         setOverview(nextOverview);
@@ -81,6 +88,7 @@ export function OperatorDashboard() {
     setIncidents([]);
     setNextCursor(null);
     setDetail(null);
+    setActions([]);
     setSelectedId(null);
     setError(null);
   }
@@ -123,6 +131,28 @@ export function OperatorDashboard() {
     }
   }
 
+  async function runAction(path: string, body?: object) {
+    if (actionBusy) return;
+    setActionBusy(true);
+    setError(null);
+    try {
+      const next = await fetchJson<ActionView>(path, token, {
+        method: "POST",
+        body,
+      });
+      setActions((current) => [
+        next,
+        ...current.filter((item) => item.proposal.proposal_id !== next.proposal.proposal_id),
+      ]);
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : "The action request could not complete.",
+      );
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   if (!connected) {
     return (
       <main className="accessShell">
@@ -130,12 +160,12 @@ export function OperatorDashboard() {
           <div className="brandMark" aria-hidden="true">
             च
           </div>
-          <p className="eyebrow">Phase 8 · Operator control plane</p>
+          <p className="eyebrow">Phase 9 · Guarded recovery control plane</p>
           <h1 id="product-title">Chakravyuh</h1>
           <p className="tagline">Every rupee has a path.</p>
           <p className="summary">
-            Inspect deterministic incidents, the exact evidence mesh, and every AI guard decision.
-            This surface is read-only by design.
+            Inspect deterministic incidents, verify the exact evidence mesh, and run only
+            policy-approved Razorpay Test Mode recovery actions.
           </p>
           <form className="accessForm" onSubmit={connect}>
             <label htmlFor="operator-token">Operator access token</label>
@@ -171,7 +201,7 @@ export function OperatorDashboard() {
         </div>
         <div className="topbarActions">
           <div className="readOnlyBadge">
-            <span /> Read-only control plane
+            <span /> Test Mode · dual control
           </div>
           <button className="endSession" onClick={endSession} type="button">
             End session
@@ -253,7 +283,27 @@ export function OperatorDashboard() {
 
         <section className="incidentCanvas" aria-label="Selected incident">
           {detail ? (
-            <IncidentView detail={detail} />
+            <IncidentView
+              actions={actions}
+              busy={actionBusy}
+              detail={detail}
+              onApprove={(proposalId) =>
+                runAction(`/v1/operator/actions/${proposalId}/decisions`, {
+                  decision: "approved",
+                  rationale: "Evidence, target, amount, and policy were independently verified.",
+                })
+              }
+              onExecute={(proposalId) => runAction(`/v1/operator/actions/${proposalId}/execute`)}
+              onPropose={() =>
+                runAction(`/v1/operator/incidents/${detail.incident.incident_id}/actions/proposals`)
+              }
+              onReject={(proposalId) =>
+                runAction(`/v1/operator/actions/${proposalId}/decisions`, {
+                  decision: "rejected",
+                  rationale: "The independent checker rejected this bounded proposal.",
+                })
+              }
+            />
           ) : (
             <p className="emptyState">Select an incident.</p>
           )}
@@ -263,7 +313,23 @@ export function OperatorDashboard() {
   );
 }
 
-function IncidentView({ detail }: { detail: IncidentDetail }) {
+function IncidentView({
+  detail,
+  actions,
+  busy,
+  onPropose,
+  onApprove,
+  onReject,
+  onExecute,
+}: {
+  detail: IncidentDetail;
+  actions: ActionView[];
+  busy: boolean;
+  onPropose: () => void;
+  onApprove: (proposalId: string) => void;
+  onReject: (proposalId: string) => void;
+  onExecute: (proposalId: string) => void;
+}) {
   const incident = detail.incident;
   const diagnosis = detail.latest_diagnosis;
   const decision = diagnosis?.diagnosis.effective_decision;
@@ -294,18 +360,15 @@ function IncidentView({ detail }: { detail: IncidentDetail }) {
             </div>
           ) : null}
         </article>
-        <article className="diagnosisCard action">
-          <p className="kicker">Bounded recommendation</p>
-          <h3>{decision ? humanize(decision.recommended_action) : "No proposal"}</h3>
-          <p>
-            {diagnosis?.diagnosis.guard_reason
-              ? `Withheld by guard: ${humanize(diagnosis.diagnosis.guard_reason)}`
-              : "A recommendation cannot move money or call Razorpay from this phase."}
-          </p>
-          <button disabled type="button" title="Phase 9 policy and approval controls are required">
-            Request approval · policy gate required
-          </button>
-        </article>
+        <ActionCard
+          actions={actions}
+          busy={busy}
+          diagnosis={diagnosis}
+          onApprove={onApprove}
+          onExecute={onExecute}
+          onPropose={onPropose}
+          onReject={onReject}
+        />
       </section>
 
       {diagnosis ? <MoneyGraph evidence={diagnosis.evidence_subgraph} /> : null}
@@ -337,6 +400,147 @@ function IncidentView({ detail }: { detail: IncidentDetail }) {
   );
 }
 
+function ActionCard({
+  actions,
+  busy,
+  diagnosis,
+  onPropose,
+  onApprove,
+  onReject,
+  onExecute,
+}: {
+  actions: ActionView[];
+  busy: boolean;
+  diagnosis: IncidentDetail["latest_diagnosis"];
+  onPropose: () => void;
+  onApprove: (proposalId: string) => void;
+  onReject: (proposalId: string) => void;
+  onExecute: (proposalId: string) => void;
+}) {
+  const recommendation = diagnosis?.diagnosis.effective_decision;
+  const action = actions[0];
+  if (!action) {
+    const unavailable =
+      !recommendation ||
+      recommendation.disposition === "abstained" ||
+      recommendation.recommended_action === "abstain";
+    return (
+      <article className="diagnosisCard action">
+        <p className="kicker">Deterministic action boundary</p>
+        <h3>{recommendation ? humanize(recommendation.recommended_action) : "No proposal"}</h3>
+        <p>
+          {diagnosis?.diagnosis.guard_reason
+            ? `Withheld by guard: ${humanize(diagnosis.diagnosis.guard_reason)}`
+            : "The server derives the target and exact amount from this immutable diagnosis."}
+        </p>
+        <button disabled={busy || unavailable} onClick={onPropose} type="button">
+          {busy ? "Evaluating policy…" : "Evaluate deterministic policy"}
+        </button>
+      </article>
+    );
+  }
+
+  const rejected = action.approvals.some((item) => item.decision === "rejected");
+  const approved = action.approvals.some((item) => item.decision === "approved");
+  const awaitsApproval = action.policy.outcome === "require_approval" && !approved && !rejected;
+  const executable =
+    !action.stale &&
+    !action.expired &&
+    !rejected &&
+    action.policy.outcome !== "deny" &&
+    (action.policy.outcome === "allow" || approved) &&
+    (action.execution_status === "ready" || action.execution_status === "retryable");
+  const stateLabel = action.stale
+    ? "Stale proposal"
+    : action.expired
+      ? "Expired proposal"
+      : rejected
+        ? "Rejected by checker"
+        : action.policy.outcome === "deny"
+          ? "Denied by policy"
+          : action.execution_status
+            ? humanize(action.execution_status)
+            : humanize(action.policy.outcome);
+  return (
+    <article className="diagnosisCard action">
+      <div className="actionHeading">
+        <p className="kicker">Policy {action.policy.policy_version}</p>
+        <span
+          className={`actionState actionState-${action.execution_status ?? action.policy.outcome}`}
+        >
+          {stateLabel}
+        </span>
+      </div>
+      <h3>{humanize(action.proposal.action_type)}</h3>
+      <p>
+        {action.proposal.amount
+          ? `${formatMoney(action.proposal.amount)} · ${humanize(action.proposal.risk)} · ${action.proposal.target.entity_id}`
+          : `Read-only provider verification · ${action.proposal.target.entity_id}`}
+      </p>
+      {action.policy.reasons.length ? (
+        <p className="policyReasons">{action.policy.reasons.map(humanize).join(" · ")}</p>
+      ) : null}
+      {awaitsApproval ? (
+        <div className="approvalControls">
+          <p>
+            A second operator must end this session, sign in with a different token, and
+            independently check the graph before deciding.
+          </p>
+          <div>
+            <button
+              disabled={busy}
+              onClick={() => onApprove(action.proposal.proposal_id)}
+              type="button"
+            >
+              Approve as independent checker
+            </button>
+            <button
+              className="rejectAction"
+              disabled={busy}
+              onClick={() => onReject(action.proposal.proposal_id)}
+              type="button"
+            >
+              Reject proposal
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {executable ? (
+        <button
+          disabled={busy}
+          onClick={() => onExecute(action.proposal.proposal_id)}
+          type="button"
+        >
+          {busy ? "Verifying authoritative state…" : "Execute bounded Test Mode action"}
+        </button>
+      ) : null}
+      {action.execution_status === "processing" ? (
+        <button disabled type="button">
+          Execution lease active
+        </button>
+      ) : null}
+      {action.latest_result ? (
+        <div className="actionReceipt">
+          <strong>
+            {humanize(action.latest_result.outcome)}
+            {action.latest_result.already_applied ? " · reconciled without retry" : ""}
+          </strong>
+          <small>
+            {action.latest_result.provider_state
+              ? `${humanize(action.latest_result.provider_state.status)} · ${formatMoney(action.latest_result.provider_state.amount)}`
+              : humanize(action.latest_result.error_code ?? "no provider receipt")}
+          </small>
+          <code>{action.latest_result.result_hash.slice(0, 16)}</code>
+        </div>
+      ) : null}
+      <p className="proposalMeta">
+        Proposal <code>{action.proposal.proposal_hash.slice(0, 12)}</code> · expires{" "}
+        {formatDate(action.proposal.expires_at)}
+      </p>
+    </article>
+  );
+}
+
 function Metric({
   label,
   value,
@@ -354,17 +558,33 @@ function Metric({
   );
 }
 
-async function fetchJson<T>(path: string, token: string, signal?: AbortSignal): Promise<T> {
+async function fetchJson<T>(
+  path: string,
+  token: string,
+  options: { signal?: AbortSignal; method?: "GET" | "POST"; body?: object } = {},
+): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     cache: "no-store",
     credentials: "omit",
-    headers: { Authorization: `Bearer ${token}` },
-    signal,
+    method: options.method ?? "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+    signal: options.signal,
   });
   if (!response.ok) {
     if (response.status === 401) throw new Error("Operator token was rejected.");
     if (response.status === 503) throw new Error("Operator API is not configured.");
-    throw new Error(`Operator API returned ${response.status}.`);
+    const failure = (await response.json().catch(() => null)) as {
+      detail?: { code?: string } | string;
+    } | null;
+    const code =
+      typeof failure?.detail === "object" && failure.detail?.code
+        ? humanize(failure.detail.code)
+        : null;
+    throw new Error(code ?? `Operator API returned ${response.status}.`);
   }
   return (await response.json()) as T;
 }
