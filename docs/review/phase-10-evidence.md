@@ -1,6 +1,6 @@
 # Phase 10 verification evidence
 
-- Status: verification in progress
+- Status: approved
 - Date: 2026-08-24
 
 ## Implemented control plane
@@ -63,7 +63,16 @@ key.
 - Real browser QA passed at 1440-by-1000 and 390-by-844: no horizontal overflow, 48/49-pixel mobile
   controls, password input with autocomplete off, empty token value, and no console warnings/errors.
 
-## Pending private gate
+## Private CI and approval
 
-The implementation commit, private GitHub Actions run, and repository Dependabot status will be
-recorded before approval.
+- Implementation commit: `a9928ac1d7cc211cc72ed334bee3ea3853129c0a`.
+- Private CI run: <https://github.com/RudraBhaskar9439/chakravyuh/actions/runs/32758443348>.
+- Repository policy, backend, web, and production-container jobs all passed.
+- The CI backend independently ran the migration, metadata-drift check, strict lint/type gates,
+  PostgreSQL/Neo4j tests, branch coverage, and a 25-seed judge proof.
+- GitHub reported zero open Dependabot alerts at approval time; local npm production and Python
+  audits also reported no known vulnerabilities.
+
+Phase 10 and the ten-phase buildathon implementation are approved under the owner's standing
+authorization of 2026-08-24. Real production activation remains subject to every external gate in
+the production runbook; Razorpay action execution remains Test Mode only and disabled by default.
