@@ -42,7 +42,7 @@ jobs:
       CHAKRAVYUH_TEST_POSTGRES_DSN: postgresql+asyncpg://chakravyuh:test-only@localhost:5432/chakravyuh_test
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           version: "0.11.27"
           enable-cache: true
