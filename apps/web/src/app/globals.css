@@ -1,12 +1,18 @@
 :root {
   color-scheme: dark;
-  --background: #090908;
-  --surface: #12110f;
-  --border: #2d2921;
-  --text: #f4ecdd;
+  --background: #080806;
+  --surface: #11100d;
+  --surface-raised: #181610;
+  --border: #312c22;
+  --border-bright: #52452f;
+  --text: #f5edde;
   --muted: #aaa294;
-  --gold: #e5aa4f;
+  --gold: #e6aa4c;
+  --gold-soft: #5d4523;
   --healthy: #62d09b;
+  --danger: #f2766f;
+  --blue: #77a7ff;
+  --violet: #be8cff;
 }
 
 * {
@@ -23,111 +29,658 @@ body {
   margin: 0;
   color: var(--text);
   background:
-    radial-gradient(circle at 75% 15%, rgb(229 170 79 / 10%), transparent 28rem), var(--background);
+    radial-gradient(circle at 76% 6%, rgb(230 170 76 / 9%), transparent 29rem),
+    linear-gradient(135deg, #090908, #080806 55%, #0c0a07);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-main {
-  width: min(1120px, calc(100% - 40px));
-  margin: 0 auto;
-  padding: clamp(72px, 12vw, 150px) 0 72px;
+button,
+input {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
 }
 
-.hero {
-  max-width: 780px;
+.accessShell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 32px;
 }
 
-.eyebrow {
-  margin: 0 0 24px;
+.accessCard {
+  width: min(760px, 100%);
+}
+.brandMark,
+.miniMark {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--gold-soft);
   color: var(--gold);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-family: Georgia, serif;
+}
+.brandMark {
+  width: 54px;
+  height: 54px;
+  margin-bottom: 48px;
+  font-size: 1.5rem;
+}
+.eyebrow,
+.kicker {
+  margin: 0 0 14px;
+  color: var(--gold);
+  font-size: 0.68rem;
+  font-weight: 750;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-
-h1 {
+.accessCard h1 {
   margin: 0;
-  font-size: clamp(4rem, 12vw, 8rem);
-  font-weight: 620;
-  letter-spacing: -0.07em;
-  line-height: 0.88;
+  font-size: clamp(4rem, 13vw, 8rem);
+  letter-spacing: -0.075em;
+  line-height: 0.86;
 }
-
 .tagline {
   margin: 30px 0 0;
   color: var(--gold);
-  font-size: clamp(1.35rem, 3vw, 2rem);
+  font-size: clamp(1.25rem, 3vw, 1.9rem);
 }
-
 .summary {
-  max-width: 650px;
-  margin: 18px 0 0;
+  max-width: 660px;
+  margin: 16px 0 0;
   color: var(--muted);
-  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-size: 1.05rem;
   line-height: 1.7;
 }
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 30px;
-  padding: 9px 13px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: rgb(18 17 15 / 75%);
+.accessForm {
+  margin-top: 46px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+.accessForm label {
+  display: block;
+  margin-bottom: 10px;
   color: var(--muted);
   font-size: 0.8rem;
 }
+.accessForm > div {
+  display: flex;
+  gap: 10px;
+}
+.accessForm input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+}
+.accessForm button,
+.diagnosisCard button {
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  background: var(--gold);
+  color: #171006;
+  font-weight: 750;
+  padding: 0 20px;
+}
+.accessForm > p {
+  color: #746e63;
+  font-size: 0.72rem;
+}
 
-.statusDot {
+.consoleShell {
+  width: min(1540px, calc(100% - 32px));
+  margin: 0 auto;
+  padding-bottom: 64px;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 82px;
+  border-bottom: 1px solid var(--border);
+}
+.topbar > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.miniMark {
+  width: 34px;
+  height: 34px;
+}
+.topbar p {
+  margin: 0;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+.productSubtitle {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.readOnlyBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.readOnlyBadge > span {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--healthy);
-  box-shadow: 0 0 12px var(--healthy);
+  box-shadow: 0 0 10px var(--healthy);
+}
+.endSession {
+  padding: 7px 10px;
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.endSession:hover {
+  border-color: var(--gold-soft);
+  color: var(--text);
 }
 
-.principles {
+.overview {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: clamp(72px, 12vw, 140px);
+  grid-template-columns: repeat(4, 1fr);
+  border-left: 1px solid var(--border);
+}
+.metric {
+  min-height: 112px;
+  padding: 22px 24px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.metric p {
+  margin: 0 0 15px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.metric strong {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  letter-spacing: -0.04em;
+}
+.metric.alert strong {
+  color: var(--danger);
+}
+.workspace {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  min-height: 720px;
+  border: 1px solid var(--border);
+  border-top: 0;
+}
+.incidentRail {
+  min-width: 0;
+  border-right: 1px solid var(--border);
+  background: rgb(17 16 13 / 78%);
+}
+.railHeader,
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.railHeader {
+  padding: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.railHeader h2,
+.sectionHeader h3 {
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+.railHeader > span,
+.graphCount,
+.sectionHeader > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.incidentList {
+  max-height: 940px;
+  overflow: auto;
+}
+.incidentRow {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 12px;
+  width: 100%;
+  padding: 18px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+.incidentRow:hover,
+.incidentRow.selected {
+  background: var(--surface-raised);
+}
+.incidentRow.selected {
+  box-shadow: inset 3px 0 var(--gold);
+}
+.statusPip {
+  width: 7px;
+  height: 7px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.status-detected,
+.status-investigating {
+  color: var(--gold);
+}
+.statusPip.status-detected,
+.statusPip.status-investigating {
+  background: var(--gold);
+}
+.status-failed,
+.status-escalated {
+  color: var(--danger);
+}
+.statusPip.status-failed,
+.statusPip.status-escalated {
+  background: var(--danger);
+}
+.status-resolved {
+  color: var(--healthy);
+}
+.statusPip.status-resolved {
+  background: var(--healthy);
+}
+.incidentRow strong {
+  display: block;
+  overflow: hidden;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.incidentRow small {
+  display: block;
+  overflow: hidden;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.incidentAmount {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.loadMore {
+  width: calc(100% - 40px);
+  margin: 16px 20px;
+  padding: 10px;
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.loadMore:hover:not(:disabled) {
+  border-color: var(--gold-soft);
+  color: var(--text);
+}
+.incidentCanvas {
+  min-width: 0;
+  padding: clamp(22px, 4vw, 46px);
+  overflow: hidden;
+}
+.incidentHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+  padding-bottom: 32px;
+}
+.incidentHeader h2 {
+  max-width: 800px;
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 3.3rem);
+  letter-spacing: -0.055em;
+}
+.incidentHeader h2 + p {
+  max-width: 800px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.statusBadge {
+  padding: 7px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+.diagnosisGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
   border-top: 1px solid var(--border);
   border-left: 1px solid var(--border);
 }
-
-article {
-  min-height: 190px;
+.diagnosisCard {
+  min-height: 220px;
   padding: 26px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  background: rgb(18 17 15 / 60%);
+  background: rgb(17 16 13 / 55%);
 }
-
-article p {
-  margin: 0 0 42px;
-  color: var(--gold);
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.diagnosisCard h3 {
+  margin: 0 0 12px;
+  font-size: 1.5rem;
+  letter-spacing: -0.03em;
 }
-
-article h2 {
-  margin: 0 0 10px;
-  font-size: 1.35rem;
-}
-
-article span {
+.diagnosisCard > p:not(.kicker) {
   color: var(--muted);
-  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.diagnosisCard button {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 18px;
+  border-color: var(--border-bright);
+  background: transparent;
+  color: #7b7468;
+  cursor: not-allowed;
+}
+.confidence {
+  margin-top: 25px;
+}
+.confidence::before {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: var(--border);
+}
+.confidence > span {
+  display: block;
+  height: 3px;
+  margin-top: -3px;
+  background: var(--gold);
+}
+.confidence small {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.graphPanel,
+.auditPanel {
+  margin-top: 34px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+.graphViewport {
+  min-height: 440px;
+  margin-top: 20px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at center, rgb(230 170 76 / 5%), transparent 55%), #0b0a08;
+}
+.graphViewport svg {
+  display: block;
+  width: 100%;
+  min-width: 780px;
+  height: 560px;
+}
+.graphEdge {
+  stroke: #4a4337;
+  stroke-width: 1;
+}
+.edgeLabel {
+  fill: #71695d;
+  font-size: 7px;
+}
+.graphNode circle {
+  stroke-width: 2;
+}
+.graphNode text {
+  fill: var(--muted);
+  font-size: 8px;
+}
+.graphNode-invariant circle {
+  fill: #3b2616;
+  stroke: var(--gold);
+}
+.graphNode-journey circle {
+  fill: #142d24;
+  stroke: var(--healthy);
+}
+.graphNode-entity circle {
+  fill: #17243c;
+  stroke: var(--blue);
+}
+.graphNode-event circle {
+  fill: #2c1b3e;
+  stroke: var(--violet);
+}
+.graphLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.graphLegend span::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.graphLegend .legend-invariant {
+  color: var(--gold);
+}
+.graphLegend .legend-journey {
+  color: var(--healthy);
+}
+.graphLegend .legend-entity {
+  color: var(--blue);
+}
+.graphLegend .legend-event {
+  color: var(--violet);
+}
+.evidenceExplorer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.7fr);
+  gap: 18px;
+  margin-top: 20px;
+}
+.evidenceChips {
+  display: flex;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  gap: 7px;
+  max-height: 230px;
+  overflow: auto;
+}
+.evidenceChip {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.evidenceChip.selected {
+  border-color: var(--gold);
+  color: var(--text);
+}
+.evidenceInspector {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.evidenceInspector h4 {
+  margin: 0;
+}
+.evidenceInspector > p:not(.kicker) {
+  color: var(--muted);
+  font-size: 0.78rem;
   line-height: 1.5;
 }
+.evidenceInspector dl {
+  margin: 18px 0 0;
+}
+.evidenceInspector dl > div {
+  margin-top: 10px;
+}
+.evidenceInspector dt {
+  color: var(--muted);
+  font-size: 0.63rem;
+  text-transform: uppercase;
+}
+.evidenceInspector dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+  font-size: 0.67rem;
+}
+.hashLine {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.hashLine code {
+  overflow-wrap: anywhere;
+  color: #827868;
+}
+.timeline {
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.timeline li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--border);
+}
+.timeline li > span {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+}
+.timeline strong,
+.timeline small {
+  display: block;
+}
+.timeline small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.timeline code {
+  color: #7f7669;
+  font-size: 0.65rem;
+}
+.errorBanner,
+.loadingBar {
+  padding: 12px 16px;
+  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+.errorBanner {
+  color: var(--danger);
+  background: rgb(242 118 111 / 8%);
+}
+.loadingBar {
+  color: var(--muted);
+}
+.emptyState {
+  padding: 24px;
+  color: var(--muted);
+}
 
-@media (width <= 760px) {
-  .principles {
+@media (width <= 980px) {
+  .overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .workspace {
     grid-template-columns: 1fr;
+  }
+  .incidentRail {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .incidentList {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    max-height: 360px;
+  }
+  .diagnosisGrid,
+  .evidenceExplorer {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (width <= 620px) {
+  .accessShell {
+    padding: 22px;
+  }
+  .accessForm > div {
+    flex-direction: column;
+  }
+  .accessForm button {
+    min-height: 48px;
+  }
+  .consoleShell {
+    width: min(100% - 18px, 1540px);
+  }
+  .topbar {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 0;
+  }
+  .topbarActions {
+    gap: 10px;
+  }
+  .readOnlyBadge {
+    font-size: 0;
+  }
+  .readOnlyBadge::after {
+    content: "Read-only";
+    font-size: 0.7rem;
+  }
+  .overview,
+  .incidentList {
+    grid-template-columns: 1fr;
+  }
+  .incidentCanvas {
+    padding: 22px 15px;
+  }
+  .incidentHeader {
+    flex-direction: column;
   }
 }
 

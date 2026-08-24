@@ -947,3 +947,43 @@ diagnosis_attempts = Table(
         name="ck_diagnosis_attempt_consistent_outcome",
     ),
 )
+
+operator_read_audit = Table(
+    "operator_read_audit",
+    metadata,
+    Column("audit_id", Uuid(as_uuid=True), primary_key=True),
+    Column("principal_id", String(64), nullable=False),
+    Column("request_id", String(255), nullable=False),
+    Column("action", String(64), nullable=False),
+    Column("resource_type", String(64), nullable=False),
+    Column("resource_id", String(255), nullable=True),
+    Column("outcome", String(32), nullable=False),
+    Column("details", JSONB, nullable=False),
+    Column("recorded_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "action IN ('overview', 'incident_list', 'incident_detail')",
+        name="ck_operator_read_audit_action",
+    ),
+    CheckConstraint(
+        "outcome IN ('success', 'not_found')",
+        name="ck_operator_read_audit_outcome",
+    ),
+    CheckConstraint(
+        "jsonb_typeof(details) = 'object'",
+        name="ck_operator_read_audit_details_object",
+    ),
+    CheckConstraint(
+        "length(trim(principal_id)) BETWEEN 1 AND 64",
+        name="ck_operator_read_audit_principal",
+    ),
+    CheckConstraint(
+        "length(trim(request_id)) BETWEEN 1 AND 255",
+        name="ck_operator_read_audit_request",
+    ),
+)
+
+Index(
+    "ix_operator_read_audit_principal_time",
+    operator_read_audit.c.principal_id,
+    operator_read_audit.c.recorded_at,
+)

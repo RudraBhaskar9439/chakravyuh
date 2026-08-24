@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Chakravyuh",
-  description: "The self-healing money graph",
+  title: "Chakravyuh · Money Path Operations",
+  description: "Read-only incident evidence and grounded payment diagnosis",
 };
 
 type RootLayoutProps = Readonly<{

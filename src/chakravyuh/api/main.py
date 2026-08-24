@@ -13,8 +13,9 @@ from starlette.responses import Response
 
 from chakravyuh import __version__
 from chakravyuh.api.health import router as health_router
+from chakravyuh.api.operators import router as operator_router
 from chakravyuh.api.webhooks import router as webhook_router
-from chakravyuh.application.ports import GraphProjector, WebhookEventStore
+from chakravyuh.application.ports import GraphProjector, OperatorReadModel, WebhookEventStore
 from chakravyuh.application.projection_health import CheckGraphProjectionHealth
 from chakravyuh.application.webhook_ingestion import IngestVerifiedWebhook
 from chakravyuh.config import Settings, get_settings
@@ -23,6 +24,7 @@ from chakravyuh.infrastructure.neo4j.projector import Neo4jPaymentGraphProjector
 from chakravyuh.infrastructure.postgres.graph_projection_repository import (
     PostgresGraphProjectionRepository,
 )
+from chakravyuh.infrastructure.postgres.operator_read_model import PostgresOperatorReadModel
 from chakravyuh.infrastructure.postgres.webhook_event_store import PostgresWebhookEventStore
 from chakravyuh.logging import configure_logging
 
@@ -57,6 +59,7 @@ def create_app(
     database: Database | None = None,
     webhook_event_store: WebhookEventStore | None = None,
     graph_projector: GraphProjector | None = None,
+    operator_read_model: OperatorReadModel | None = None,
 ) -> FastAPI:
     """Create an isolated application instance for production and tests."""
     resolved_settings = settings or get_settings()
@@ -68,6 +71,9 @@ def create_app(
     resolved_webhook_store = webhook_event_store or PostgresWebhookEventStore(resolved_database)
     resolved_graph_projector = graph_projector or Neo4jPaymentGraphProjector(resolved_settings)
     projection_repository = PostgresGraphProjectionRepository(resolved_database)
+    resolved_operator_read_model = operator_read_model or PostgresOperatorReadModel(
+        resolved_database
+    )
 
     app = FastAPI(
         title="Chakravyuh API",
@@ -86,6 +92,7 @@ def create_app(
         connectivity_timeout_seconds=resolved_settings.neo4j_connection_timeout_seconds,
     )
     app.state.ingest_webhook = IngestVerifiedWebhook(resolved_webhook_store)
+    app.state.operator_read_model = resolved_operator_read_model
     app.add_middleware(
         CORSMiddleware,
         allow_origins=resolved_settings.cors_origins,
@@ -99,7 +106,9 @@ def create_app(
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
-        request_id = request.headers.get("x-request-id") or str(uuid4())
+        supplied_request_id = request.headers.get("x-request-id", "").strip()
+        request_id = supplied_request_id if 1 <= len(supplied_request_id) <= 255 else str(uuid4())
+        request.state.request_id = request_id
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(
             request_id=request_id,
@@ -118,6 +127,7 @@ def create_app(
 
     app.include_router(health_router)
     app.include_router(webhook_router)
+    app.include_router(operator_router)
     return app
 
 

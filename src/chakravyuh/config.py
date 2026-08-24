@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     )
     gemini_model: str = Field(default="gemini-3.5-flash", min_length=1, max_length=128)
     gemini_timeout_seconds: float = Field(default=30, gt=0, le=120)
+    operator_token_hashes: dict[str, str] = Field(default_factory=dict)
 
     razorpay_key_id: str | None = None
     razorpay_key_secret: SecretStr | None = None
@@ -134,6 +135,18 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         if len(secrets) != len(set(secrets)):
             msg = "webhook rotation secrets must be unique"
+            raise ValueError(msg)
+        for principal_id, token_hash in self.operator_token_hashes.items():
+            if not principal_id.strip() or len(principal_id) > 64:
+                msg = "operator token principal IDs must contain between 1 and 64 characters"
+                raise ValueError(msg)
+            if len(token_hash) != 64 or any(
+                character not in "0123456789abcdef" for character in token_hash
+            ):
+                msg = "operator token hashes must be lowercase SHA-256 hex"
+                raise ValueError(msg)
+        if len(self.operator_token_hashes) != len(set(self.operator_token_hashes.values())):
+            msg = "operator token hashes must be unique"
             raise ValueError(msg)
         return self
 

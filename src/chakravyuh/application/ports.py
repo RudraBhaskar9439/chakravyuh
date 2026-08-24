@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from chakravyuh.domain.evidence import DiagnosisSeed, EvidenceSubgraph, GraphEvidenceSnapshot
     from chakravyuh.domain.invariants import InvariantEvaluationResult
     from chakravyuh.domain.journeys import PaymentJourneyState
+    from chakravyuh.domain.operators import IncidentDetail, IncidentOverview, IncidentPage
     from chakravyuh.domain.projections import (
         GraphProjectionInput,
         GraphProjectionReceipt,
@@ -185,6 +186,28 @@ class DiagnosisRepository(Protocol):
         max_failures: int,
         retry_delay_seconds: float,
     ) -> bool: ...
+
+
+class OperatorReadModel(Protocol):
+    async def overview(self, *, principal_id: str, request_id: str) -> IncidentOverview: ...
+
+    async def list_incidents(
+        self,
+        *,
+        principal_id: str,
+        request_id: str,
+        statuses: Sequence[str],
+        limit: int,
+        cursor: str | None,
+    ) -> IncidentPage: ...
+
+    async def get_incident(
+        self,
+        incident_id: UUID,
+        *,
+        principal_id: str,
+        request_id: str,
+    ) -> IncidentDetail | None: ...
 
 
 class DatabaseLifecycle(Protocol):

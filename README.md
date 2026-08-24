@@ -2,9 +2,9 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is being implemented in auditable phases. Phase 7 adds bounded evidence-subgraph
-assembly, schema-constrained Gemini diagnosis, deterministic abstention, and a leased immutable
-diagnosis audit. No outbound Razorpay call or financial action exists yet.
+The project is being implemented in auditable phases. Phase 8 adds an authenticated, audited,
+read-only operator console for current incidents, exact stored evidence meshes, guarded diagnoses,
+and immutable lifecycle history. No outbound Razorpay call or financial action exists yet.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -174,6 +174,28 @@ an explicit abstention. The model cannot create or resolve incidents and its rec
 execute. Receipts, attempts, prompt hashes, evidence hashes, retries, dead letters, and guard
 interventions are immutable audit records. See
 [Phase 7 architecture](docs/architecture/phase-7-grounded-ai-diagnosis.md) for the complete boundary.
+
+## Operator evidence mesh
+
+The internal operator API reads PostgreSQL incident truth and immutable diagnosis receipts through
+three authenticated endpoints under `/v1/operator`: overview, bounded cursor-paginated incident
+list, and incident detail. Every authorized read appends a principal-attributed access record and
+returns `Cache-Control: no-store`.
+
+Issue a high-entropy local credential:
+
+    uv run chakravyuh-operator-token --principal local-reviewer
+
+Store the one-time `operator_token` output in a password manager. Put only the emitted
+`environment_value` JSON into `CHAKRAVYUH_OPERATOR_TOKEN_HASHES`, restart the API, open
+http://localhost:3000, and paste the raw token for that browser session. The browser never writes it
+to local storage, cookies, a URL, or server-rendered output.
+
+The console renders the exact evidence mesh stored with the latest diagnosis, including its
+SHA-256 hash and incident revisions. The approval control is disabled and has no mutation endpoint.
+Production transport must use TLS and an exact CORS allowlist. See
+[Phase 8 architecture](docs/architecture/phase-8-operator-control-plane.md) for the authentication,
+pagination, audit, and interface contract.
 
 ## Quality gate
 

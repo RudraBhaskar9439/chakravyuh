@@ -50,6 +50,7 @@ from chakravyuh.infrastructure.postgres.journey_reduction_repository import (
 from chakravyuh.infrastructure.postgres.normalization_repository import (
     PostgresNormalizationRepository,
 )
+from chakravyuh.infrastructure.postgres.operator_read_model import PostgresOperatorReadModel
 from chakravyuh.infrastructure.postgres.tables import (
     diagnoses,
     diagnosis_attempts,
@@ -57,6 +58,7 @@ from chakravyuh.infrastructure.postgres.tables import (
     incident_revisions,
     incidents,
     invariant_evaluations,
+    operator_read_audit,
 )
 from chakravyuh.infrastructure.postgres.webhook_event_store import PostgresWebhookEventStore
 from chakravyuh.infrastructure.razorpay.normalizer import RazorpayWebhookNormalizer
@@ -205,6 +207,7 @@ async def test_bounded_graph_is_checkpointed_with_append_only_grounded_receipt()
     projector = Neo4jPaymentGraphProjector(settings)
     reader = Neo4jEvidenceReader(settings)
     merchant_id = f"merchant-{uuid4()}"
+    operator_principal = f"operator-{uuid4().hex}"
     order_id = f"order_{uuid4().hex}"
     payment_id = f"pay_{uuid4().hex}"
     try:
@@ -297,6 +300,38 @@ async def test_bounded_graph_is_checkpointed_with_append_only_grounded_receipt()
         assert diagnosis["disposition"] == DiagnosisDisposition.DIAGNOSED.value
         assert attempt["outcome"] == "completed"
 
+        read_model = PostgresOperatorReadModel(database)
+        overview = await read_model.overview(
+            principal_id=operator_principal,
+            request_id="overview-proof",
+        )
+        page = await read_model.list_incidents(
+            principal_id=operator_principal,
+            request_id="list-proof",
+            statuses=(IncidentStatus.DETECTED.value,),
+            limit=100,
+            cursor=None,
+        )
+        detail = await read_model.get_incident(
+            incident_id,
+            principal_id=operator_principal,
+            request_id="detail-proof",
+        )
+        assert overview.status_counts[IncidentStatus.DETECTED] >= 1
+        assert any(item.incident_id == incident_id for item in page.items)
+        assert detail is not None
+        assert detail.incident.incident_id == incident_id
+        assert detail.latest_diagnosis is not None
+        assert detail.latest_diagnosis.evidence_subgraph.subgraph_hash == evidence.subgraph_hash
+
+        async with database.session_factory() as session:
+            audit_count = await session.scalar(
+                select(func.count())
+                .select_from(operator_read_audit)
+                .where(operator_read_audit.c.principal_id == operator_principal)
+            )
+        assert audit_count == 3
+
         statements: list[tuple[str, dict[str, Any]]] = [
             (
                 "UPDATE ledger.diagnoses SET model = 'changed' WHERE incident_id = :incident_id",
@@ -305,6 +340,11 @@ async def test_bounded_graph_is_checkpointed_with_append_only_grounded_receipt()
             (
                 "DELETE FROM ledger.diagnosis_attempts WHERE incident_id = :incident_id",
                 {"incident_id": incident_id},
+            ),
+            (
+                "UPDATE ledger.operator_read_audit SET outcome = 'not_found' "
+                "WHERE principal_id = :principal_id",
+                {"principal_id": operator_principal},
             ),
         ]
         for statement, parameters in statements:

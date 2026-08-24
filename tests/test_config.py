@@ -54,3 +54,16 @@ def test_webhook_secret_rotation_is_validated() -> None:
         )
     with pytest.raises(ValidationError, match="require a current"):
         Settings(razorpay_previous_webhook_secrets=["previous-secret-1"])
+
+
+def test_operator_token_hashes_require_bounded_principals_and_unique_sha256() -> None:
+    valid_hash = "a" * 64
+    assert Settings(operator_token_hashes={"risk-operator": valid_hash}).operator_token_hashes == {
+        "risk-operator": valid_hash
+    }
+    with pytest.raises(ValidationError, match="principal IDs"):
+        Settings(operator_token_hashes={" ": valid_hash})
+    with pytest.raises(ValidationError, match="lowercase SHA-256"):
+        Settings(operator_token_hashes={"operator": "not-a-hash"})
+    with pytest.raises(ValidationError, match="must be unique"):
+        Settings(operator_token_hashes={"first": valid_hash, "second": valid_hash})
