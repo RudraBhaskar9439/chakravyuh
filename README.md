@@ -2,9 +2,9 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is being implemented in auditable phases. Phase 5 adds a leased, retry-safe Neo4j money
-graph that is rebuilt entirely from PostgreSQL, audited rebuild epochs, and graph-lag health checks.
-No outbound Razorpay call or financial action exists yet.
+The project is being implemented in auditable phases. Phase 6 adds deterministic payment invariants,
+scheduled grace windows, an atomic and auditable incident lifecycle, and a held-out labelled fault
+benchmark. No outbound Razorpay call or financial action exists yet.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -135,6 +135,28 @@ Epoch-plus-generation guards prevent an expired worker from overwriting newer gr
 allowing PostgreSQL to remain authoritative after disaster recovery. See
 [Phase 5 architecture](docs/architecture/phase-5-rebuildable-money-graph.md) for the complete
 transaction, crash, and observability contract.
+
+## Deterministic incidents
+
+Every journey-state commit now enqueues invariant evaluation in PostgreSQL. The main worker evaluates
+six conservative payment contracts at database time. It reschedules incomplete transitions to their
+exact grace-window deadline instead of raising a premature incident. A completed evaluation,
+current incident changes, immutable lifecycle revisions, and its queue checkpoint commit in one
+transaction.
+
+Run the evaluation-only held-out benchmark without credentials, databases, or network access:
+
+    chakravyuh-evaluate-invariants --seed-start 10000 --seed-count 100
+
+Each seed supplies six labelled positive faults and nine adversarial negative journeys. The JSON
+result reports exact-label precision, recall, F1, false-positive and false-negative counts, and an
+explicit manual-review cost. This is repeatable contract evidence on synthetic cases, not a claim of
+zero false negatives on real merchant traffic.
+
+Incident detection never calls Gemini or queries Neo4j. Evaluations and incident revisions are
+append-only; stable incident IDs survive evidence changes, resolution, and recurrence. See
+[Phase 6 architecture](docs/architecture/phase-6-invariants-and-incidents.md) for the rule, timing,
+transaction, and audit contract.
 
 ## Quality gate
 

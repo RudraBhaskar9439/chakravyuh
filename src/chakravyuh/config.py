@@ -36,6 +36,20 @@ class Settings(BaseSettings):
     worker_batch_size: int = Field(default=50, ge=1, le=500)
     journey_reduction_batch_size: int = Field(default=50, ge=1, le=500)
     journey_max_events: int = Field(default=10_000, ge=1, le=100_000)
+    invariant_evaluation_batch_size: int = Field(default=50, ge=1, le=500)
+    invariant_max_events: int = Field(default=10_000, ge=1, le=100_000)
+    invariant_captured_order_grace_seconds: int = Field(default=300, ge=1, le=86_400)
+    invariant_authorized_capture_grace_seconds: int = Field(default=900, ge=1, le=86_400)
+    invariant_failed_recovery_grace_seconds: int = Field(
+        default=1_800,
+        ge=1,
+        le=604_800,
+    )
+    invariant_stale_recovery_link_grace_seconds: int = Field(
+        default=300,
+        ge=1,
+        le=86_400,
+    )
     worker_poll_interval_seconds: float = Field(default=1, gt=0, le=60)
     worker_error_backoff_seconds: float = Field(default=5, gt=0, le=300)
     redis_dsn: str = "redis://localhost:6379/0"

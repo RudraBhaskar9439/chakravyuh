@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+from chakravyuh.application.invariant_evaluation import InvariantEvaluationBatchResult
 from chakravyuh.application.journey_reduction import (
     JourneyReductionBatchResult,
     ProcessJourneyReductionBatch,
@@ -61,6 +62,7 @@ async def test_pipeline_runs_normalization_before_independent_reduction() -> Non
     calls: list[str] = []
     normalization = AsyncMock()
     reduction = AsyncMock()
+    invariants = AsyncMock()
 
     async def normalize() -> NormalizationBatchResult:
         calls.append("normalization")
@@ -70,12 +72,17 @@ async def test_pipeline_runs_normalization_before_independent_reduction() -> Non
         calls.append("reduction")
         return JourneyReductionBatchResult(claimed=2, completed=1, dead_lettered=1)
 
+    async def evaluate() -> InvariantEvaluationBatchResult:
+        calls.append("invariants")
+        return InvariantEvaluationBatchResult(claimed=4, completed=3, dead_lettered=1)
+
     normalization.execute.side_effect = normalize
     reduction.execute.side_effect = reduce
+    invariants.execute.side_effect = evaluate
 
-    result = await ProcessPipelineBatch(normalization, reduction).execute()
+    result = await ProcessPipelineBatch(normalization, reduction, invariants).execute()
 
-    assert calls == ["normalization", "reduction"]
-    assert result.claimed == 5
-    assert result.completed == 4
-    assert result.dead_lettered == 1
+    assert calls == ["normalization", "reduction", "invariants"]
+    assert result.claimed == 9
+    assert result.completed == 7
+    assert result.dead_lettered == 2

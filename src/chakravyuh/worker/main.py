@@ -10,12 +10,20 @@ from typing import Protocol
 import structlog
 
 from chakravyuh import __version__
+from chakravyuh.application.invariant_evaluation import ProcessInvariantEvaluationBatch
 from chakravyuh.application.journey_reduction import ProcessJourneyReductionBatch
 from chakravyuh.application.normalization import NormalizationBatchResult, ProcessNormalizationBatch
 from chakravyuh.application.pipeline import PipelineBatchResult, ProcessPipelineBatch
 from chakravyuh.config import Settings, get_settings
+from chakravyuh.domain.invariants import (
+    DeterministicPaymentInvariantEvaluator,
+    InvariantPolicy,
+)
 from chakravyuh.domain.journeys import TemporalPaymentJourneyReducer
 from chakravyuh.infrastructure.database import Database
+from chakravyuh.infrastructure.postgres.invariant_repository import (
+    PostgresInvariantEvaluationRepository,
+)
 from chakravyuh.infrastructure.postgres.journey_reduction_repository import (
     PostgresJourneyReductionRepository,
 )
@@ -66,9 +74,32 @@ async def worker_main(
             batch_size=runtime_settings.journey_reduction_batch_size,
             max_events_per_journey=runtime_settings.journey_max_events,
         )
+        invariant_evaluation = ProcessInvariantEvaluationBatch(
+            PostgresInvariantEvaluationRepository(runtime_database),
+            DeterministicPaymentInvariantEvaluator(
+                InvariantPolicy(
+                    captured_order_paid_grace_seconds=(
+                        runtime_settings.invariant_captured_order_grace_seconds
+                    ),
+                    authorized_capture_grace_seconds=(
+                        runtime_settings.invariant_authorized_capture_grace_seconds
+                    ),
+                    failed_recovery_grace_seconds=(
+                        runtime_settings.invariant_failed_recovery_grace_seconds
+                    ),
+                    stale_recovery_link_grace_seconds=(
+                        runtime_settings.invariant_stale_recovery_link_grace_seconds
+                    ),
+                )
+            ),
+            worker_id=worker_id,
+            batch_size=runtime_settings.invariant_evaluation_batch_size,
+            max_events_per_journey=runtime_settings.invariant_max_events,
+        )
         processor = ProcessPipelineBatch(
             normalization,
             journey_reduction,
+            invariant_evaluation,
         )
 
     await logger.ainfo(
@@ -77,6 +108,7 @@ async def worker_main(
         version=__version__,
         batch_size=runtime_settings.worker_batch_size,
         journey_batch_size=runtime_settings.journey_reduction_batch_size,
+        invariant_batch_size=runtime_settings.invariant_evaluation_batch_size,
     )
     try:
         while not event.is_set():
@@ -98,6 +130,26 @@ async def worker_main(
                 claimed=result.claimed,
                 completed=result.completed,
                 dead_lettered=result.dead_lettered,
+                incidents_detected=(
+                    result.invariant_evaluation.incidents_detected
+                    if isinstance(result, PipelineBatchResult)
+                    else 0
+                ),
+                incidents_updated=(
+                    result.invariant_evaluation.incidents_updated
+                    if isinstance(result, PipelineBatchResult)
+                    else 0
+                ),
+                incidents_resolved=(
+                    result.invariant_evaluation.incidents_resolved
+                    if isinstance(result, PipelineBatchResult)
+                    else 0
+                ),
+                incidents_reopened=(
+                    result.invariant_evaluation.incidents_reopened
+                    if isinstance(result, PipelineBatchResult)
+                    else 0
+                ),
             )
     finally:
         if owned_database is not None:

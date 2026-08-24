@@ -13,8 +13,10 @@ from chakravyuh.domain.incidents import Incident
 from chakravyuh.domain.webhooks import RawWebhookEvent
 
 if TYPE_CHECKING:
+    from chakravyuh.application.invariant_evaluation import InvariantEvaluationBatchResult
     from chakravyuh.application.journey_reduction import JourneyReductionBatchResult
     from chakravyuh.application.normalization import NormalizationBatchResult
+    from chakravyuh.domain.invariants import InvariantEvaluationResult
     from chakravyuh.domain.journeys import PaymentJourneyState
     from chakravyuh.domain.projections import (
         GraphProjectionInput,
@@ -112,6 +114,29 @@ class JourneyReductionRepository(Protocol):
         merchant_id: str,
         correlation_id: str,
     ) -> PaymentJourneyState | None: ...
+
+
+class InvariantEvaluator(Protocol):
+    version: str
+
+    def evaluate(
+        self,
+        state: PaymentJourneyState,
+        events: tuple[NormalizedEvent, ...],
+        *,
+        as_of: datetime,
+    ) -> InvariantEvaluationResult: ...
+
+
+class InvariantEvaluationRepository(Protocol):
+    async def process_batch(
+        self,
+        *,
+        evaluator: InvariantEvaluator,
+        worker_id: str,
+        batch_size: int,
+        max_events_per_journey: int,
+    ) -> InvariantEvaluationBatchResult: ...
 
 
 class DatabaseLifecycle(Protocol):

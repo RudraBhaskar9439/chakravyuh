@@ -59,6 +59,24 @@ class GraphProjectionOutcome(StrEnum):
     DEAD_LETTER = "dead_letter"
 
 
+class InvariantEvaluationStatus(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    DEAD_LETTER = "dead_letter"
+
+
+class InvariantEvaluationOutcome(StrEnum):
+    COMPLETED = "completed"
+    DEAD_LETTER = "dead_letter"
+
+
+class IncidentRevisionReason(StrEnum):
+    DETECTED = "detected"
+    UPDATED = "updated"
+    RESOLVED = "resolved"
+    REOPENED = "reopened"
+
+
 class PaymentStatus(StrEnum):
     CREATED = "created"
     AUTHORIZED = "authorized"

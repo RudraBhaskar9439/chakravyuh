@@ -57,3 +57,17 @@ class StaleGraphProjectionError(RuntimeError):
 
 class GraphRebuildNotAllowedError(RuntimeError):
     """A requested graph rebuild had no authoritative states to enqueue."""
+
+
+class InvariantEvaluationErrorCode(StrEnum):
+    """Stable reasons a journey cannot currently be evaluated."""
+
+    JOURNEY_TOO_LARGE = "invariant_journey_too_large"
+
+
+class InvariantEvaluationError(ValueError):
+    """A bounded permanent invariant-evaluation failure."""
+
+    def __init__(self, code: InvariantEvaluationErrorCode) -> None:
+        self.code = code
+        super().__init__(code.value)

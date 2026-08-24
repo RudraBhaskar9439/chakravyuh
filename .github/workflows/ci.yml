@@ -100,6 +100,8 @@ jobs:
       - run: docker run --rm chakravyuh-api:test alembic heads
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-worker'
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-simulate'
+      - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-evaluate-invariants'
+      - run: docker run --rm chakravyuh-api:test chakravyuh-evaluate-invariants --seed-count 1
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-journey-replay'
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-projector'
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-graph-rebuild'

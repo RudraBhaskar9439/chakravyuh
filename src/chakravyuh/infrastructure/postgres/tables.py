@@ -583,3 +583,203 @@ graph_projection_rebuild_completions = Table(
     CheckConstraint("event_count_removed >= 0", name="ck_graph_rebuild_events_removed"),
     CheckConstraint("merchant_count_removed >= 0", name="ck_graph_rebuild_merchants_removed"),
 )
+
+invariant_evaluation_work = Table(
+    "invariant_evaluation_work",
+    metadata,
+    Column("merchant_id", String(255), primary_key=True),
+    Column("correlation_id", String(255), primary_key=True),
+    Column("generation", Integer, nullable=False),
+    Column("applied_generation", Integer, nullable=False, server_default="0"),
+    Column("status", String(32), nullable=False, server_default="pending"),
+    Column("attempt_count", Integer, nullable=False, server_default="0"),
+    Column(
+        "available_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column("last_error_code", String(64), nullable=True),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("generation >= 1", name="ck_invariant_work_generation"),
+    CheckConstraint(
+        "applied_generation BETWEEN 0 AND generation",
+        name="ck_invariant_work_applied_generation",
+    ),
+    CheckConstraint("attempt_count >= 0", name="ck_invariant_work_attempt_count"),
+    CheckConstraint(
+        "status IN ('pending', 'completed', 'dead_letter')",
+        name="ck_invariant_work_status",
+    ),
+    CheckConstraint(
+        "(status = 'pending' AND last_error_code IS NULL) OR "
+        "(status = 'completed' AND applied_generation = generation "
+        "AND last_error_code IS NULL) OR "
+        "(status = 'dead_letter' AND applied_generation <= generation "
+        "AND last_error_code IS NOT NULL)",
+        name="ck_invariant_work_consistent_outcome",
+    ),
+    schema="operations",
+)
+
+Index(
+    "ix_invariant_evaluation_work_claim",
+    invariant_evaluation_work.c.status,
+    invariant_evaluation_work.c.available_at,
+    invariant_evaluation_work.c.updated_at,
+)
+
+invariant_evaluations = Table(
+    "invariant_evaluations",
+    metadata,
+    Column("evaluation_id", Uuid(as_uuid=True), primary_key=True),
+    Column("merchant_id", String(255), nullable=False),
+    Column("correlation_id", String(255), nullable=False),
+    Column("state_generation", Integer, nullable=False),
+    Column("attempt_number", Integer, nullable=False),
+    Column("worker_id", String(255), nullable=False),
+    Column("evaluator_version", String(64), nullable=False),
+    Column("outcome", String(32), nullable=False),
+    Column("error_code", String(64), nullable=True),
+    Column("state_hash", String(64), nullable=True),
+    Column("finding_count", Integer, nullable=True),
+    Column("next_evaluation_at", DateTime(timezone=True), nullable=True),
+    Column(
+        "evaluated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    UniqueConstraint(
+        "merchant_id",
+        "correlation_id",
+        "attempt_number",
+        name="uq_invariant_evaluation_attempt",
+    ),
+    CheckConstraint("state_generation >= 1", name="ck_invariant_state_generation"),
+    CheckConstraint("attempt_number >= 1", name="ck_invariant_attempt_number"),
+    CheckConstraint("finding_count IS NULL OR finding_count >= 0", name="ck_invariant_findings"),
+    CheckConstraint(
+        "outcome IN ('completed', 'dead_letter')",
+        name="ck_invariant_evaluation_outcome",
+    ),
+    CheckConstraint(
+        "(outcome = 'completed' AND error_code IS NULL "
+        "AND state_hash ~ '^[0-9a-f]{64}$' AND finding_count IS NOT NULL) OR "
+        "(outcome = 'dead_letter' AND error_code IS NOT NULL "
+        "AND state_hash IS NULL AND finding_count IS NULL)",
+        name="ck_invariant_evaluation_consistent_outcome",
+    ),
+)
+
+incidents = Table(
+    "incidents",
+    metadata,
+    Column("incident_id", Uuid(as_uuid=True), primary_key=True),
+    Column("incident_key", String(64), nullable=False, unique=True),
+    Column("merchant_id", String(255), nullable=False),
+    Column("correlation_id", String(255), nullable=False),
+    Column("incident_type", String(64), nullable=False),
+    Column("status", String(32), nullable=False),
+    Column("rule_id", String(64), nullable=False),
+    Column("rule_version", String(64), nullable=False),
+    Column("affected_type", String(64), nullable=False),
+    Column("affected_id", String(255), nullable=False),
+    Column("amount_subunits", Integer, nullable=True),
+    Column("currency", String(3), nullable=True),
+    Column("evidence", JSONB, nullable=False),
+    Column("finding_hash", String(64), nullable=False),
+    Column("state_generation", Integer, nullable=False),
+    Column("occurrence_count", Integer, nullable=False),
+    Column("first_detected_at", DateTime(timezone=True), nullable=False),
+    Column("last_detected_at", DateTime(timezone=True), nullable=False),
+    Column("resolved_at", DateTime(timezone=True), nullable=True),
+    Column(
+        "last_evaluation_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.invariant_evaluations.evaluation_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("incident_key ~ '^[0-9a-f]{64}$'", name="ck_incident_key"),
+    CheckConstraint("finding_hash ~ '^[0-9a-f]{64}$'", name="ck_incident_finding_hash"),
+    CheckConstraint("state_generation >= 1", name="ck_incident_state_generation"),
+    CheckConstraint("occurrence_count >= 1", name="ck_incident_occurrence_count"),
+    CheckConstraint("jsonb_typeof(evidence) = 'array'", name="ck_incident_evidence_array"),
+    CheckConstraint(
+        "(amount_subunits IS NULL AND currency IS NULL) OR "
+        "(amount_subunits >= 0 AND currency ~ '^[A-Z]{3}$')",
+        name="ck_incident_amount",
+    ),
+    CheckConstraint(
+        "status IN ('detected', 'investigating', 'proposed', 'awaiting_approval', "
+        "'executing', 'resolved', 'failed', 'escalated')",
+        name="ck_incident_status",
+    ),
+    CheckConstraint(
+        "(status = 'resolved' AND resolved_at IS NOT NULL) OR "
+        "(status <> 'resolved' AND resolved_at IS NULL)",
+        name="ck_incident_resolution",
+    ),
+    schema="state",
+)
+
+Index("ix_incidents_status", incidents.c.status, incidents.c.last_detected_at)
+Index(
+    "ix_incidents_correlation",
+    incidents.c.merchant_id,
+    incidents.c.correlation_id,
+    incidents.c.status,
+)
+
+incident_revisions = Table(
+    "incident_revisions",
+    metadata,
+    Column("revision_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "incident_id",
+        Uuid(as_uuid=True),
+        ForeignKey("state.incidents.incident_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column(
+        "evaluation_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.invariant_evaluations.evaluation_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("state_generation", Integer, nullable=False),
+    Column("reason", String(32), nullable=False),
+    Column("status", String(32), nullable=False),
+    Column("finding_hash", String(64), nullable=False),
+    Column("snapshot", JSONB, nullable=False),
+    Column(
+        "recorded_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("state_generation >= 1", name="ck_incident_revision_generation"),
+    CheckConstraint(
+        "reason IN ('detected', 'updated', 'resolved', 'reopened')",
+        name="ck_incident_revision_reason",
+    ),
+    CheckConstraint("finding_hash ~ '^[0-9a-f]{64}$'", name="ck_incident_revision_hash"),
+    CheckConstraint("jsonb_typeof(snapshot) = 'object'", name="ck_incident_revision_snapshot"),
+)
+
+Index(
+    "ix_incident_revisions_incident",
+    incident_revisions.c.incident_id,
+    incident_revisions.c.recorded_at,
+)
