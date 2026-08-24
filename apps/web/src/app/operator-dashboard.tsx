@@ -160,12 +160,12 @@ export function OperatorDashboard() {
           <div className="brandMark" aria-hidden="true">
             च
           </div>
-          <p className="eyebrow">Phase 9 · Guarded recovery control plane</p>
+          <p className="eyebrow">Phase 10 · Production-hardened recovery control plane</p>
           <h1 id="product-title">Chakravyuh</h1>
           <p className="tagline">Every rupee has a path.</p>
           <p className="summary">
-            Inspect deterministic incidents, verify the exact evidence mesh, and run only
-            policy-approved Razorpay Test Mode recovery actions.
+            Inspect deterministic incidents, verify the exact evidence mesh, and run only scoped,
+            policy-approved Razorpay Test Mode recovery actions with an immutable audit trail.
           </p>
           <form className="accessForm" onSubmit={connect}>
             <label htmlFor="operator-token">Operator access token</label>
@@ -201,7 +201,7 @@ export function OperatorDashboard() {
         </div>
         <div className="topbarActions">
           <div className="readOnlyBadge">
-            <span /> Test Mode · dual control
+            <span /> Test Mode · scoped dual control
           </div>
           <button className="endSession" onClick={endSession} type="button">
             End session

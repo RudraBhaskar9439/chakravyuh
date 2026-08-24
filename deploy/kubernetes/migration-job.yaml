@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: chakravyuh-migrate-0-10-0
+  labels:
+    app.kubernetes.io/name: chakravyuh-migration
+    app.kubernetes.io/version: 0.10.0
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chakravyuh-migration
+    spec:
+      serviceAccountName: chakravyuh-runtime
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: ghcr.io/rudrabhaskar9439/chakravyuh-api:0.10.0
+          args: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: chakravyuh-runtime
+            - secretRef:
+                name: chakravyuh-postgres-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: temporary
+          emptyDir:
+            sizeLimit: 64Mi

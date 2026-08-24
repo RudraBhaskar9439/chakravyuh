@@ -47,6 +47,8 @@ async def test_liveness_contract(test_settings: Settings) -> None:
     assert response.headers["X-Request-ID"] == "request-123"
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert response.headers["Permissions-Policy"] == "camera=(), microphone=(), geolocation=()"
     assert response.json() == {
         "status": "ok",
         "service": "chakravyuh-api",
@@ -64,6 +66,19 @@ async def test_liveness_generates_request_id(test_settings: Settings) -> None:
 
     assert response.status_code == 200
     assert response.headers["X-Request-ID"]
+
+
+async def test_liveness_replaces_unsafe_request_id(test_settings: Settings) -> None:
+    transport = ASGITransport(app=create_app(test_settings))
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get(
+            "/health/live",
+            headers={"X-Request-ID": "unsafe value"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] != "unsafe value"
+    assert len(response.headers["X-Request-ID"]) == 36
 
 
 async def test_readiness_reports_postgres(test_settings: Settings) -> None:
@@ -122,6 +137,25 @@ def test_production_disables_api_documentation() -> None:
 
     assert app.docs_url is None
     assert app.redoc_url is None
+
+
+async def test_production_security_headers_and_trusted_hosts() -> None:
+    settings = Settings(
+        environment="production",
+        cors_origins=["https://operator.example"],
+        trusted_hosts=["api.example"],
+    )
+    app = create_app(settings)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="https://api.example") as client:
+        trusted = await client.get("/health/live")
+    async with AsyncClient(transport=transport, base_url="https://evil.example") as client:
+        rejected = await client.get("/health/live")
+
+    assert trusted.status_code == 200
+    assert trusted.headers["Strict-Transport-Security"] == ("max-age=31536000; includeSubDomains")
+    assert trusted.headers["Content-Security-Policy"].startswith("default-src 'none'")
+    assert rejected.status_code == 400
 
 
 def test_run_uses_configured_bind_address(monkeypatch) -> None:  # type: ignore[no-untyped-def]

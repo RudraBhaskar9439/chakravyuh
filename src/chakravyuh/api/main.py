@@ -1,7 +1,9 @@
 """FastAPI application factory and process entrypoint."""
 
+import re
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from time import perf_counter
 from uuid import uuid4
 
 import structlog
@@ -9,11 +11,13 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import RequestResponseEndpoint
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import Response
 
 from chakravyuh import __version__
 from chakravyuh.api.actions import router as action_router
 from chakravyuh.api.health import router as health_router
+from chakravyuh.api.metrics import router as metrics_router
 from chakravyuh.api.operators import router as operator_router
 from chakravyuh.api.webhooks import router as webhook_router
 from chakravyuh.application.ports import (
@@ -38,11 +42,13 @@ from chakravyuh.infrastructure.postgres.graph_projection_repository import (
 )
 from chakravyuh.infrastructure.postgres.operator_read_model import PostgresOperatorReadModel
 from chakravyuh.infrastructure.postgres.webhook_event_store import PostgresWebhookEventStore
+from chakravyuh.infrastructure.rate_limiting import RateLimiter, build_rate_limiter
 from chakravyuh.infrastructure.razorpay.actions import (
     DisabledRazorpayPaymentGateway,
     RazorpayTestModePaymentGateway,
 )
 from chakravyuh.logging import configure_logging
+from chakravyuh.observability import ProcessMetrics
 
 logger = structlog.get_logger(__name__)
 
@@ -52,6 +58,7 @@ def _lifespan(
     database: Database,
     graph_projector: GraphProjector,
     payment_gateway: RazorpayPaymentGateway,
+    operator_rate_limiter: RateLimiter,
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -66,8 +73,13 @@ def _lifespan(
             try:
                 await payment_gateway.close()
             finally:
-                await graph_projector.close()
-                await database.close()
+                try:
+                    await graph_projector.close()
+                finally:
+                    try:
+                        await database.close()
+                    finally:
+                        await operator_rate_limiter.close()
             await logger.ainfo("application_stopped")
 
     return lifespan
@@ -82,6 +94,8 @@ def create_app(
     operator_read_model: OperatorReadModel | None = None,
     payment_gateway: RazorpayPaymentGateway | None = None,
     action_control_plane: ActionControlPlane | None = None,
+    operator_rate_limiter: RateLimiter | None = None,
+    process_metrics: ProcessMetrics | None = None,
 ) -> FastAPI:
     """Create an isolated application instance for production and tests."""
     resolved_settings = settings or get_settings()
@@ -100,6 +114,12 @@ def create_app(
         RazorpayTestModePaymentGateway(resolved_settings)
         if resolved_settings.razorpay_test_actions_configured
         else DisabledRazorpayPaymentGateway()
+    )
+    resolved_rate_limiter = operator_rate_limiter or build_rate_limiter(resolved_settings)
+    resolved_metrics = process_metrics or ProcessMetrics(
+        version=__version__,
+        environment=resolved_settings.environment,
+        actions_enabled=resolved_settings.razorpay_actions_enabled,
     )
     resolved_action_control_plane = action_control_plane or RecoveryActionControlPlane(
         PostgresRecoveryActionRepository(resolved_database),
@@ -128,6 +148,7 @@ def create_app(
             resolved_database,
             resolved_graph_projector,
             resolved_payment_gateway,
+            resolved_rate_limiter,
         ),
     )
     app.state.settings = resolved_settings
@@ -141,6 +162,12 @@ def create_app(
     app.state.ingest_webhook = IngestVerifiedWebhook(resolved_webhook_store)
     app.state.operator_read_model = resolved_operator_read_model
     app.state.action_control_plane = resolved_action_control_plane
+    app.state.operator_rate_limiter = resolved_rate_limiter
+    app.state.process_metrics = resolved_metrics
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=resolved_settings.trusted_hosts,
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=resolved_settings.cors_origins,
@@ -154,8 +181,13 @@ def create_app(
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        started_at = perf_counter()
         supplied_request_id = request.headers.get("x-request-id", "").strip()
-        request_id = supplied_request_id if 1 <= len(supplied_request_id) <= 255 else str(uuid4())
+        request_id = (
+            supplied_request_id
+            if re.fullmatch(r"[A-Za-z0-9._:-]{1,255}", supplied_request_id)
+            else str(uuid4())
+        )
         request.state.request_id = request_id
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(
@@ -165,19 +197,50 @@ def create_app(
         )
         try:
             response = await call_next(request)
+        except Exception:
+            await resolved_metrics.observe(
+                method=request.method,
+                route=_route_template(request),
+                status=500,
+                duration_seconds=perf_counter() - started_at,
+            )
+            raise
+        else:
+            response.headers["X-Request-ID"] = request_id
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+            if resolved_settings.is_production:
+                response.headers["Content-Security-Policy"] = (
+                    "default-src 'none'; frame-ancestors 'none'; "
+                    "base-uri 'none'; form-action 'none'"
+                )
+                response.headers["Strict-Transport-Security"] = (
+                    "max-age=31536000; includeSubDomains"
+                )
+            await resolved_metrics.observe(
+                method=request.method,
+                route=_route_template(request),
+                status=response.status_code,
+                duration_seconds=perf_counter() - started_at,
+            )
+            return response
         finally:
             structlog.contextvars.clear_contextvars()
-
-        response.headers["X-Request-ID"] = request_id
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        return response
 
     app.include_router(health_router)
     app.include_router(webhook_router)
     app.include_router(operator_router)
     app.include_router(action_router)
+    app.include_router(metrics_router)
     return app
+
+
+def _route_template(request: Request) -> str:
+    route = request.scope.get("route")
+    path = getattr(route, "path", None)
+    return path if isinstance(path, str) else "unmatched"
 
 
 def run() -> None:

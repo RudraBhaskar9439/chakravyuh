@@ -1,6 +1,11 @@
 .git
 .github
 .venv
+.coverage
+.mypy_cache
+.pytest_cache
+.ruff_cache
+**/__pycache__
 node_modules
 **/node_modules
 .next
@@ -13,4 +18,3 @@ tmp
 sources
 htmlcov
 coverage.xml
-

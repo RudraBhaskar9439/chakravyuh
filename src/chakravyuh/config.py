@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from chakravyuh.domain.enums import OperatorScope
 from chakravyuh.domain.webhooks import MAX_STORED_WEBHOOK_BYTES
 
 
@@ -25,6 +26,9 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"  # noqa: S104 - intentional container bind address
     api_port: int = Field(default=8000, ge=1, le=65535)
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    trusted_hosts: list[str] = Field(
+        default_factory=lambda: ["localhost", "127.0.0.1", "test", "testserver"]
+    )
 
     postgres_dsn: str = (
         "postgresql+asyncpg://chakravyuh:local-development-only@localhost:5432/chakravyuh"
@@ -78,6 +82,16 @@ class Settings(BaseSettings):
     gemini_model: str = Field(default="gemini-3.5-flash", min_length=1, max_length=128)
     gemini_timeout_seconds: float = Field(default=30, gt=0, le=120)
     operator_token_hashes: dict[str, str] = Field(default_factory=dict)
+    operator_principal_scopes: dict[str, frozenset[OperatorScope]] = Field(default_factory=dict)
+    operator_requests_per_minute: int = Field(default=120, ge=1, le=10_000)
+    operator_auth_attempts_per_minute: int = Field(default=30, ge=1, le=1_000)
+    rate_limit_backend: Literal["memory", "redis"] = "memory"
+    rate_limit_prefix: str = Field(
+        default="chakravyuh:rate",
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9:_-]+$",
+    )
 
     razorpay_actions_enabled: bool = False
     action_proposal_ttl_seconds: int = Field(default=900, ge=60, le=3_600)
@@ -104,6 +118,25 @@ class Settings(BaseSettings):
         """Wildcard origins are incompatible with credentialed operator sessions."""
         if "*" in value:
             msg = "CORS wildcard is not permitted"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("trusted_hosts")
+    @classmethod
+    def validate_trusted_hosts(cls, value: list[str]) -> list[str]:
+        if not value or any(not host.strip() for host in value):
+            msg = "trusted hosts must contain at least one non-empty host"
+            raise ValueError(msg)
+        if any(
+            "*" in host
+            or len(host) > 253
+            or any(
+                character not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.:-"
+                for character in host
+            )
+            for host in value
+        ):
+            msg = "trusted host wildcard or invalid character is not permitted"
             raise ValueError(msg)
         return value
 
@@ -155,6 +188,22 @@ class Settings(BaseSettings):
         if len(self.operator_token_hashes) != len(set(self.operator_token_hashes.values())):
             msg = "operator token hashes must be unique"
             raise ValueError(msg)
+        unknown_scope_principals = set(self.operator_principal_scopes) - set(
+            self.operator_token_hashes
+        )
+        if unknown_scope_principals:
+            msg = "operator scopes require a configured token principal"
+            raise ValueError(msg)
+        if any(not scopes for scopes in self.operator_principal_scopes.values()):
+            msg = "configured operator scope sets must not be empty"
+            raise ValueError(msg)
+        if self.is_production and self.operator_token_hashes:
+            if set(self.operator_principal_scopes) != set(self.operator_token_hashes):
+                msg = "production operator principals require explicit scopes"
+                raise ValueError(msg)
+            if self.rate_limit_backend != "redis":
+                msg = "production operator authentication requires Redis rate limiting"
+                raise ValueError(msg)
         if self.razorpay_actions_enabled:
             if (
                 self.razorpay_key_id is None
@@ -191,6 +240,16 @@ class Settings(BaseSettings):
             and self.razorpay_key_secret is not None
             and self.razorpay_merchant_id is not None
         )
+
+    def scopes_for_principal(self, principal_id: str) -> frozenset[OperatorScope]:
+        """Return explicit scopes, with a non-production compatibility default for local review."""
+
+        configured = self.operator_principal_scopes.get(principal_id)
+        if configured is not None:
+            return configured
+        if not self.is_production and principal_id in self.operator_token_hashes:
+            return frozenset(OperatorScope)
+        return frozenset()
 
 
 @lru_cache(maxsize=1)

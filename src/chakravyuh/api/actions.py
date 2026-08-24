@@ -6,10 +6,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from chakravyuh.api.operator_auth import OperatorPrincipal, require_operator
+from chakravyuh.api.operator_auth import OperatorPrincipal, require_operator, require_scope
 from chakravyuh.application.ports import ActionControlPlane
 from chakravyuh.domain.actions import ActionView
-from chakravyuh.domain.enums import ActionApprovalDecision
+from chakravyuh.domain.enums import ActionApprovalDecision, OperatorScope
 from chakravyuh.domain.errors import ActionControlError, ActionControlErrorCode
 
 router = APIRouter(prefix="/v1/operator", tags=["operator-actions"])
@@ -30,6 +30,7 @@ async def list_actions(
     response: Response,
     principal: OperatorDependency,
 ) -> tuple[ActionView, ...]:
+    require_scope(principal, OperatorScope.INCIDENT_READ)
     response.headers["Cache-Control"] = "no-store"
     return tuple(
         await _control_plane(request).list_for_incident(
@@ -50,6 +51,7 @@ async def create_proposal(
     response: Response,
     principal: OperatorDependency,
 ) -> ActionView:
+    require_scope(principal, OperatorScope.ACTION_PROPOSE)
     response.headers["Cache-Control"] = "no-store"
     try:
         return await _control_plane(request).propose(
@@ -69,6 +71,7 @@ async def decide_proposal(
     response: Response,
     principal: OperatorDependency,
 ) -> ActionView:
+    require_scope(principal, OperatorScope.ACTION_APPROVE)
     response.headers["Cache-Control"] = "no-store"
     try:
         return await _control_plane(request).decide(
@@ -89,6 +92,7 @@ async def execute_proposal(
     response: Response,
     principal: OperatorDependency,
 ) -> ActionView:
+    require_scope(principal, OperatorScope.ACTION_EXECUTE)
     response.headers["Cache-Control"] = "no-store"
     try:
         return await _control_plane(request).execute(

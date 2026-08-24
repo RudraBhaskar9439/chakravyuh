@@ -7,6 +7,8 @@ RUN pnpm install --frozen-lockfile
 
 FROM node:24-alpine AS builder
 RUN corepack enable
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/apps/web/node_modules ./apps/web/node_modules
@@ -24,4 +26,3 @@ COPY --from=builder --chown=chakravyuh:chakravyuh /app/apps/web/.next/static ./a
 USER chakravyuh
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
-

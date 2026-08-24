@@ -6,9 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from starlette.responses import Response
 
-from chakravyuh.api.operator_auth import OperatorPrincipal, require_operator
+from chakravyuh.api.operator_auth import OperatorPrincipal, require_operator, require_scope
 from chakravyuh.application.ports import OperatorReadModel
-from chakravyuh.domain.enums import IncidentStatus
+from chakravyuh.domain.enums import IncidentStatus, OperatorScope
 from chakravyuh.domain.operators import IncidentDetail, IncidentOverview, IncidentPage
 
 router = APIRouter(
@@ -26,6 +26,7 @@ async def overview(
     response: Response,
     principal: OperatorDependency,
 ) -> IncidentOverview:
+    require_scope(principal, OperatorScope.INCIDENT_READ)
     response.headers["Cache-Control"] = "no-store"
     return await _read_model(request).overview(
         principal_id=principal.principal_id,
@@ -45,6 +46,7 @@ async def list_incidents(
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
     cursor: Annotated[str | None, Query(min_length=1, max_length=512)] = None,
 ) -> IncidentPage:
+    require_scope(principal, OperatorScope.INCIDENT_READ)
     response.headers["Cache-Control"] = "no-store"
     try:
         return await _read_model(request).list_incidents(
@@ -68,6 +70,7 @@ async def get_incident(
     response: Response,
     principal: OperatorDependency,
 ) -> IncidentDetail:
+    require_scope(principal, OperatorScope.INCIDENT_READ)
     response.headers["Cache-Control"] = "no-store"
     detail = await _read_model(request).get_incident(
         incident_id,

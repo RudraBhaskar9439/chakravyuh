@@ -1,0 +1,176 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chakravyuh-worker
+  labels:
+    app.kubernetes.io/name: chakravyuh-worker
+    app.kubernetes.io/version: 0.10.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chakravyuh-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chakravyuh-worker
+        app.kubernetes.io/part-of: chakravyuh
+    spec:
+      serviceAccountName: chakravyuh-runtime
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: ghcr.io/rudrabhaskar9439/chakravyuh-api:0.10.0
+          args: ["chakravyuh-worker"]
+          envFrom:
+            - configMapRef:
+                name: chakravyuh-runtime
+            - secretRef:
+                name: chakravyuh-postgres-secrets
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: temporary
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chakravyuh-projector
+  labels:
+    app.kubernetes.io/name: chakravyuh-projector
+    app.kubernetes.io/version: 0.10.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chakravyuh-projector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chakravyuh-projector
+        app.kubernetes.io/part-of: chakravyuh
+    spec:
+      serviceAccountName: chakravyuh-runtime
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: projector
+          image: ghcr.io/rudrabhaskar9439/chakravyuh-api:0.10.0
+          args: ["chakravyuh-projector"]
+          envFrom:
+            - configMapRef:
+                name: chakravyuh-runtime
+            - secretRef:
+                name: chakravyuh-postgres-secrets
+            - secretRef:
+                name: chakravyuh-graph-secrets
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: temporary
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chakravyuh-diagnosis
+  labels:
+    app.kubernetes.io/name: chakravyuh-diagnosis
+    app.kubernetes.io/version: 0.10.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chakravyuh-diagnosis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chakravyuh-diagnosis
+        app.kubernetes.io/part-of: chakravyuh
+    spec:
+      serviceAccountName: chakravyuh-runtime
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: diagnosis
+          image: ghcr.io/rudrabhaskar9439/chakravyuh-api:0.10.0
+          args: ["chakravyuh-diagnosis-worker"]
+          envFrom:
+            - configMapRef:
+                name: chakravyuh-runtime
+            - secretRef:
+                name: chakravyuh-postgres-secrets
+            - secretRef:
+                name: chakravyuh-graph-secrets
+            - secretRef:
+                name: chakravyuh-model-secrets
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: temporary
+          emptyDir:
+            sizeLimit: 64Mi

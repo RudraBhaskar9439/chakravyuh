@@ -4,6 +4,7 @@ import pytest
 from pydantic import SecretStr, ValidationError
 
 from chakravyuh.config import Settings, get_settings
+from chakravyuh.domain.enums import OperatorScope
 
 
 def test_settings_load_prefixed_environment(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -67,6 +68,51 @@ def test_operator_token_hashes_require_bounded_principals_and_unique_sha256() ->
         Settings(operator_token_hashes={"operator": "not-a-hash"})
     with pytest.raises(ValidationError, match="must be unique"):
         Settings(operator_token_hashes={"first": valid_hash, "second": valid_hash})
+
+
+def test_operator_scopes_reference_tokens_and_are_explicit_in_production() -> None:
+    maker_hash = "a" * 64
+    local = Settings(operator_token_hashes={"maker": maker_hash})
+    assert local.scopes_for_principal("maker") == frozenset(OperatorScope)
+    assert local.scopes_for_principal("unknown") == frozenset()
+
+    scoped = Settings(
+        operator_token_hashes={"maker": maker_hash},
+        operator_principal_scopes={"maker": ["incident:read", "action:propose"]},
+    )
+    assert scoped.scopes_for_principal("maker") == {
+        OperatorScope.INCIDENT_READ,
+        OperatorScope.ACTION_PROPOSE,
+    }
+    with pytest.raises(ValidationError, match="configured token principal"):
+        Settings(operator_principal_scopes={"unknown": ["incident:read"]})
+    with pytest.raises(ValidationError, match="must not be empty"):
+        Settings(
+            operator_token_hashes={"maker": maker_hash},
+            operator_principal_scopes={"maker": []},
+        )
+    with pytest.raises(ValidationError, match="explicit scopes"):
+        Settings(environment="production", operator_token_hashes={"maker": maker_hash})
+    with pytest.raises(ValidationError, match="Redis rate limiting"):
+        Settings(
+            environment="production",
+            operator_token_hashes={"maker": maker_hash},
+            operator_principal_scopes={"maker": ["incident:read"]},
+        )
+    production = Settings(
+        environment="production",
+        operator_token_hashes={"maker": maker_hash},
+        operator_principal_scopes={"maker": ["incident:read"]},
+        rate_limit_backend="redis",
+    )
+    assert production.scopes_for_principal("maker") == {OperatorScope.INCIDENT_READ}
+
+
+def test_trusted_hosts_are_bounded_and_reject_production_wildcard() -> None:
+    with pytest.raises(ValidationError, match="at least one"):
+        Settings(trusted_hosts=[])
+    with pytest.raises(ValidationError, match="wildcard"):
+        Settings(environment="production", trusted_hosts=["*"])
 
 
 def test_outbound_actions_fail_closed_and_accept_test_mode_only() -> None:

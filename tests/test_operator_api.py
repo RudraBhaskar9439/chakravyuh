@@ -8,8 +8,9 @@ from httpx import ASGITransport, AsyncClient
 
 from chakravyuh.api.main import create_app
 from chakravyuh.config import Settings
-from chakravyuh.domain.enums import IncidentStatus
+from chakravyuh.domain.enums import IncidentStatus, OperatorScope
 from chakravyuh.domain.operators import IncidentDetail, IncidentOverview, IncidentPage
+from chakravyuh.infrastructure.rate_limiting import RateLimiterUnavailableError
 
 TOKEN = "operator-test-token-with-enough-entropy"
 
@@ -43,12 +44,21 @@ class _ReadModel:
         return None
 
 
-def _settings(*, configured: bool = True) -> Settings:
+def _settings(
+    *,
+    configured: bool = True,
+    scopes: list[OperatorScope] | None = None,
+    auth_limit: int = 30,
+) -> Settings:
     return Settings(
         environment="test",
         operator_token_hashes=(
             {"risk-operator": hashlib.sha256(TOKEN.encode()).hexdigest()} if configured else {}
         ),
+        operator_principal_scopes=(
+            {"risk-operator": scopes} if configured and scopes is not None else {}
+        ),
+        operator_auth_attempts_per_minute=auth_limit,
     )
 
 
@@ -155,3 +165,77 @@ async def test_operator_detail_returns_generic_not_found() -> None:
     assert response.status_code == 404
     assert response.json() == {"detail": "incident not found"}
     assert read_model.calls[0][1]["incident_id"] == incident_id
+
+
+async def test_operator_scope_denial_happens_before_read_model() -> None:
+    read_model = _ReadModel()
+    settings = _settings(scopes=[OperatorScope.METRICS_READ])
+    async with _client(settings, read_model) as client:
+        response = await client.get(
+            "/v1/operator/overview",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "operator permission denied"}
+    assert read_model.calls == []
+
+
+async def test_operator_authentication_is_rate_limited_by_client() -> None:
+    read_model = _ReadModel()
+    async with _client(_settings(auth_limit=2), read_model) as client:
+        first = await client.get("/v1/operator/overview")
+        second = await client.get(
+            "/v1/operator/overview",
+            headers={"Authorization": "Bearer wrong"},
+        )
+        limited = await client.get("/v1/operator/overview")
+
+    assert first.status_code == second.status_code == 401
+    assert limited.status_code == 429
+    assert limited.headers["Retry-After"]
+    assert limited.headers["RateLimit-Limit"] == "2"
+    assert limited.headers["RateLimit-Remaining"] == "0"
+
+
+class _UnavailableLimiter:
+    async def consume(self, *_args: Any, **_kwargs: Any) -> None:
+        raise RateLimiterUnavailableError
+
+    async def close(self) -> None:
+        return None
+
+
+async def test_operator_authentication_fails_closed_when_limiter_is_unavailable() -> None:
+    read_model = _ReadModel()
+    app = create_app(
+        _settings(),
+        operator_read_model=read_model,
+        operator_rate_limiter=_UnavailableLimiter(),  # type: ignore[arg-type]
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/v1/operator/overview",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "operator authentication unavailable"}
+    assert read_model.calls == []
+
+
+async def test_metrics_endpoint_has_separate_scope_and_template_labels() -> None:
+    read_model = _ReadModel()
+    settings = _settings(scopes=[OperatorScope.METRICS_READ])
+    async with _client(settings, read_model) as client:
+        await client.get("/health/live")
+        response = await client.get(
+            "/internal/metrics",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Content-Type"].startswith("text/plain")
+    assert 'route="/health/live",status="200"} 1' in response.text
+    assert 'environment="test",version="0.10.0"' in response.text

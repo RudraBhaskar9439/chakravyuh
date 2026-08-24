@@ -24,6 +24,16 @@ class EventSource(StrEnum):
     SIMULATOR = "simulator"
 
 
+class OperatorScope(StrEnum):
+    """Explicit least-privilege capabilities for the internal control plane."""
+
+    INCIDENT_READ = "incident:read"
+    ACTION_PROPOSE = "action:propose"
+    ACTION_APPROVE = "action:approve"
+    ACTION_EXECUTE = "action:execute"
+    METRICS_READ = "metrics:read"
+
+
 class NormalizationStatus(StrEnum):
     PENDING = "pending"
     COMPLETED = "completed"

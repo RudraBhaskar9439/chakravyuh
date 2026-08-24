@@ -2,10 +2,11 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is being implemented in auditable phases. Phase 9 adds an authenticated, audited action
-plane around the evidence mesh. AI remains non-executable: deterministic policy, immutable
-maker-checker approval, exact-amount preflight, and a Test-Mode-only Razorpay adapter control every
-outbound operation.
+The project is implemented in ten auditable phases. Phase 10 hardens the complete evidence and action
+mesh with scoped operator authority, fail-closed throttling, low-cardinality metrics, deterministic
+correctness and chaos proofs, a bounded signed-ingress load probe, and production deployment
+manifests. AI remains non-executable: deterministic policy, immutable maker-checker approval,
+exact-amount preflight, and a Test-Mode-only Razorpay adapter control every outbound operation.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -221,6 +222,41 @@ never a blind capture retry. Every proposal, policy decision, checker decision, 
 mutation authorization, result, and operator access event is append-only. See
 [Phase 9 architecture](docs/architecture/phase-9-guarded-test-mode-actions.md) for the complete
 safety and failure contract.
+
+## Production hardening and proof
+
+Operator identities now receive explicit scopes for incident reads, proposal creation, checker
+decisions, execution requests, and metric scrapes. Local/test environments retain a bounded
+in-process limiter for development; production refuses configured operator tokens unless every
+principal has explicit scopes and the cluster-wide Redis limiter is selected. Limiter failure denies
+authentication.
+
+Run the complete offline judge proof without credentials or services:
+
+    uv run chakravyuh-judge-demo --seed-start 50000 --seed-count 100
+
+It reports held-out exact-label precision/recall and false-positive/false-negative counts, duplicate
+and out-of-order state-hash checks, recovery-policy safety checks, local latency/throughput, and a
+stable proof SHA-256. This is evidence on labelled synthetic cases, not a guarantee about unseen
+merchant traffic.
+
+For an authorized isolated environment, `chakravyuh-load-probe` sends bounded signed webhook events
+and proves both durable new-event acknowledgements and duplicate retries. The secret is accepted only
+through `CHAKRAVYUH_LOAD_WEBHOOK_SECRET`; remote targets require an explicit acknowledgment flag.
+See the [judge demo](docs/demo/judge-demo.md) for the exact flow.
+
+Authenticated Prometheus metrics are available at `GET /internal/metrics` to a principal holding only
+`metrics:read`. Labels contain registered route templates, method, and status—never merchant or
+payment identifiers.
+
+The Kubernetes release template under `deploy/kubernetes` separates migration, API, processors, and
+web workloads, commits no Secret, and enforces non-root/read-only containers, probes, resources,
+disruption budgets, and default-deny networking. It deliberately contains placeholder origins and
+external dependency addresses. Follow the
+[production runbook](docs/operations/production-runbook.md) and replace image tags with registry
+digests before applying it. See
+[Phase 10 architecture](docs/architecture/phase-10-production-hardening.md) for the complete control
+and evidence contract.
 
 ## Quality gate
 

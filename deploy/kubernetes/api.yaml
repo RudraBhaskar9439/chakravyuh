@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chakravyuh-api
+  labels:
+    app.kubernetes.io/name: chakravyuh-api
+    app.kubernetes.io/version: 0.10.0
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chakravyuh-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chakravyuh-api
+        app.kubernetes.io/part-of: chakravyuh
+    spec:
+      serviceAccountName: chakravyuh-runtime
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: ghcr.io/rudrabhaskar9439/chakravyuh-api:0.10.0
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: chakravyuh-runtime
+            - secretRef:
+                name: chakravyuh-postgres-secrets
+            - secretRef:
+                name: chakravyuh-graph-secrets
+            - secretRef:
+                name: chakravyuh-rate-limit-secrets
+            - secretRef:
+                name: chakravyuh-operator-secrets
+            - secretRef:
+                name: chakravyuh-provider-secrets
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: temporary
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chakravyuh-api
+spec:
+  selector:
+    app.kubernetes.io/name: chakravyuh-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

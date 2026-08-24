@@ -22,6 +22,7 @@ from chakravyuh.domain.enums import (
     ActionType,
     EntityType,
     IncidentType,
+    OperatorScope,
     PolicyOutcome,
 )
 from chakravyuh.domain.errors import ActionControlError, ActionControlErrorCode
@@ -104,6 +105,14 @@ def _settings() -> Settings:
     return Settings(
         environment="test",
         operator_token_hashes={"maker": hashlib.sha256(TOKEN.encode()).hexdigest()},
+    )
+
+
+def _read_only_settings() -> Settings:
+    return Settings(
+        environment="test",
+        operator_token_hashes={"maker": hashlib.sha256(TOKEN.encode()).hexdigest()},
+        operator_principal_scopes={"maker": [OperatorScope.INCIDENT_READ]},
     )
 
 
@@ -194,3 +203,26 @@ async def test_control_errors_use_generic_stable_statuses() -> None:
             )
         assert response.status_code == status_code
         assert response.json() == {"detail": {"code": code.value}}
+
+
+async def test_action_mutation_scopes_fail_before_control_plane() -> None:
+    control = _ActionControlPlane()
+    app = create_app(_read_only_settings(), action_control_plane=control)
+    incident_id = uuid4()
+    proposal_id = control.view.proposal.proposal_id
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+    ) as client:
+        history = await client.get(f"/v1/operator/incidents/{incident_id}/actions")
+        proposal = await client.post(f"/v1/operator/incidents/{incident_id}/actions/proposals")
+        decision = await client.post(
+            f"/v1/operator/actions/{proposal_id}/decisions",
+            json={"decision": "approved", "rationale": "Reviewed."},
+        )
+        execution = await client.post(f"/v1/operator/actions/{proposal_id}/execute")
+
+    assert history.status_code == 200
+    assert proposal.status_code == decision.status_code == execution.status_code == 403
+    assert [call[0] for call in control.calls] == ["list"]
