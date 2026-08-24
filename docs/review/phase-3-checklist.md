@@ -28,7 +28,7 @@
 - [x] Empty upgrade, downgrade, re-upgrade, and metadata-drift checks pass.
 - [x] PostgreSQL rejects UPDATE, DELETE, and TRUNCATE against Phase 3 audit ledgers.
 - [x] Strict lint, formatting, typing, backend, web, build, and container checks pass.
-- [ ] Private-repository CI passes for the final Phase 3 commit.
+- [x] Private-repository CI passes for the Phase 3 implementation commit.
 
 ## Review outcome
 
