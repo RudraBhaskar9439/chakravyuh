@@ -44,6 +44,14 @@ They also proved the database rejects UPDATE, DELETE, and TRUNCATE against the l
 - Running API and web containers returned successful health responses.
 - Temporary proof containers and the Compose network were removed; development volumes were kept.
 
+## Private CI and dependency security
+
+- Private GitHub Actions run
+  [`32730807424`](https://github.com/RudraBhaskar9439/chakravyuh/actions/runs/32730807424)
+  passed repository policy, backend with PostgreSQL, web, and both container builds.
+- GitHub reported a moderate pytest advisory after the first push. Pytest was upgraded to 9.1.1,
+  above the first patched version 9.0.3, and GitHub now marks the alert fixed.
+
 ## Deliberate limitations
 
 - Intake supports one configured Razorpay merchant per process. A later secrets repository can
@@ -52,4 +60,3 @@ They also proved the database rejects UPDATE, DELETE, and TRUNCATE against the l
   provider IP allowlisting are deployment controls required before real production data.
 - The Phase 2 worker does not consume or normalize the ledger yet.
 - No Neo4j write, model call, outbound Razorpay request, or money action exists.
-- Private GitHub CI remains the last verification item before owner review.

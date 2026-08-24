@@ -30,7 +30,7 @@
 - [x] Backend unit and PostgreSQL integration tests pass above the coverage gate.
 - [x] Frontend checks, tests, and production build pass.
 - [x] API and web production containers build and run as non-root users.
-- [ ] Private-repository CI passes.
+- [x] Private-repository CI passes.
 
 ## Review outcome
 
