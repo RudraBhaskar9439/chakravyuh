@@ -20,7 +20,7 @@ export default function Home() {
   return (
     <main>
       <section className="hero" aria-labelledby="product-title">
-        <p className="eyebrow">Phase 1 · Production foundation</p>
+        <p className="eyebrow">Phase 2 · Trusted event intake</p>
         <h1 id="product-title">Chakravyuh</h1>
         <p className="tagline">Every rupee has a path.</p>
         <p className="summary">
@@ -29,7 +29,7 @@ export default function Home() {
         </p>
         <div className="status" role="status">
           <span className="statusDot" aria-hidden="true" />
-          Foundation operational
+          Immutable intake operational
         </div>
       </section>
 

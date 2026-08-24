@@ -2,7 +2,9 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is being implemented in review-gated phases. Phase 1 establishes the production foundation; no live financial action exists yet.
+The project is being implemented in review-gated phases. Phase 2 adds authenticated Razorpay
+webhook intake and an immutable PostgreSQL ledger. No outbound Razorpay call or financial action
+exists yet.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -36,11 +38,45 @@ Run the API and web application in separate terminals:
 
 The API liveness endpoint is http://localhost:8000/health/live. The web application is available at http://localhost:3000.
 
+`make infra-up` waits for local dependencies and applies all database migrations. The readiness
+endpoint at http://localhost:8000/health/ready returns success only when PostgreSQL answers a real
+query.
+
+## Verified webhook intake
+
+Configure a Test Mode merchant identity, account identity, and webhook secret in `.env`, then use:
+
+    POST /v1/webhooks/razorpay/{merchant_id}
+
+The endpoint:
+
+- reads a size-bounded stream rather than an unbounded request body;
+- verifies `X-Razorpay-Signature` over the exact raw bytes before parsing JSON;
+- requires `X-Razorpay-Event-Id` as the provider idempotency identity;
+- supports the current and previous secret during safe secret rotation;
+- commits the verified body to PostgreSQL before returning 2xx;
+- returns `202` for a new event and `200` for an identical provider retry;
+- returns `409` if one provider event ID is reused with different content.
+
+PostgreSQL rejects row updates, deletes, and table truncation on the raw ledger. Provider events
+may arrive late or out of order; ordering is not inferred at intake.
+
 ## Quality gate
 
     make check
 
 The gate runs Python linting, formatting, strict type checking, tests with branch coverage, web linting, web tests, and a production web build.
+
+PostgreSQL integration proofs run when `CHAKRAVYUH_TEST_POSTGRES_DSN` is defined. CI always runs
+them against an isolated PostgreSQL service.
+
+## Migrations
+
+    make migrate
+    make migration-check
+
+Application startup never edits the schema implicitly. A release must apply the reviewed Alembic
+migrations before starting the API and worker processes.
 
 ## Repository boundaries
 

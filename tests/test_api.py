@@ -9,6 +9,11 @@ from chakravyuh.api.main import create_app, run
 from chakravyuh.config import Settings
 
 
+class ReadyDatabase:
+    async def ping(self) -> None:
+        return None
+
+
 async def test_liveness_contract(test_settings: Settings) -> None:
     transport = ASGITransport(app=create_app(test_settings))
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -37,8 +42,9 @@ async def test_liveness_generates_request_id(test_settings: Settings) -> None:
     assert response.headers["X-Request-ID"]
 
 
-async def test_readiness_reports_only_registered_checks(test_settings: Settings) -> None:
+async def test_readiness_reports_postgres(test_settings: Settings) -> None:
     app = create_app(test_settings)
+    app.state.database = ReadyDatabase()
     transport = ASGITransport(app=app)
     async with (
         app.router.lifespan_context(app),
@@ -47,7 +53,25 @@ async def test_readiness_reports_only_registered_checks(test_settings: Settings)
         response = await client.get("/health/ready")
 
     assert response.status_code == 200
-    assert response.json()["checks"] == {"configuration": "ok"}
+    assert response.json()["checks"] == {"configuration": "ok", "postgres": "ok"}
+
+
+async def test_readiness_fails_closed_when_postgres_is_unavailable(
+    test_settings: Settings,
+) -> None:
+    class UnavailableDatabase:
+        async def ping(self) -> None:
+            raise RuntimeError("database unavailable")
+
+    app = create_app(test_settings)
+    app.state.database = UnavailableDatabase()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "unavailable"
+    assert response.json()["checks"] == {"configuration": "ok", "postgres": "error"}
 
 
 def test_production_disables_api_documentation() -> None:

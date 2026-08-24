@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir uv==0.11.27
 WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
+COPY alembic.ini ./alembic.ini
+COPY migrations ./migrations
 RUN uv sync --frozen --no-dev --no-editable
 
 FROM python:3.12-slim AS runtime
@@ -22,6 +24,8 @@ RUN groupadd --system --gid 10001 chakravyuh \
 WORKDIR /app
 COPY --from=builder --chown=chakravyuh:chakravyuh /app/.venv /app/.venv
 COPY --from=builder --chown=chakravyuh:chakravyuh /app/src /app/src
+COPY --from=builder --chown=chakravyuh:chakravyuh /app/alembic.ini /app/alembic.ini
+COPY --from=builder --chown=chakravyuh:chakravyuh /app/migrations /app/migrations
 
 USER chakravyuh
 EXPOSE 8000

@@ -22,16 +22,36 @@ jobs:
     needs: repository-policy
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: chakravyuh_test
+          POSTGRES_USER: chakravyuh
+          POSTGRES_PASSWORD: test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chakravyuh -d chakravyuh_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      CHAKRAVYUH_ENVIRONMENT: test
+      CHAKRAVYUH_POSTGRES_DSN: postgresql+asyncpg://chakravyuh:test-only@localhost:5432/chakravyuh_test
+      CHAKRAVYUH_TEST_POSTGRES_DSN: postgresql+asyncpg://chakravyuh:test-only@localhost:5432/chakravyuh_test
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
         with:
           version: "0.11.27"
           enable-cache: true
       - run: uv python install 3.12
       - run: uv sync --frozen --all-groups
-      - run: uv run ruff check src tests
-      - run: uv run ruff format --check src tests
+      - run: uv run alembic upgrade head
+      - run: uv run alembic check
+      - run: uv run ruff check src tests migrations
+      - run: uv run ruff format --check src tests migrations
       - run: uv run mypy
       - run: uv run pytest
 
@@ -40,11 +60,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.8.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -58,6 +78,6 @@ jobs:
     needs: [backend, web]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker build --tag chakravyuh-api:test .
       - run: docker build --file apps/web/Dockerfile --tag chakravyuh-web:test .

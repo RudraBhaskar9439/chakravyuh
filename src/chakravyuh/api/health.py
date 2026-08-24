@@ -1,14 +1,18 @@
 """Liveness and readiness endpoints."""
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Request
+import structlog
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy.exc import SQLAlchemyError
 
 from chakravyuh import __version__
 
 router = APIRouter(prefix="/health", tags=["health"])
+logger = structlog.get_logger(__name__)
 
 
 class HealthResponse(BaseModel):
@@ -16,18 +20,23 @@ class HealthResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    status: Literal["ok"]
+    status: Literal["ok", "unavailable"]
     service: str
     version: str
     environment: str
     timestamp: datetime
-    checks: dict[str, Literal["ok"]]
+    checks: dict[str, Literal["ok", "error"]]
 
 
-def _response(request: Request, *, checks: dict[str, Literal["ok"]]) -> HealthResponse:
+def _response(
+    request: Request,
+    *,
+    response_status: Literal["ok", "unavailable"] = "ok",
+    checks: dict[str, Literal["ok", "error"]],
+) -> HealthResponse:
     settings = request.app.state.settings
     return HealthResponse(
-        status="ok",
+        status=response_status,
         service="chakravyuh-api",
         version=__version__,
         environment=settings.environment,
@@ -43,10 +52,19 @@ async def liveness(request: Request) -> HealthResponse:
 
 
 @router.get("/ready")
-async def readiness(request: Request) -> HealthResponse:
-    """Confirm Phase 1 configuration readiness.
-
-    Dependency probes are registered alongside their adapters in Phase 3. Returning
-    dependency health before those adapters exist would create a misleading signal.
-    """
-    return _response(request, checks={"configuration": "ok"})
+async def readiness(request: Request, response: Response) -> HealthResponse:
+    """Confirm that the authoritative PostgreSQL ledger is reachable."""
+    try:
+        await asyncio.wait_for(
+            request.app.state.database.ping(),
+            timeout=request.app.state.settings.postgres_readiness_timeout_seconds,
+        )
+    except (TimeoutError, OSError, RuntimeError, SQLAlchemyError):
+        await logger.awarning("postgres_readiness_failed", exc_info=True)
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return _response(
+            request,
+            response_status="unavailable",
+            checks={"configuration": "ok", "postgres": "error"},
+        )
+    return _response(request, checks={"configuration": "ok", "postgres": "ok"})

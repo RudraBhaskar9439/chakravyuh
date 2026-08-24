@@ -10,6 +10,11 @@ Do not open a public issue for a suspected vulnerability involving credentials, 
 - Use Razorpay Test Mode credentials only.
 - Never commit API secrets, webhook secrets, customer contact details, or raw production events.
 - Verify webhook signatures against the unmodified request body.
+- Never log webhook bodies. The raw ledger can contain payment and customer data and must run on
+  encrypted-at-rest PostgreSQL with access-restricted backups in any non-local deployment.
+- Rotate webhook secrets by retaining the previous secret only for Razorpay's retry window, then
+  remove it.
+- Keep the application database role unable to alter schemas, triggers, or ledger protections.
 - Treat every external event as replayable and potentially out of order.
 - Keep model prompts free of credentials and unnecessary PII.
 - Require deterministic policy validation before every external action.

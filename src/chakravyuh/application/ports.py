@@ -8,6 +8,7 @@ from uuid import UUID
 from chakravyuh.domain.actions import ActionProposal, PolicyDecision
 from chakravyuh.domain.events import NormalizedEvent
 from chakravyuh.domain.incidents import Incident
+from chakravyuh.domain.webhooks import RawWebhookEvent
 
 
 class Clock(Protocol):
@@ -20,6 +21,24 @@ class EventStore(Protocol):
         ...
 
     async def read_for_merchant(self, merchant_id: str) -> Sequence[NormalizedEvent]: ...
+
+
+class WebhookEventStore(Protocol):
+    async def append(self, event: RawWebhookEvent) -> bool:
+        """Persist once and return False for an identical provider retry."""
+        ...
+
+    async def get(
+        self,
+        merchant_id: str,
+        source_event_id: str,
+    ) -> RawWebhookEvent | None: ...
+
+
+class DatabaseLifecycle(Protocol):
+    async def ping(self) -> None: ...
+
+    async def close(self) -> None: ...
 
 
 class IncidentRepository(Protocol):

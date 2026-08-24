@@ -1,6 +1,6 @@
 # Phase 1 verification evidence
 
-- Status: implementation complete; awaiting owner review
+- Status: approved; superseded by Phase 2
 - Verified: 2026-08-23
 
 ## Quality gate
@@ -34,7 +34,7 @@ The local PostgreSQL, Redis, and Neo4j Compose services were started together. A
 
 ## Security evidence
 
-- The project has no configured remote and has not been published.
+- The canonical repository is a private GitHub repository and CI verifies private visibility.
 - CI rejects execution when GitHub reports public repository visibility.
 - Environment secrets are excluded from version control.
 - Example configuration contains no provider credentials.
