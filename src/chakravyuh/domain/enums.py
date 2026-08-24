@@ -24,6 +24,17 @@ class EventSource(StrEnum):
     SIMULATOR = "simulator"
 
 
+class NormalizationStatus(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    DEAD_LETTER = "dead_letter"
+
+
+class NormalizationOutcome(StrEnum):
+    COMPLETED = "completed"
+    DEAD_LETTER = "dead_letter"
+
+
 class PaymentStatus(StrEnum):
     CREATED = "created"
     AUTHORIZED = "authorized"

@@ -2,9 +2,9 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is being implemented in review-gated phases. Phase 2 adds authenticated Razorpay
-webhook intake and an immutable PostgreSQL ledger. No outbound Razorpay call or financial action
-exists yet.
+The project is being implemented in review-gated phases. Phase 3 adds deterministic Razorpay event
+normalization, a PostgreSQL-backed worker, dead-letter handling, and audited replay. No outbound
+Razorpay call or financial action exists yet.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -34,6 +34,7 @@ Repository policy: private access only. The source and generated evaluation arti
 Run the API and web application in separate terminals:
 
     make api
+    make worker
     make web
 
 The API liveness endpoint is http://localhost:8000/health/live. The web application is available at http://localhost:3000.
@@ -60,6 +61,26 @@ The endpoint:
 
 PostgreSQL rejects row updates, deletes, and table truncation on the raw ledger. Provider events
 may arrive late or out of order; ordering is not inferred at intake.
+
+## Durable normalization worker
+
+The worker claims pending raw events directly from PostgreSQL and emits one canonical payment,
+order, refund, or payment-link event. Multiple worker replicas can run safely. Contract failures
+become visible dead letters; unexpected failures roll back to pending without a partial output.
+
+Run it locally after applying migrations:
+
+    make worker
+
+After deploying reviewed normalizer support, an authorized operator can replay one dead letter:
+
+    uv run chakravyuh-replay RAW_EVENT_UUID \
+      --requested-by operator@example.com \
+      --reason "Reviewed normalizer support deployed"
+
+Replay is intentionally a host/database-authorized operation rather than a public HTTP endpoint.
+See [Phase 3 architecture](docs/architecture/phase-3-durable-normalization.md) for the transaction
+and failure guarantees.
 
 ## Quality gate
 

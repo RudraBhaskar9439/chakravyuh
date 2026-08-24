@@ -20,7 +20,7 @@ export default function Home() {
   return (
     <main>
       <section className="hero" aria-labelledby="product-title">
-        <p className="eyebrow">Phase 2 · Trusted event intake</p>
+        <p className="eyebrow">Phase 3 · Durable normalization</p>
         <h1 id="product-title">Chakravyuh</h1>
         <p className="tagline">Every rupee has a path.</p>
         <p className="summary">
@@ -29,7 +29,7 @@ export default function Home() {
         </p>
         <div className="status" role="status">
           <span className="statusDot" aria-hidden="true" />
-          Immutable intake operational
+          Intake and normalization operational
         </div>
       </section>
 

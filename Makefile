@@ -1,4 +1,4 @@
-.PHONY: bootstrap check test lint format typecheck infra-up infra-down migrate migration-check api web
+.PHONY: bootstrap check test lint format typecheck infra-up infra-down migrate migration-check api worker web
 
 bootstrap:
 	uv sync --all-groups
@@ -39,6 +39,9 @@ migration-check:
 
 api:
 	uv run uvicorn chakravyuh.api.main:create_app --factory --reload
+
+worker:
+	uv run chakravyuh-worker
 
 web:
 	pnpm web:dev

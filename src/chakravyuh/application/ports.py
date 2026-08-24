@@ -1,14 +1,19 @@
 """Interfaces implemented by infrastructure adapters in later phases."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 from chakravyuh.domain.actions import ActionProposal, PolicyDecision
 from chakravyuh.domain.events import NormalizedEvent
 from chakravyuh.domain.incidents import Incident
 from chakravyuh.domain.webhooks import RawWebhookEvent
+
+if TYPE_CHECKING:
+    from chakravyuh.application.normalization import NormalizationBatchResult
 
 
 class Clock(Protocol):
@@ -33,6 +38,34 @@ class WebhookEventStore(Protocol):
         merchant_id: str,
         source_event_id: str,
     ) -> RawWebhookEvent | None: ...
+
+
+class WebhookNormalizer(Protocol):
+    """Convert one verified provider event into the stable domain envelope."""
+
+    version: str
+
+    def normalize(self, event: RawWebhookEvent) -> NormalizedEvent: ...
+
+
+class NormalizationWorkRepository(Protocol):
+    """Atomically claim raw events and commit their normalization outcome."""
+
+    async def process_batch(
+        self,
+        *,
+        normalizer: WebhookNormalizer,
+        worker_id: str,
+        batch_size: int,
+    ) -> NormalizationBatchResult: ...
+
+    async def request_replay(
+        self,
+        event_id: UUID,
+        *,
+        requested_by: str,
+        reason: str,
+    ) -> UUID: ...
 
 
 class DatabaseLifecycle(Protocol):

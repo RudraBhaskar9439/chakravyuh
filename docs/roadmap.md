@@ -6,8 +6,8 @@ review. Later phases may extend an earlier schema only through a migration.
 | Phase | Production slice | Status |
 | --- | --- | --- |
 | 1 | Architecture, domain invariants, process and container foundation | Approved |
-| 2 | Authenticated Razorpay webhook intake and immutable PostgreSQL ledger | Awaiting review |
-| 3 | Durable normalization worker, replay, and dead-letter handling | Not started |
+| 2 | Authenticated Razorpay webhook intake and immutable PostgreSQL ledger | Approved |
+| 3 | Durable normalization worker, replay, and dead-letter handling | Awaiting review |
 | 4 | Deterministic temporal payment-state reducer and synthetic journey generator | Not started |
 | 5 | Rebuildable Neo4j projection and projection-lag observability | Not started |
 | 6 | Invariant engine, incident lifecycle, and labelled fault-injection evaluation set | Not started |

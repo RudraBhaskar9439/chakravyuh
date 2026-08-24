@@ -86,7 +86,7 @@ async def test_postgres_ledger_deduplicates_concurrent_delivery() -> None:
     [
         "UPDATE ledger.webhook_events SET event_type = 'changed' WHERE event_id = :event_id",
         "DELETE FROM ledger.webhook_events WHERE event_id = :event_id",
-        "TRUNCATE ledger.webhook_events",
+        "TRUNCATE ledger.webhook_events CASCADE",
     ],
 )
 async def test_postgres_ledger_rejects_mutation(statement: str) -> None:

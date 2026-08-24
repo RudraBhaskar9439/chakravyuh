@@ -80,4 +80,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker build --tag chakravyuh-api:test .
+      - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'test "$(id -u)" != "0"'
+      - run: docker run --rm chakravyuh-api:test alembic heads
+      - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-worker'
       - run: docker build --file apps/web/Dockerfile --tag chakravyuh-web:test .

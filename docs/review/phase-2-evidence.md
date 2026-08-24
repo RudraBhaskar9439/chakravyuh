@@ -1,6 +1,6 @@
 # Phase 2 verification evidence
 
-- Status: implementation complete; awaiting owner review
+- Status: approved by owner
 - Date: 2026-08-24
 
 ## Quality gate

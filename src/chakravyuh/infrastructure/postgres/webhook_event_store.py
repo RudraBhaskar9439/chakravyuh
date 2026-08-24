@@ -10,7 +10,7 @@ from chakravyuh.domain.enums import EventSource
 from chakravyuh.domain.errors import EventIdentityConflictError
 from chakravyuh.domain.webhooks import RawWebhookEvent
 from chakravyuh.infrastructure.database import Database
-from chakravyuh.infrastructure.postgres.tables import webhook_events
+from chakravyuh.infrastructure.postgres.tables import normalization_work, webhook_events
 
 
 class PostgresWebhookEventStore:
@@ -43,6 +43,11 @@ class PostgresWebhookEventStore:
         async with self._database.transaction() as session:
             inserted_id = (await session.execute(statement)).scalar_one_or_none()
             if inserted_id is not None:
+                await session.execute(
+                    insert(normalization_work)
+                    .values(webhook_event_id=inserted_id)
+                    .on_conflict_do_nothing(index_elements=["webhook_event_id"])
+                )
                 return True
 
             existing_hash = await session.scalar(

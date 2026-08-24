@@ -34,6 +34,6 @@
 
 ## Review outcome
 
-Record one of: Approved, Approved with follow-up, or Changes requested.
+Approved by the owner on 2026-08-24. The owner explicitly requested continuation with Phase 3.
 
 Phase 3 must not begin until this review is complete.
