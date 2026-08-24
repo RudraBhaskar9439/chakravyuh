@@ -1,11 +1,11 @@
-FROM node:24-alpine AS dependencies
+FROM node:26-alpine AS dependencies
 RUN corepack enable
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json ./apps/web/package.json
 RUN pnpm install --frozen-lockfile
 
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 RUN corepack enable
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
@@ -16,7 +16,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web ./apps/web
 RUN pnpm --filter @chakravyuh/web build
 
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 ENV NODE_ENV=production
 RUN addgroup --system --gid 10001 chakravyuh \
     && adduser --system --uid 10001 --ingroup chakravyuh chakravyuh
