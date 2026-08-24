@@ -45,3 +45,15 @@ class JourneyReductionError(ValueError):
 
 class JourneyReductionReplayNotAllowedError(RuntimeError):
     """A journey reduction was not dead-lettered and cannot be replayed."""
+
+
+class ProjectionLeaseLostError(RuntimeError):
+    """A projection worker no longer owns the lease it tried to complete."""
+
+
+class StaleGraphProjectionError(RuntimeError):
+    """Neo4j already contains a newer generation than the requested projection."""
+
+
+class GraphRebuildNotAllowedError(RuntimeError):
+    """A requested graph rebuild had no authoritative states to enqueue."""

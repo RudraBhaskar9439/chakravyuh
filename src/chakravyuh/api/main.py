@@ -14,10 +14,15 @@ from starlette.responses import Response
 from chakravyuh import __version__
 from chakravyuh.api.health import router as health_router
 from chakravyuh.api.webhooks import router as webhook_router
-from chakravyuh.application.ports import WebhookEventStore
+from chakravyuh.application.ports import GraphProjector, WebhookEventStore
+from chakravyuh.application.projection_health import CheckGraphProjectionHealth
 from chakravyuh.application.webhook_ingestion import IngestVerifiedWebhook
 from chakravyuh.config import Settings, get_settings
 from chakravyuh.infrastructure.database import Database
+from chakravyuh.infrastructure.neo4j.projector import Neo4jPaymentGraphProjector
+from chakravyuh.infrastructure.postgres.graph_projection_repository import (
+    PostgresGraphProjectionRepository,
+)
 from chakravyuh.infrastructure.postgres.webhook_event_store import PostgresWebhookEventStore
 from chakravyuh.logging import configure_logging
 
@@ -27,6 +32,7 @@ logger = structlog.get_logger(__name__)
 def _lifespan(
     settings: Settings,
     database: Database,
+    graph_projector: GraphProjector,
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -38,6 +44,7 @@ def _lifespan(
         try:
             yield
         finally:
+            await graph_projector.close()
             await database.close()
             await logger.ainfo("application_stopped")
 
@@ -49,6 +56,7 @@ def create_app(
     *,
     database: Database | None = None,
     webhook_event_store: WebhookEventStore | None = None,
+    graph_projector: GraphProjector | None = None,
 ) -> FastAPI:
     """Create an isolated application instance for production and tests."""
     resolved_settings = settings or get_settings()
@@ -58,6 +66,8 @@ def create_app(
     )
     resolved_database = database or Database(resolved_settings)
     resolved_webhook_store = webhook_event_store or PostgresWebhookEventStore(resolved_database)
+    resolved_graph_projector = graph_projector or Neo4jPaymentGraphProjector(resolved_settings)
+    projection_repository = PostgresGraphProjectionRepository(resolved_database)
 
     app = FastAPI(
         title="Chakravyuh API",
@@ -65,10 +75,16 @@ def create_app(
         version=__version__,
         docs_url="/docs" if not resolved_settings.is_production else None,
         redoc_url=None,
-        lifespan=_lifespan(resolved_settings, resolved_database),
+        lifespan=_lifespan(resolved_settings, resolved_database, resolved_graph_projector),
     )
     app.state.settings = resolved_settings
     app.state.database = resolved_database
+    app.state.check_graph_projection_health = CheckGraphProjectionHealth(
+        projection_repository,
+        resolved_graph_projector,
+        lag_threshold_seconds=resolved_settings.graph_projection_lag_threshold_seconds,
+        connectivity_timeout_seconds=resolved_settings.neo4j_connection_timeout_seconds,
+    )
     app.state.ingest_webhook = IngestVerifiedWebhook(resolved_webhook_store)
     app.add_middleware(
         CORSMiddleware,

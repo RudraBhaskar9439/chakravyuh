@@ -1,4 +1,4 @@
-.PHONY: bootstrap check test lint format typecheck infra-up infra-down migrate migration-check api worker web
+.PHONY: bootstrap check test lint format typecheck infra-up infra-down migrate migration-check api worker projector web
 
 bootstrap:
 	uv sync --all-groups
@@ -42,6 +42,9 @@ api:
 
 worker:
 	uv run chakravyuh-worker
+
+projector:
+	uv run chakravyuh-projector
 
 web:
 	pnpm web:dev

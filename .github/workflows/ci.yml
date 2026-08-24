@@ -36,10 +36,26 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: neo4j/test-only-password
+        ports:
+          - 7474:7474
+          - 7687:7687
+        options: >-
+          --health-cmd "wget -qO- http://localhost:7474 >/dev/null || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
     env:
       CHAKRAVYUH_ENVIRONMENT: test
       CHAKRAVYUH_POSTGRES_DSN: postgresql+asyncpg://chakravyuh:test-only@localhost:5432/chakravyuh_test
       CHAKRAVYUH_TEST_POSTGRES_DSN: postgresql+asyncpg://chakravyuh:test-only@localhost:5432/chakravyuh_test
+      CHAKRAVYUH_NEO4J_URI: bolt://localhost:7687
+      CHAKRAVYUH_NEO4J_PASSWORD: test-only-password
+      CHAKRAVYUH_TEST_NEO4J_URI: bolt://localhost:7687
+      CHAKRAVYUH_TEST_NEO4J_PASSWORD: test-only-password
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.0.1
@@ -85,4 +101,6 @@ jobs:
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-worker'
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-simulate'
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-journey-replay'
+      - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-projector'
+      - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-graph-rebuild'
       - run: docker build --file apps/web/Dockerfile --tag chakravyuh-web:test .

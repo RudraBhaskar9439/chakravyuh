@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "chakravyuh"
-version = "0.4.0"
+version = "0.5.0"
 description = "A self-healing money graph for payment revenue recovery"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
@@ -35,7 +35,9 @@ dev = [
 
 [project.scripts]
 chakravyuh-api = "chakravyuh.api.main:run"
+chakravyuh-graph-rebuild = "chakravyuh.operations.graph_rebuild:run"
 chakravyuh-journey-replay = "chakravyuh.operations.journey_replay:run"
+chakravyuh-projector = "chakravyuh.projector_worker.main:run"
 chakravyuh-replay = "chakravyuh.operations.replay:run"
 chakravyuh-simulate = "chakravyuh.operations.simulate:run"
 chakravyuh-worker = "chakravyuh.worker.main:run"

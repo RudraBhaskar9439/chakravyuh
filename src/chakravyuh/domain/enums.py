@@ -46,6 +46,19 @@ class JourneyReductionOutcome(StrEnum):
     DEAD_LETTER = "dead_letter"
 
 
+class GraphProjectionStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    DEAD_LETTER = "dead_letter"
+
+
+class GraphProjectionOutcome(StrEnum):
+    COMPLETED = "completed"
+    RETRY = "retry"
+    DEAD_LETTER = "dead_letter"
+
+
 class PaymentStatus(StrEnum):
     CREATED = "created"
     AUTHORIZED = "authorized"

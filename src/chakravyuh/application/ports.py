@@ -16,6 +16,14 @@ if TYPE_CHECKING:
     from chakravyuh.application.journey_reduction import JourneyReductionBatchResult
     from chakravyuh.application.normalization import NormalizationBatchResult
     from chakravyuh.domain.journeys import PaymentJourneyState
+    from chakravyuh.domain.projections import (
+        GraphProjectionInput,
+        GraphProjectionReceipt,
+        GraphRebuildCandidate,
+        GraphRebuildReceipt,
+        ProjectionLag,
+        ProjectionWorkClaim,
+    )
 
 
 class Clock(Protocol):
@@ -123,7 +131,59 @@ class PolicyEngine(Protocol):
 
 
 class GraphProjector(Protocol):
-    async def project(self, event: NormalizedEvent) -> None: ...
+    async def initialize_schema(self) -> None: ...
+
+    async def verify_connectivity(self) -> None: ...
+
+    async def project(self, projection: GraphProjectionInput) -> GraphProjectionReceipt: ...
+
+    async def prune_before(self, rebuild: GraphRebuildCandidate) -> GraphRebuildReceipt: ...
+
+    async def close(self) -> None: ...
+
+
+class GraphProjectionRepository(Protocol):
+    async def claim_batch(
+        self,
+        *,
+        worker_id: str,
+        batch_size: int,
+        lease_seconds: int,
+    ) -> Sequence[ProjectionWorkClaim]: ...
+
+    async def load(self, claim: ProjectionWorkClaim) -> GraphProjectionInput: ...
+
+    async def complete(
+        self,
+        claim: ProjectionWorkClaim,
+        receipt: GraphProjectionReceipt,
+    ) -> None: ...
+
+    async def fail(
+        self,
+        claim: ProjectionWorkClaim,
+        *,
+        error_code: str,
+        max_failures: int,
+        retry_delay_seconds: float,
+    ) -> bool: ...
+
+    async def lag(self) -> ProjectionLag: ...
+
+    async def request_rebuild(
+        self,
+        *,
+        requested_by: str,
+        reason: str,
+    ) -> tuple[UUID, int]: ...
+
+    async def finalizable_rebuilds(self, *, limit: int) -> Sequence[GraphRebuildCandidate]: ...
+
+    async def complete_rebuild(
+        self,
+        rebuild: GraphRebuildCandidate,
+        receipt: GraphRebuildReceipt,
+    ) -> bool: ...
 
 
 class AuthoritativeStateReader(Protocol):

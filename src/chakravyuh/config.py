@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_username: str = "neo4j"
     neo4j_password: SecretStr = SecretStr("local-development-only")
+    neo4j_database: str = "neo4j"
+    neo4j_connection_timeout_seconds: float = Field(default=5, gt=0, le=60)
+    graph_projection_batch_size: int = Field(default=20, ge=1, le=500)
+    graph_projection_lease_seconds: int = Field(default=30, ge=1, le=3_600)
+    graph_projection_max_failures: int = Field(default=5, ge=1, le=100)
+    graph_projection_retry_delay_seconds: float = Field(default=2, ge=0, le=3_600)
+    graph_projection_lag_threshold_seconds: float = Field(default=60, gt=0, le=86_400)
 
     razorpay_key_id: str | None = None
     razorpay_key_secret: SecretStr | None = None

@@ -411,3 +411,175 @@ journey_reduction_replays = Table(
     CheckConstraint("length(trim(requested_by)) >= 1", name="ck_journey_replay_requested_by"),
     CheckConstraint("length(trim(reason)) >= 1", name="ck_journey_replay_reason"),
 )
+
+graph_projection_work = Table(
+    "graph_projection_work",
+    metadata,
+    Column("merchant_id", String(255), primary_key=True),
+    Column("correlation_id", String(255), primary_key=True),
+    Column("target_version", Integer, nullable=False),
+    Column("applied_version", Integer, nullable=False, server_default="0"),
+    Column("state_generation", Integer, nullable=False),
+    Column(
+        "projection_epoch",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column("projected_state_generation", Integer, nullable=True),
+    Column("status", String(32), nullable=False, server_default="pending"),
+    Column("attempt_count", Integer, nullable=False, server_default="0"),
+    Column("failure_count", Integer, nullable=False, server_default="0"),
+    Column(
+        "desired_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column(
+        "available_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column("lease_owner", String(255), nullable=True),
+    Column("lease_expires_at", DateTime(timezone=True), nullable=True),
+    Column("last_error_code", String(64), nullable=True),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("target_version >= 1", name="ck_graph_work_target_version"),
+    CheckConstraint(
+        "applied_version BETWEEN 0 AND target_version",
+        name="ck_graph_work_applied_version",
+    ),
+    CheckConstraint("state_generation >= 1", name="ck_graph_work_state_generation"),
+    CheckConstraint(
+        "projected_state_generation IS NULL OR projected_state_generation >= 1",
+        name="ck_graph_work_projected_generation",
+    ),
+    CheckConstraint("attempt_count >= 0", name="ck_graph_work_attempt_count"),
+    CheckConstraint("failure_count >= 0", name="ck_graph_work_failure_count"),
+    CheckConstraint(
+        "status IN ('pending', 'processing', 'completed', 'dead_letter')",
+        name="ck_graph_work_status",
+    ),
+    CheckConstraint(
+        "(status = 'pending' AND applied_version < target_version "
+        "AND lease_owner IS NULL AND lease_expires_at IS NULL) OR "
+        "(status = 'processing' AND applied_version < target_version "
+        "AND lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL) OR "
+        "(status = 'completed' AND applied_version = target_version "
+        "AND lease_owner IS NULL AND lease_expires_at IS NULL "
+        "AND last_error_code IS NULL) OR "
+        "(status = 'dead_letter' AND applied_version < target_version "
+        "AND lease_owner IS NULL AND lease_expires_at IS NULL "
+        "AND last_error_code IS NOT NULL)",
+        name="ck_graph_work_consistent_status",
+    ),
+    schema="operations",
+)
+
+Index(
+    "ix_graph_projection_work_claim",
+    graph_projection_work.c.status,
+    graph_projection_work.c.available_at,
+    graph_projection_work.c.desired_at,
+)
+
+graph_projection_attempts = Table(
+    "graph_projection_attempts",
+    metadata,
+    Column("attempt_id", Uuid(as_uuid=True), primary_key=True),
+    Column("merchant_id", String(255), nullable=False),
+    Column("correlation_id", String(255), nullable=False),
+    Column("target_version", Integer, nullable=False),
+    Column("state_generation", Integer, nullable=False),
+    Column("projection_epoch", DateTime(timezone=True), nullable=False),
+    Column("attempt_number", Integer, nullable=False),
+    Column("worker_id", String(255), nullable=False),
+    Column("outcome", String(32), nullable=False),
+    Column("error_code", String(64), nullable=True),
+    Column("state_hash", String(64), nullable=True),
+    Column(
+        "attempted_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    UniqueConstraint(
+        "merchant_id",
+        "correlation_id",
+        "attempt_number",
+        name="uq_graph_projection_attempt_number",
+    ),
+    CheckConstraint("target_version >= 1", name="ck_graph_attempt_target_version"),
+    CheckConstraint("state_generation >= 1", name="ck_graph_attempt_state_generation"),
+    CheckConstraint("attempt_number >= 1", name="ck_graph_attempt_number"),
+    CheckConstraint(
+        "outcome IN ('completed', 'retry', 'dead_letter')",
+        name="ck_graph_attempt_outcome",
+    ),
+    CheckConstraint(
+        "(outcome = 'completed' AND error_code IS NULL "
+        "AND state_hash ~ '^[0-9a-f]{64}$') OR "
+        "(outcome IN ('retry', 'dead_letter') AND error_code IS NOT NULL "
+        "AND state_hash IS NULL)",
+        name="ck_graph_attempt_consistent_outcome",
+    ),
+)
+
+graph_projection_rebuilds = Table(
+    "graph_projection_rebuilds",
+    metadata,
+    Column("rebuild_id", Uuid(as_uuid=True), primary_key=True),
+    Column("requested_by", String(255), nullable=False),
+    Column("reason", Text, nullable=False),
+    Column("journey_count", Integer, nullable=False),
+    Column(
+        "projection_epoch",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column(
+        "requested_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("journey_count >= 1", name="ck_graph_rebuild_journey_count"),
+    CheckConstraint("length(trim(requested_by)) >= 1", name="ck_graph_rebuild_requested_by"),
+    CheckConstraint("length(trim(reason)) >= 1", name="ck_graph_rebuild_reason"),
+)
+
+graph_projection_rebuild_completions = Table(
+    "graph_projection_rebuild_completions",
+    metadata,
+    Column("completion_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "rebuild_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.graph_projection_rebuilds.rebuild_id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("projection_epoch", DateTime(timezone=True), nullable=False),
+    Column("journey_count_removed", Integer, nullable=False),
+    Column("entity_count_removed", Integer, nullable=False),
+    Column("event_count_removed", Integer, nullable=False),
+    Column("merchant_count_removed", Integer, nullable=False),
+    Column(
+        "completed_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("journey_count_removed >= 0", name="ck_graph_rebuild_journeys_removed"),
+    CheckConstraint("entity_count_removed >= 0", name="ck_graph_rebuild_entities_removed"),
+    CheckConstraint("event_count_removed >= 0", name="ck_graph_rebuild_events_removed"),
+    CheckConstraint("merchant_count_removed >= 0", name="ck_graph_rebuild_merchants_removed"),
+)

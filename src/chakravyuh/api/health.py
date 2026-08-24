@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import SQLAlchemyError
 
 from chakravyuh import __version__
+from chakravyuh.domain.projections import GraphProjectionHealth
 
 router = APIRouter(prefix="/health", tags=["health"])
 logger = structlog.get_logger(__name__)
@@ -68,3 +69,13 @@ async def readiness(request: Request, response: Response) -> HealthResponse:
             checks={"configuration": "ok", "postgres": "error"},
         )
     return _response(request, checks={"configuration": "ok", "postgres": "ok"})
+
+
+@router.get("/graph")
+async def graph_projection_health(request: Request, response: Response) -> GraphProjectionHealth:
+    """Report graph reachability and PostgreSQL-authoritative projection lag."""
+
+    result: GraphProjectionHealth = await request.app.state.check_graph_projection_health.execute()
+    if not result.healthy:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return result
