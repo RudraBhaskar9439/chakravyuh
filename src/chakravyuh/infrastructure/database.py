@@ -44,9 +44,9 @@ class Database:
             yield session
 
     async def ping(self) -> None:
-        """Prove that a connection can execute a round trip."""
+        """Prove connectivity and the minimum ledger schema required to serve traffic."""
         async with self._engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
+            await connection.execute(text("SELECT 1 FROM ledger.webhook_events LIMIT 0"))
 
     async def close(self) -> None:
         """Release all pooled connections during process shutdown."""

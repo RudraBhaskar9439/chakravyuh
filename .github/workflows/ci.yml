@@ -111,6 +111,7 @@ jobs:
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-operator-token'
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-judge-demo'
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-load-probe'
+      - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-pipeline-scale-proof'
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-recovery-arena-contract'
       - run: docker run --rm chakravyuh-api:test chakravyuh-recovery-arena-contract
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-recovery-arena-baselines'

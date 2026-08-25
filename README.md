@@ -304,7 +304,10 @@ executable; every other incident must stop, deny, or escalate. See
 [ADR 0014](docs/adr/0014-held-out-counterfactual-recovery-arena.md). The separate live-AI sample
 completed 100 calls for a conservatively accounted $0.127755, with 99 accepted provider responses,
 one guard intervention, and zero unsafe effective decisions; see
-[Phase 12E evidence](docs/review/phase-12e-evidence.md).
+[Phase 12E evidence](docs/review/phase-12e-evidence.md). The full local pipeline proof then accepted
+100,000 unique signed events plus 10,000 confirmed redeliveries and converged to 1,000 PostgreSQL and
+Neo4j journeys with zero dead letters, retries, lease losses, or incidents; see
+[Phase 12F evidence](docs/review/phase-12f-evidence.md).
 
 ## Production hardening and proof
 
@@ -326,6 +329,32 @@ merchant traffic.
 For an authorized isolated environment, `chakravyuh-load-probe` sends bounded signed webhook events
 and proves both durable new-event acknowledgements and duplicate retries. The secret is accepted only
 through `CHAKRAVYUH_LOAD_WEBHOOK_SECRET`; remote targets require an explicit acknowledgment flag.
+The Phase 12 scale form groups events into bounded journeys and uses idempotent transport retries:
+
+    chakravyuh-load-probe \
+      --base-url http://127.0.0.1:8000 \
+      --merchant-id merchant_test \
+      --account-id acc_test \
+      --run-id scale01 \
+      --unique-events 100000 \
+      --journey-count 1000 \
+      --duplicate-deliveries 10000 \
+      --concurrency 50
+
+After that report passes, an explicitly isolated and migrated PostgreSQL/Neo4j environment can be
+drained through all four production workers:
+
+    chakravyuh-pipeline-scale-proof \
+      --merchant-id merchant_test \
+      --run-id scale01 \
+      --expected-events 100000 \
+      --expected-journeys 1000 \
+      --ingress-report ingress.json \
+      --acknowledge-isolated-database
+
+Never point the drain command at production. It rejects production configuration but still requires
+an operator to supply a disposable, isolated database because it consumes all pending work in that
+database.
 See the [judge demo](docs/demo/judge-demo.md) for the exact flow.
 
 Authenticated Prometheus metrics are available at `GET /internal/metrics` to a principal holding only

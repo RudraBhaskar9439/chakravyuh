@@ -122,6 +122,29 @@ abstention, and exposed zero unsafe effective decisions. Total conservatively ac
 $0.127755. Exact commitments and limitations are recorded in
 [Phase 12E evidence](../review/phase-12e-evidence.md).
 
+## Full-pipeline scale and chaos
+
+The scale harness separates HTTP ingress from worker drain and binds the two with a content-hashed
+ingress report. It sends at most 100,000 unique signed webhooks and bounded redeliveries through the
+real endpoint. Transport ambiguity is retried only with the identical provider event identity and
+body; a subsequent duplicate response proves durability without converting the retry into a second
+logical event. The report discloses logical requests, physical attempts, transport failures,
+recovered retries, unrecovered requests, latency, throughput, and final status counts.
+
+The drain command is test-only, requires an explicit isolated-database acknowledgement, and refuses
+an ingress report whose run, merchant digest, event count, journey count, pass flag, or canonical
+hash differs from the requested run. It invokes the production batch processors for normalization,
+journey reduction, invariant evaluation, and graph projection until every queue is empty. A pass
+requires exact stage completions, no retry/dead-letter/lease-loss outcome, exact scoped PostgreSQL
+cardinality, and exact merchant-scoped Neo4j cardinality. Running it a second time cannot claim new
+throughput because an audit-only drain completes zero new records and fails the fresh-work gate.
+
+The locked local run accepted 100,000 unique events and confirmed 10,000 redeliveries, then converged
+to 1,000 journey states and graph journeys with 100,000 normalized events, financial entities, and
+money events. It had zero incidents, dead letters, stage retries, or lease losses. Exact metrics,
+report hashes, chaos cases, and claims boundaries are recorded in
+[Phase 12F evidence](../review/phase-12f-evidence.md).
+
 ## Production-code rule
 
 The complete Phase 12 proof must use the real normalization, temporal reduction, invariant,

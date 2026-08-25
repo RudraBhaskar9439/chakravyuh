@@ -33,17 +33,17 @@
 
 ## 12E: budgeted live AI
 
-- [ ] A stratified 100-case held-out sample is selected before model execution.
-- [ ] Exact provider-reported token and cost usage is recorded.
-- [ ] Cache, resume, call-count, and dollar stop rules prevent unbounded spend.
-- [ ] Citation, root-cause, action, abstention, and guard metrics are reported.
+- [x] A stratified 100-case held-out sample is selected before model execution.
+- [x] Exact provider-reported token and cost usage is recorded.
+- [x] Cache, resume, call-count, and dollar stop rules prevent unbounded spend.
+- [x] Citation, root-cause, action, abstention, and guard metrics are reported.
 
 ## 12F: full-pipeline scale and chaos
 
-- [ ] Up to 100,000 bounded signed deliveries traverse the real HTTP intake.
-- [ ] Pipeline drain, p50/p95 latency, throughput, duplicates, and dead letters are reported.
-- [ ] Crash-after-checkpoint, duplicate/out-of-order, replay, and provider outage gates pass.
-- [ ] Zero duplicate mutation, policy violation, and unconfirmed recovery gates pass.
+- [x] Up to 100,000 bounded signed deliveries traverse the real HTTP intake.
+- [x] Pipeline drain, p50/p95 latency, throughput, duplicates, and dead letters are reported.
+- [x] Crash-after-checkpoint, duplicate/out-of-order, replay, and provider outage gates pass.
+- [x] Zero duplicate mutation, policy violation, and unconfirmed recovery gates pass.
 
 ## 12G: judge dashboard
 
