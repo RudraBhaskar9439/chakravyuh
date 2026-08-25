@@ -2,7 +2,7 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is implemented in eleven auditable phases. Phase 10 hardens the complete evidence and
+The project is implemented in twelve auditable phases. Phase 10 hardens the complete evidence and
 action mesh with scoped operator authority, fail-closed throttling, deterministic correctness and
 chaos proofs, and production deployment manifests. Phase 11 adds a separately gated Razorpay Test
 Checkout that can create the exact authorized-but-uncaptured payment used in the recovery proof. AI
@@ -253,11 +253,31 @@ capability only in an isolated local or staging environment:
 Open `http://localhost:3000/demo-checkout`, paste the scoped token, and authorize the displayed ₹10
 Test Mode order using Razorpay's documented test credentials. Do not manually capture the payment.
 The screen proves the exact provider order, authorized payment, amount, uncaptured state, and
-verification hash. A public HTTPS webhook and the final provider-backed incident-to-recovery run are
-external Phase 11 gates; the repository never claims those proofs before they are performed.
+verification hash. The public HTTPS webhook and final provider-backed incident-to-recovery run have
+also been completed and are recorded without provider secrets or customer data in the external
+evidence review.
 
 See [Phase 11 architecture](docs/architecture/phase-11-real-test-checkout.md) for the complete
-boundary and [Phase 11 checklist](docs/review/phase-11-checklist.md) for the remaining gates.
+boundary, [Phase 11 checklist](docs/review/phase-11-checklist.md) for the passed gates, and
+[external evidence](docs/review/phase-11b-external-evidence.md) for the provider-backed run.
+
+## Recovery Arena
+
+Phase 12 measures batch recovery rather than extrapolating from one successful payment. Its locked
+v1 contract compares no intervention, retry all, and Chakravyuh over a 10,005-case held-out
+portfolio. It fixes an exact INR cost model, limits live model usage to 100 calls and $1, bounds the
+signed-ingress probe at 100,000 deliveries with concurrency 50, and credits synthetic revenue only
+after an authoritative `payment.captured` webhook.
+
+Print the canonical contract and held-out commitment without credentials, a database, or network:
+
+    chakravyuh-recovery-arena-contract
+
+The held-out manifest exposes its seed range and generator version but contains no oracle outcome or
+recoverability label. Only `authorized_not_captured` is recoverable in v1 and only exact capture is
+executable; every other incident must stop, deny, or escalate. See
+[Phase 12 architecture](docs/architecture/phase-12-recovery-arena.md) and
+[ADR 0014](docs/adr/0014-held-out-counterfactual-recovery-arena.md).
 
 ## Production hardening and proof
 

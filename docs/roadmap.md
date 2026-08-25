@@ -17,7 +17,8 @@ phases may extend an earlier schema only through a migration.
 | 8 | Operator graph, incident explanation, and approval interface | Approved |
 | 9 | Deterministic policy engine and bounded Test Mode recovery adapters | Approved |
 | 10 | Load, chaos, security, evaluation, deployment, and judge-demo hardening | Approved |
-| 11 | Real Razorpay Test Checkout, signed provider proof, and end-to-end recovery evidence | Implementation in review; external proof pending |
+| 11 | Real Razorpay Test Checkout, signed provider proof, and end-to-end recovery evidence | Approved |
+| 12 | Recovery Arena: held-out batch economics, provider twin, strategy tournament, scale, chaos, and judge proof | In progress |
 
 No model training is required before Phase 7. The detection source of truth remains deterministic;
 the model will explain evidence and propose an allowlisted action, not decide whether money moves.
