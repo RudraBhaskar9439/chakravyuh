@@ -42,5 +42,14 @@ added only after the isolated external run succeeds.
 - The rendered Kubernetes release remains fail closed with both provider-action and Test Checkout
   switches disabled in production.
 
-Private-CI status and the exact implementation commit will be added after the push. Phase 11A
-remains in review because its external Razorpay gates are intentionally separate and still pending.
+## Private CI
+
+- Implementation commit: `cd2c41aa1dc6aa5288a7af2f7806e14701840d50`.
+- Private CI run: <https://github.com/RudraBhaskar9439/chakravyuh/actions/runs/32801388702>.
+- Repository policy, backend, web, and production-container jobs all passed.
+- CI independently upgraded the database to migration head, checked metadata drift, ran strict
+  lint/type gates, executed PostgreSQL/Neo4j tests with branch coverage, built both production
+  images, verified non-root execution, and repeated the deterministic judge proof.
+
+Phase 11A remains in review because its external Razorpay gates are intentionally separate and
+still pending.
