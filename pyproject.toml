@@ -49,6 +49,7 @@ chakravyuh-operator-token = "chakravyuh.operations.operator_token:run"
 chakravyuh-projector = "chakravyuh.projector_worker.main:run"
 chakravyuh-replay = "chakravyuh.operations.replay:run"
 chakravyuh-recovery-arena-contract = "chakravyuh.operations.recovery_arena_contract:main"
+chakravyuh-recovery-arena-baselines = "chakravyuh.operations.recovery_arena_baselines:main"
 chakravyuh-simulate = "chakravyuh.operations.simulate:run"
 chakravyuh-worker = "chakravyuh.worker.main:run"
 

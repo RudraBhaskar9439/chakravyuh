@@ -20,9 +20,9 @@
 
 ## 12C: held-out economic portfolio and baselines
 
-- [ ] The exact held-out portfolio root commits all 10,005 case hashes.
-- [ ] Amounts, merchant policies, case families, and chaos outcomes are reported.
-- [ ] No-intervention and retry-all baselines produce independently scored results.
+- [x] The exact held-out portfolio root commits all 10,005 case hashes.
+- [x] Amounts, merchant policies, case families, and chaos outcomes are reported.
+- [x] No-intervention and retry-all baselines produce independently scored results.
 
 ## 12D: Chakravyuh tournament
 

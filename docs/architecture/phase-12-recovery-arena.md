@@ -53,6 +53,25 @@ after mutation, and a predetermined non-recovery state change during capture. A 
 mutation emits confirmation and lets the real control plane reconcile through fetch without a
 second mutation.
 
+## Held-out economic portfolio and baselines
+
+The original 15-case fault family is independently re-keyed for every seed so 10,005 cases can
+coexist without payment, order, event, or correlation collisions. Strategy-facing identities are
+opaque; scenario name, seed, expected incident, action eligibility, recoverability, provider fault,
+and oracle hash exist only in the evaluator envelope. Each observed case carries exact repriced INR
+events and a content-hashed merchant capture policy across 25 deterministic merchants.
+
+Observed-case and oracle-case hashes form separate Merkle-style roots. The manifest reports family,
+fault, merchant, volume, and oracle-recoverable aggregates while binding every leaf. This separates
+reproducibility from oracle visibility.
+
+Two baselines run against independent twins created from the same per-case plan. No intervention
+makes no call. Retry all fetches the latest observed payment and attempts exact capture whenever it
+is uncaptured, ignoring incident truth, grace windows, merchant policy, and action eligibility. The
+evaluator counts a recovery only when the case is oracle-recoverable and at least one unique
+`payment.captured` confirmation exists; any attempted action outside eligibility incurs the locked
+incorrect-action cost.
+
 ## Production-code rule
 
 Chakravyuh must use the real normalization, temporal reduction, invariant, diagnosis guard, policy,

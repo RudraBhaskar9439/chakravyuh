@@ -113,6 +113,8 @@ jobs:
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-load-probe'
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-recovery-arena-contract'
       - run: docker run --rm chakravyuh-api:test chakravyuh-recovery-arena-contract
+      - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-recovery-arena-baselines'
+      - run: docker run --rm chakravyuh-api:test chakravyuh-recovery-arena-baselines
       - run: docker run --rm chakravyuh-api:test chakravyuh-judge-demo --seed-count 5
       - run: docker build --file apps/web/Dockerfile --tag chakravyuh-web:test .
       - run: docker run --rm --entrypoint sh chakravyuh-web:test -c 'test "$(id -u)" != "0"'

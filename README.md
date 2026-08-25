@@ -273,6 +273,10 @@ Print the canonical contract and held-out commitment without credentials, a data
 
     chakravyuh-recovery-arena-contract
 
+Run the full 10,005-case held-out portfolio against no-intervention and naive retry-all baselines:
+
+    chakravyuh-recovery-arena-baselines
+
 The held-out manifest exposes its seed range and generator version but contains no oracle outcome or
 recoverability label. Only `authorized_not_captured` is recoverable in v1 and only exact capture is
 executable; every other incident must stop, deny, or escalate. See
