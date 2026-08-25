@@ -23,6 +23,7 @@ from chakravyuh.domain.actions import ProviderPaymentState
 from chakravyuh.domain.diagnoses import (
     DiagnosisDecision,
     DiagnosisReceipt,
+    build_diagnosis_usage,
     diagnosis_prompt,
     guard_diagnosis,
 )
@@ -350,12 +351,21 @@ async def test_bounded_graph_is_checkpointed_with_append_only_grounded_receipt()
         )
         prompt, prompt_hash = diagnosis_prompt(evidence)
         assert prompt
+        provider_usage = build_diagnosis_usage(
+            prompt_tokens=200,
+            completion_tokens=50,
+            total_tokens=250,
+            reasoning_tokens=0,
+            cached_tokens=0,
+            cost_microusd=17,
+        )
         receipt = DiagnosisReceipt(
             model="gemini-integration-fixture",
             provider_interaction_id="interaction-fixture",
             prompt_hash=prompt_hash,
             evidence_subgraph=evidence,
             diagnosis=guard_diagnosis(evidence, decision, minimum_confidence=0.7),
+            provider_usage=provider_usage,
             diagnosed_at=datetime.now(UTC),
         )
         await repository.complete(claim, receipt)
@@ -394,6 +404,8 @@ async def test_bounded_graph_is_checkpointed_with_append_only_grounded_receipt()
         assert work["applied_version"] == work["target_version"] == 1
         assert diagnosis["subgraph_hash"] == evidence.subgraph_hash
         assert diagnosis["disposition"] == DiagnosisDisposition.DIAGNOSED.value
+        assert diagnosis["provider_usage"]["cost_microusd"] == 17
+        assert diagnosis["provider_usage"]["usage_sha256"] == provider_usage.usage_sha256
         assert attempt["outcome"] == "completed"
 
         read_model = PostgresOperatorReadModel(database)

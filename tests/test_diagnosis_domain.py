@@ -552,6 +552,14 @@ def _openrouter_payload(*, content: str | None = None) -> dict[str, object]:
                 "message": {"content": content or _diagnosis().model_dump_json()},
             }
         ],
+        "usage": {
+            "prompt_tokens": 194,
+            "completion_tokens": 26,
+            "total_tokens": 220,
+            "cost": 0.0001234,
+            "completion_tokens_details": {"reasoning_tokens": 4},
+            "prompt_tokens_details": {"cached_tokens": 12},
+        },
     }
 
 
@@ -567,6 +575,12 @@ async def test_openrouter_adapter_requires_private_strict_structured_output() ->
 
     assert receipt.model == "openrouter:google/gemini-3.5-flash-lite"
     assert receipt.provider_interaction_id == "generation-test"
+    assert receipt.provider_usage is not None
+    assert receipt.provider_usage.prompt_tokens == 194
+    assert receipt.provider_usage.completion_tokens == 26
+    assert receipt.provider_usage.reasoning_tokens == 4
+    assert receipt.provider_usage.cached_tokens == 12
+    assert receipt.provider_usage.cost_microusd == 124
     assert receipt.diagnosis.effective_decision.disposition is DiagnosisDisposition.DIAGNOSED
     assert client.url == "https://openrouter.ai/api/v1/chat/completions"
     request = client.parameters["json"]
@@ -585,6 +599,37 @@ async def test_openrouter_adapter_requires_private_strict_structured_output() ->
     assert client.closed is True
 
 
+async def test_openrouter_adapter_applies_arena_price_and_output_caps() -> None:
+    client = _FakeHttpClient(_FakeHttpResponse(200, _openrouter_payload()))
+    diagnostician = OpenRouterStructuredDiagnostician(
+        Settings(environment="test"),
+        client=client,
+        max_tokens=512,
+        provider_max_price={"prompt": 0.5, "completion": 3.0},
+    )
+
+    await diagnostician.diagnose(_subgraph())
+
+    request = client.parameters["json"]
+    assert isinstance(request, dict)
+    assert request["max_tokens"] == 512
+    assert request["provider"] == {
+        "require_parameters": True,
+        "data_collection": "deny",
+        "max_price": {"prompt": 0.5, "completion": 3.0},
+        "sort": "price",
+    }
+
+
+def test_openrouter_adapter_rejects_unbounded_output_configuration() -> None:
+    with pytest.raises(ValueError, match="max tokens"):
+        OpenRouterStructuredDiagnostician(
+            Settings(environment="test"),
+            client=_FakeHttpClient(),
+            max_tokens=4_096,
+        )
+
+
 @pytest.mark.parametrize(
     ("response", "code"),
     [
@@ -596,6 +641,10 @@ async def test_openrouter_adapter_requires_private_strict_structured_output() ->
         (
             _FakeHttpResponse(200, _openrouter_payload(content="not-json")),
             DiagnosisErrorCode.MODEL_INVALID_RESPONSE,
+        ),
+        (
+            _FakeHttpResponse(200, {**_openrouter_payload(), "usage": {}}),
+            DiagnosisErrorCode.MODEL_INCOMPLETE,
         ),
         (
             _FakeHttpResponse(200, invalid_json=True),

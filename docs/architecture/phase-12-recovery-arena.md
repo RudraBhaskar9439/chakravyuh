@@ -98,6 +98,30 @@ The locked result recovers the same ₹157,280 as retry all, but with 457 exact 
 positive cases; exact executable targeting is 457 of 457. These are synthetic held-out measurements,
 not production merchant claims.
 
+## Budgeted live-AI evidence-mesh evaluation
+
+The live-model slice is isolated from recovery execution. A deterministic stratifier chooses 100
+observed incidents across all six invariant types before any request is sent. Each request contains
+only a bounded connected evidence subgraph and incident-specific cause/action allowlists; it never
+contains the evaluator oracle. The provider receives no action gateway or Razorpay credential.
+
+The run contract binds the sample and model, limits output to 512 tokens, caps route prices, allows
+at most 100 calls and $1 total, and requires at least 90 accepted provider responses. A conservative
+pre-call reservation makes the local cost stop safe even when a failed response has no usage
+record. Accepted responses use provider-reported metered cost. Each result is fsynced to an ignored
+secret-free checkpoint so an interrupted or repeated command cannot duplicate completed calls.
+
+Strict provider JSON schema is only the first gate. The production deterministic diagnosis guard
+then verifies exact graph citations, requires an invariant citation, applies per-incident cause and
+action allowlists, and enforces the confidence floor. Failed validation becomes abstention, never an
+action. Provider usage receipts and their canonical hashes are supported by the append-only
+diagnosis ledger.
+
+The completed run accepted 99 of 100 provider responses, converted one weak citation into a guarded
+abstention, and exposed zero unsafe effective decisions. Total conservatively accounted cost was
+$0.127755. Exact commitments and limitations are recorded in
+[Phase 12E evidence](../review/phase-12e-evidence.md).
+
 ## Production-code rule
 
 The complete Phase 12 proof must use the real normalization, temporal reduction, invariant,

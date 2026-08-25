@@ -873,6 +873,7 @@ diagnoses = Table(
     Column("guard_reason", String(64), nullable=True),
     Column("evidence_subgraph", JSONB, nullable=False),
     Column("result", JSONB, nullable=False),
+    Column("provider_usage", JSONB, nullable=True),
     Column("diagnosed_at", DateTime(timezone=True), nullable=False),
     Column("recorded_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     UniqueConstraint(
@@ -897,6 +898,10 @@ diagnoses = Table(
         name="ck_diagnoses_evidence_object",
     ),
     CheckConstraint("jsonb_typeof(result) = 'object'", name="ck_diagnoses_result_object"),
+    CheckConstraint(
+        "provider_usage IS NULL OR jsonb_typeof(provider_usage) = 'object'",
+        name="ck_diagnoses_provider_usage_object",
+    ),
 )
 
 Index("ix_diagnoses_incident_recorded", diagnoses.c.incident_id, diagnoses.c.recorded_at)

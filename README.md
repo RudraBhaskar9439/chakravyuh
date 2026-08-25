@@ -282,6 +282,15 @@ maker-checker, execution checkpoint, provider twin, and confirmation scoring:
 
     chakravyuh-recovery-arena-tournament
 
+Prepare the stratified 100-case live-AI evidence-mesh sample without making a network call:
+
+    chakravyuh-recovery-arena-live-ai
+
+Live execution is resumable, uses OpenRouter only, cannot move money, and requires both the API key
+and an explicit acknowledgement of the locked one-dollar ceiling:
+
+    chakravyuh-recovery-arena-live-ai --execute-live --acknowledge-max-cost-usd 1.00
+
 On the locked portfolio, Chakravyuh detects all 4,002 expected incident types, selects all 457
 eligible captures with zero incorrect actions, and produces 402 provider-confirmed recoveries. It
 matches retry-all's ₹157,280 recovered value while retaining ₹148,140 after explicit review cost;
@@ -292,7 +301,10 @@ The held-out manifest exposes its seed range and generator version but contains 
 recoverability label. Only `authorized_not_captured` is recoverable in v1 and only exact capture is
 executable; every other incident must stop, deny, or escalate. See
 [Phase 12 architecture](docs/architecture/phase-12-recovery-arena.md) and
-[ADR 0014](docs/adr/0014-held-out-counterfactual-recovery-arena.md).
+[ADR 0014](docs/adr/0014-held-out-counterfactual-recovery-arena.md). The separate live-AI sample
+completed 100 calls for a conservatively accounted $0.127755, with 99 accepted provider responses,
+one guard intervention, and zero unsafe effective decisions; see
+[Phase 12E evidence](docs/review/phase-12e-evidence.md).
 
 ## Production hardening and proof
 

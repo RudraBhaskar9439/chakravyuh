@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from decimal import ROUND_CEILING, Decimal, InvalidOperation
 from typing import Any
 
 import httpx
@@ -12,7 +13,9 @@ from pydantic import ValidationError
 from chakravyuh.config import Settings
 from chakravyuh.domain.diagnoses import (
     DiagnosisDecision,
+    DiagnosisModelUsage,
     DiagnosisReceipt,
+    build_diagnosis_usage,
     diagnosis_prompt,
     guard_diagnosis,
 )
@@ -27,10 +30,21 @@ class OpenRouterStructuredDiagnostician:
 
     provider = "openrouter"
 
-    def __init__(self, settings: Settings, *, client: Any | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        client: Any | None = None,
+        max_tokens: int = 2_048,
+        provider_max_price: dict[str, float] | None = None,
+    ) -> None:
+        if not 128 <= max_tokens <= 2_048:
+            raise ValueError("OpenRouter max tokens must be between 128 and 2048")
         self.model = settings.openrouter_model
         self._timeout_seconds = settings.openrouter_timeout_seconds
         self._minimum_confidence = settings.diagnosis_minimum_confidence
+        self._max_tokens = max_tokens
+        self._provider_max_price = provider_max_price
         if client is not None:
             self._client = client
         else:
@@ -58,7 +72,7 @@ class OpenRouterStructuredDiagnostician:
                         "stream": False,
                         "temperature": 0,
                         "seed": 7,
-                        "max_tokens": 2_048,
+                        "max_tokens": self._max_tokens,
                         "response_format": {
                             "type": "json_schema",
                             "json_schema": {
@@ -70,6 +84,14 @@ class OpenRouterStructuredDiagnostician:
                         "provider": {
                             "require_parameters": True,
                             "data_collection": "deny",
+                            **(
+                                {}
+                                if self._provider_max_price is None
+                                else {
+                                    "max_price": self._provider_max_price,
+                                    "sort": "price",
+                                }
+                            ),
                         },
                     },
                 ),
@@ -104,6 +126,7 @@ class OpenRouterStructuredDiagnostician:
                 retryable=True,
             ) from failure
         output_text, interaction_id, effective_model = _completion(payload)
+        usage = _usage(payload)
         try:
             decision = DiagnosisDecision.model_validate_json(output_text)
         except (ValidationError, ValueError) as failure:
@@ -122,6 +145,7 @@ class OpenRouterStructuredDiagnostician:
             prompt_hash=prompt_hash,
             evidence_subgraph=evidence,
             diagnosis=guarded,
+            provider_usage=usage,
             diagnosed_at=datetime.now(UTC),
         )
 
@@ -171,3 +195,57 @@ def _model_label(model: str) -> str:
             retryable=True,
         )
     return label
+
+
+def _usage(payload: object) -> DiagnosisModelUsage:
+    if not isinstance(payload, dict) or not isinstance(payload.get("usage"), dict):
+        raise DiagnosisProcessingError(
+            DiagnosisErrorCode.MODEL_INCOMPLETE,
+            retryable=True,
+        )
+    usage = payload["usage"]
+    assert isinstance(usage, dict)
+    prompt = _nonnegative_int(usage.get("prompt_tokens"))
+    completion = _nonnegative_int(usage.get("completion_tokens"))
+    total = _nonnegative_int(usage.get("total_tokens"))
+    completion_details = usage.get("completion_tokens_details")
+    prompt_details = usage.get("prompt_tokens_details")
+    reasoning = _detail_token_count(completion_details, "reasoning_tokens")
+    cached = _detail_token_count(prompt_details, "cached_tokens")
+    cost = _cost_microusd(usage.get("cost"))
+    if prompt is None or completion is None or total is None or cost is None:
+        raise DiagnosisProcessingError(
+            DiagnosisErrorCode.MODEL_INCOMPLETE,
+            retryable=True,
+        )
+    return build_diagnosis_usage(
+        prompt_tokens=prompt,
+        completion_tokens=completion,
+        total_tokens=total,
+        reasoning_tokens=reasoning,
+        cached_tokens=cached,
+        cost_microusd=cost,
+    )
+
+
+def _nonnegative_int(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def _detail_token_count(value: object, key: str) -> int:
+    if not isinstance(value, dict):
+        return 0
+    parsed = _nonnegative_int(value.get(key))
+    return 0 if parsed is None else parsed
+
+
+def _cost_microusd(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return None
+    try:
+        cost = Decimal(str(value))
+    except InvalidOperation:
+        return None
+    if not cost.is_finite() or cost < 0:
+        return None
+    return int((cost * Decimal(1_000_000)).to_integral_value(rounding=ROUND_CEILING))

@@ -3,7 +3,7 @@
 from datetime import timedelta
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, null, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -164,6 +164,11 @@ class PostgresDiagnosisRepository:
                     ),
                     evidence_subgraph=receipt.evidence_subgraph.model_dump(mode="json"),
                     result=receipt.diagnosis.model_dump(mode="json"),
+                    provider_usage=(
+                        null()
+                        if receipt.provider_usage is None
+                        else receipt.provider_usage.model_dump(mode="json")
+                    ),
                     diagnosed_at=receipt.diagnosed_at,
                 )
             )
