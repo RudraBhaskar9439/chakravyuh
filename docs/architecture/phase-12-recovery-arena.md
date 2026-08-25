@@ -145,6 +145,20 @@ money events. It had zero incidents, dead letters, stage retries, or lease losse
 report hashes, chaos cases, and claims boundaries are recorded in
 [Phase 12F evidence](../review/phase-12f-evidence.md).
 
+## Read-only judge evidence room
+
+`/judge` is a presentation projection over locked proof constants, not an operator console. It
+places the counterfactual tournament, recovery funnel, connected evidence mesh, chaos results, and
+exception ledger behind five local view controls. Four source cards keep the 10,005-case held-out
+portfolio, 100-call live-model sample, one real Razorpay Test Mode payment, and 110,000 local signed
+deliveries visibly distinct.
+
+The route has no form and no capture, retry, refund, approve, or execute control. It does not import
+an API client or receive an operator token. The only provider-proof navigation leaves the evidence
+room for the separately bounded `/demo-checkout` route. This makes the dashboard useful for judging
+without increasing the authority available to a judge. Browser, component, type, format, and
+production-build evidence is recorded in [Phase 12G evidence](../review/phase-12g-evidence.md).
+
 ## Production-code rule
 
 The complete Phase 12 proof must use the real normalization, temporal reduction, invariant,

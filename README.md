@@ -309,6 +309,12 @@ one guard intervention, and zero unsafe effective decisions; see
 Neo4j journeys with zero dead letters, retries, lease losses, or incidents; see
 [Phase 12F evidence](docs/review/phase-12f-evidence.md).
 
+Start the web app and open `http://localhost:3000/judge` for the read-only Recovery Arena evidence
+room. It keeps held-out synthetic results, live-AI measurements, the real Razorpay Test Mode proof,
+and local scale results visibly separate. Its tournament, recovery funnel, connected evidence mesh,
+chaos, and honest exception views expose proof hashes but import no execution client and offer no
+money-action control. See [Phase 12G evidence](docs/review/phase-12g-evidence.md).
+
 ## Production hardening and proof
 
 Operator identities now receive explicit scopes for incident reads, proposal creation, checker

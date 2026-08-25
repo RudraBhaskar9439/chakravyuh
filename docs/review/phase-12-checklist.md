@@ -47,9 +47,9 @@
 
 ## 12G: judge dashboard
 
-- [ ] Tournament, funnel, evidence mesh, chaos, and exception views are available.
-- [ ] Synthetic and real-provider evidence are visibly separated.
-- [ ] Judge controls cannot reach real Razorpay mutations.
+- [x] Tournament, funnel, evidence mesh, chaos, and exception views are available.
+- [x] Synthetic and real-provider evidence are visibly separated.
+- [x] Judge controls cannot reach real Razorpay mutations.
 
 ## 12H: final proof pack
 

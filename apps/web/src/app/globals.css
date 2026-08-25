@@ -151,6 +151,10 @@ a {
 .checkoutLink:hover {
   text-decoration: underline;
 }
+.secondaryLink {
+  margin-left: 22px;
+  color: var(--muted);
+}
 
 .checkoutShell {
   width: min(1180px, calc(100% - 40px));
@@ -979,5 +983,613 @@ a {
   *::after {
     scroll-behavior: auto;
     transition-duration: 0.01ms;
+  }
+}
+
+/* Phase 12 judge evidence room */
+.judgeShell {
+  width: min(1500px, calc(100% - 40px));
+  margin: 0 auto;
+  padding-bottom: 70px;
+}
+.judgeTopbar,
+.judgeBrand,
+.judgeBoundary,
+.judgeFooter {
+  display: flex;
+  align-items: center;
+}
+.judgeTopbar {
+  justify-content: space-between;
+  min-height: 82px;
+  border-bottom: 1px solid var(--border);
+}
+.judgeBrand {
+  gap: 12px;
+  text-decoration: none;
+}
+.judgeBrand strong,
+.judgeBrand small {
+  display: block;
+}
+.judgeBrand small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.67rem;
+}
+.judgeBoundary {
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.judgeBoundary > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--healthy);
+  box-shadow: 0 0 10px var(--healthy);
+}
+.judgeHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.6fr);
+  gap: 50px;
+  align-items: end;
+  padding: 76px 0 62px;
+}
+.judgeHero h1 {
+  margin: 0;
+  font-size: clamp(3.3rem, 7vw, 7rem);
+  letter-spacing: -0.07em;
+  line-height: 0.92;
+}
+.judgeHero > p {
+  margin: 0 0 5px;
+  color: var(--muted);
+  font-size: 0.96rem;
+  line-height: 1.7;
+}
+.sourceStrip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.sourceCard {
+  min-height: 140px;
+  padding: 22px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgb(17 16 13 / 52%);
+}
+.sourceCard p,
+.sourceCard strong,
+.sourceCard small {
+  display: block;
+}
+.sourceCard p {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.sourceCard strong {
+  font-size: 1.1rem;
+}
+.sourceCard small {
+  margin-top: 9px;
+  color: #7e766a;
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+.source-synthetic {
+  box-shadow: inset 0 2px var(--gold);
+}
+.source-live-ai {
+  box-shadow: inset 0 2px var(--violet);
+}
+.source-real-provider {
+  box-shadow: inset 0 2px var(--healthy);
+}
+.source-local-scale {
+  box-shadow: inset 0 2px var(--blue);
+}
+.judgeTabs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin-top: 32px;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.judgeTabs button {
+  min-height: 62px;
+  padding: 0 17px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+.judgeTabs button span {
+  margin-right: 8px;
+  color: #746854;
+  font-family: ui-monospace, monospace;
+  font-size: 0.62rem;
+}
+.judgeTabs button:hover,
+.judgeTabs button.selected {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.judgeTabs button.selected {
+  box-shadow: inset 0 -2px var(--gold);
+}
+.judgeCanvas {
+  min-height: 750px;
+  padding: clamp(28px, 5vw, 70px);
+  border: 1px solid var(--border);
+  border-top: 0;
+  background: rgb(10 9 7 / 55%);
+}
+.proofViewHeader {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 20px;
+  max-width: 1040px;
+}
+.proofViewHeader > span {
+  padding-top: 5px;
+  color: var(--gold);
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+}
+.proofViewHeader h2 {
+  max-width: 960px;
+  margin: 0;
+  font-size: clamp(2.2rem, 5vw, 4.6rem);
+  letter-spacing: -0.06em;
+  line-height: 0.98;
+}
+.proofViewHeader h2 + p {
+  max-width: 740px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+.strategyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 55px;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.strategyCard {
+  min-width: 0;
+  padding: 26px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgb(17 16 13 / 42%);
+}
+.strategyCard.winner {
+  background: linear-gradient(145deg, rgb(230 170 76 / 10%), rgb(17 16 13 / 70%));
+  box-shadow: inset 0 2px var(--gold);
+}
+.strategyName {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+}
+.strategyName h3 {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.strategyName span,
+.sourcePill {
+  padding: 4px 7px;
+  border: 1px solid var(--gold-soft);
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: 0.56rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.strategyCard > strong {
+  display: block;
+  margin-top: 45px;
+  font-size: clamp(2rem, 4vw, 3.3rem);
+  letter-spacing: -0.055em;
+}
+.strategyCard > small {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+.negativeValue {
+  color: var(--danger);
+}
+.netTrack {
+  height: 3px;
+  margin: 25px 0;
+  background: var(--border);
+}
+.netTrack span {
+  display: block;
+  height: 100%;
+  background: var(--healthy);
+}
+.netTrack span.negative {
+  background: var(--danger);
+}
+.strategyCard dl {
+  margin: 0;
+}
+.strategyCard dl > div,
+.funnelFootnotes > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.strategyCard dt,
+.funnelFootnotes dt {
+  color: var(--muted);
+  font-size: 0.67rem;
+}
+.strategyCard dd,
+.funnelFootnotes dd {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+}
+.proofHash {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 16px;
+  margin: 28px 0 0;
+  color: var(--muted);
+  font-size: 0.64rem;
+}
+.proofHash code {
+  overflow-wrap: anywhere;
+  color: #82796c;
+}
+.funnel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 54px;
+}
+.funnel article {
+  display: grid;
+  grid-template-columns: 42px minmax(210px, 0.75fr) minmax(260px, 1fr);
+  gap: 18px;
+  align-items: center;
+  min-height: 86px;
+  padding: 15px 22px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  background: linear-gradient(90deg, rgb(230 170 76 / 8%), rgb(17 16 13 / 72%));
+  width: var(--funnel-width);
+}
+.funnel article:last-child {
+  border-bottom: 1px solid var(--border);
+  box-shadow: inset 0 -2px var(--healthy);
+}
+.funnel article > span {
+  color: var(--gold);
+  font-family: ui-monospace, monospace;
+  font-size: 0.65rem;
+}
+.funnel article strong,
+.funnel article p {
+  display: block;
+  margin: 0;
+}
+.funnel article strong {
+  font-size: 1.35rem;
+}
+.funnel article p,
+.funnel article small {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.funnelFootnotes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 32px;
+}
+.meshScroll {
+  margin-top: 52px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at 52% 45%, rgb(190 140 255 / 6%), transparent 32rem), #0b0a08;
+}
+.mesh {
+  display: flex;
+  align-items: stretch;
+  width: max-content;
+  min-width: 100%;
+  padding: 58px 34px;
+}
+.meshStep {
+  display: flex;
+  align-items: center;
+}
+.meshStep article {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 150px;
+  min-height: 150px;
+  padding: 16px;
+  border: 1px solid var(--border-bright);
+  border-radius: 50%;
+  background: var(--surface);
+  text-align: center;
+}
+.meshStep article > span {
+  color: var(--gold);
+  font-family: ui-monospace, monospace;
+  font-size: 0.58rem;
+}
+.meshStep article strong {
+  margin-top: 8px;
+  font-size: 0.75rem;
+}
+.meshStep article small {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.58rem;
+  line-height: 1.35;
+}
+.meshStep article.modelNode {
+  border-color: var(--violet);
+  box-shadow: 0 0 30px rgb(190 140 255 / 8%);
+}
+.meshStep article.confirmedNode {
+  border-color: var(--healthy);
+  box-shadow: 0 0 30px rgb(98 208 155 / 8%);
+}
+.meshEdge {
+  width: 38px;
+  color: #6d6251;
+  text-align: center;
+}
+.meshBoundaries {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.meshBoundaries article {
+  padding: 20px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.meshBoundaries span,
+.meshBoundaries strong,
+.meshBoundaries p {
+  display: block;
+}
+.meshBoundaries span {
+  color: var(--gold);
+  font-family: ui-monospace, monospace;
+  font-size: 0.58rem;
+}
+.meshBoundaries strong {
+  margin-top: 14px;
+  font-size: 0.76rem;
+}
+.meshBoundaries p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+.chaosSummary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 50px;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.chaosSummary article {
+  padding: 22px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.chaosSummary strong,
+.chaosSummary small {
+  display: block;
+}
+.chaosSummary strong {
+  font-size: 1.55rem;
+}
+.chaosSummary small {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+.chaosList {
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.chaosList li {
+  display: grid;
+  grid-template-columns: 42px minmax(190px, 0.65fr) minmax(240px, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 17px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.chaosList span {
+  color: var(--gold);
+  font-family: ui-monospace, monospace;
+  font-size: 0.62rem;
+}
+.chaosList strong {
+  font-size: 0.76rem;
+}
+.chaosList p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.chaosList em {
+  color: var(--healthy);
+  font-size: 0.65rem;
+  font-style: normal;
+}
+.dualHash {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+.exceptionTable {
+  margin-top: 52px;
+  border-top: 1px solid var(--border);
+}
+.exceptionTable article {
+  display: grid;
+  grid-template-columns: 130px 70px minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+  min-height: 105px;
+  border-bottom: 1px solid var(--border);
+}
+.exceptionTable article > strong {
+  font-size: 2rem;
+}
+.exceptionTable h3,
+.exceptionTable p {
+  margin: 0;
+}
+.exceptionTable h3 {
+  font-size: 0.82rem;
+}
+.exceptionTable p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+.sourcePill.source-live-ai {
+  border-color: var(--violet);
+  color: var(--violet);
+}
+.sourcePill.source-local-scale {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.exceptionPrinciple {
+  max-width: 700px;
+  margin-top: 48px;
+  padding: 26px;
+  border-left: 2px solid var(--gold);
+  background: rgb(230 170 76 / 5%);
+}
+.exceptionPrinciple strong {
+  font-size: 1.25rem;
+}
+.exceptionPrinciple > p:last-child {
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.judgeFooter {
+  justify-content: space-between;
+  gap: 30px;
+  padding: 26px 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.judgeFooter p {
+  max-width: 760px;
+  margin: 0;
+  line-height: 1.5;
+}
+.judgeFooter a {
+  color: var(--gold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (width <= 1000px) {
+  .sourceStrip,
+  .strategyGrid,
+  .meshBoundaries,
+  .chaosSummary,
+  .funnelFootnotes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .judgeTabs {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .judgeHero {
+    grid-template-columns: 1fr;
+  }
+  .funnel article {
+    --funnel-width: 100%;
+  }
+}
+
+@media (width <= 650px) {
+  .judgeShell {
+    width: min(100% - 18px, 1500px);
+  }
+  .judgeTopbar,
+  .judgeFooter {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px 0;
+  }
+  .judgeHero {
+    padding: 54px 4px 42px;
+  }
+  .sourceStrip,
+  .strategyGrid,
+  .meshBoundaries,
+  .chaosSummary,
+  .funnelFootnotes,
+  .judgeTabs,
+  .dualHash {
+    grid-template-columns: 1fr;
+  }
+  .judgeTabs button {
+    min-height: 48px;
+  }
+  .judgeCanvas {
+    padding: 28px 18px;
+  }
+  .proofViewHeader {
+    grid-template-columns: 1fr;
+  }
+  .funnel article {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+  .funnel article > small {
+    grid-column: 2;
+  }
+  .chaosList li {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+  .chaosList p {
+    grid-column: 2 / 4;
+  }
+  .exceptionTable article {
+    grid-template-columns: minmax(100px, auto) 50px minmax(0, 1fr);
+  }
+  .proofHash {
+    grid-template-columns: 1fr;
+  }
+  .secondaryLink {
+    display: block;
+    margin-left: 0;
   }
 }
