@@ -9,6 +9,11 @@ Checkout that can create the exact authorized-but-uncaptured payment used in the
 remains non-executable: deterministic policy, immutable maker-checker approval, exact-amount
 preflight, and Test-Mode-only Razorpay adapters control every outbound operation.
 
+The judge-facing [`/recovery-story`](http://localhost:3000/recovery-story) route presents one
+completed Razorpay Test Mode recovery as a simple, read-only visual replay. It exposes the exact
+evidence, model receipt, safety boundaries, and tamper-evident hashes without tokens, role switching,
+or an action API. The full operator console remains available separately for engineering inspection.
+
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
 ## Architecture principles

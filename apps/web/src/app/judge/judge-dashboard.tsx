@@ -96,7 +96,10 @@ export function JudgeDashboard() {
           Proofs are reproducible local measurements, not a production SLA or merchant revenue
           claim. Only webhook-confirmed synthetic recovery is scored.
         </p>
-        <a href="/demo-checkout">Inspect the separate real Test Mode proof →</a>
+        <div>
+          <a href="/recovery-story">Watch the verified recovery story →</a>
+          <a href="/demo-checkout">Create a separate Test Mode incident →</a>
+        </div>
       </footer>
     </main>
   );

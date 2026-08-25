@@ -185,6 +185,9 @@ export function OperatorDashboard() {
           <a className="checkoutLink" href="/demo-checkout">
             Create a real Test Mode incident →
           </a>
+          <a className="checkoutLink secondaryLink" href="/recovery-story">
+            Watch the verified recovery story →
+          </a>
           <a className="checkoutLink secondaryLink" href="/judge">
             Open the Phase 12 judge evidence room →
           </a>
