@@ -1,4 +1,4 @@
-.PHONY: bootstrap check test lint format typecheck judge-proof infra-up infra-down migrate migration-check api worker projector diagnosis-worker web
+.PHONY: bootstrap check test lint format typecheck judge-proof proof-pack-verify infra-up infra-down migrate migration-check api worker projector diagnosis-worker web
 
 bootstrap:
 	uv sync --all-groups
@@ -26,6 +26,9 @@ typecheck:
 
 judge-proof:
 	uv run chakravyuh-judge-demo --seed-start 50000 --seed-count 100
+
+proof-pack-verify:
+	uv run chakravyuh-recovery-proof-pack verify --input-dir proof/phase-12
 
 infra-up:
 	docker compose up -d --wait

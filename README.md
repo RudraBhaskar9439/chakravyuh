@@ -315,6 +315,22 @@ and local scale results visibly separate. Its tournament, recovery funnel, conne
 chaos, and honest exception views expose proof hashes but import no execution client and offer no
 money-action control. See [Phase 12G evidence](docs/review/phase-12g-evidence.md).
 
+Build the final machine- and human-readable proof pack against an exact full Git revision, then
+verify both that revision and the printed root:
+
+    uv run chakravyuh-recovery-proof-pack build \
+      --output-dir proof/phase-12 \
+      --code-revision 0123456789abcdef0123456789abcdef01234567
+    uv run chakravyuh-recovery-proof-pack verify \
+      --input-dir proof/phase-12 \
+      --expected-code-revision 0123456789abcdef0123456789abcdef01234567 \
+      --expected-proof-root <printed-proof-root>
+
+Generation refuses to overwrite an existing directory. The verifier checks the outer checksum
+file, typed manifest, every canonical JSONL record and embedded result hash, the per-case Merkle
+root, and optional external trust anchors. The committed `proof/phase-12` directory can be checked
+with `make proof-pack-verify` and contains no credential, customer, or live-provider payload.
+
 ## Production hardening and proof
 
 Operator identities now receive explicit scopes for incident reads, proposal creation, checker

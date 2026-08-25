@@ -159,6 +159,21 @@ room for the separately bounded `/demo-checkout` route. This makes the dashboard
 without increasing the authority available to a judge. Browser, component, type, format, and
 production-build evidence is recorded in [Phase 12G evidence](../review/phase-12g-evidence.md).
 
+## Final proof-pack chain
+
+The final pack is generated only from the deterministic held-out tournament and an explicitly
+provided full Git SHA. Each canonical JSONL line binds the observed-case hash, evaluator-only oracle
+hash, all three scored strategy results, contract, portfolio, tournament, and code revision into a
+case hash. An ordered Merkle tree binds all 10,005 case hashes. The manifest then binds that root,
+all strategy metrics, and the byte length and SHA-256 of the JSONL, CSV, and self-contained HTML
+artifacts. `SHA256SUMS` binds those files and the manifest.
+
+Verification has two trust levels. Standalone verification detects accidental changes and validates
+all nested content hashes. Supplying both the expected Git revision and a separately recorded proof
+root prevents a modified pack from establishing a new trust anchor for itself. Generation writes to
+a temporary sibling and atomically publishes only a complete new directory; it never overwrites an
+existing pack.
+
 ## Production-code rule
 
 The complete Phase 12 proof must use the real normalization, temporal reduction, invariant,
