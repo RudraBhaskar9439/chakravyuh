@@ -277,6 +277,17 @@ Run the full 10,005-case held-out portfolio against no-intervention and naive re
 
     chakravyuh-recovery-arena-baselines
 
+Run the reproducible three-way tournament through Chakravyuh's reducer, detector, policy,
+maker-checker, execution checkpoint, provider twin, and confirmation scoring:
+
+    chakravyuh-recovery-arena-tournament
+
+On the locked portfolio, Chakravyuh detects all 4,002 expected incident types, selects all 457
+eligible captures with zero incorrect actions, and produces 402 provider-confirmed recoveries. It
+matches retry-all's ₹157,280 recovered value while retaining ₹148,140 after explicit review cost;
+retry all falls to negative ₹197,220 after 3,545 incorrect actions. These are deterministic
+synthetic INR measurements, not merchant revenue claims.
+
 The held-out manifest exposes its seed range and generator version but contains no oracle outcome or
 recoverability label. Only `authorized_not_captured` is recoverable in v1 and only exact capture is
 executable; every other incident must stop, deny, or escalate. See

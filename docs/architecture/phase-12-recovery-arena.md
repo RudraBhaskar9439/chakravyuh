@@ -72,11 +72,39 @@ evaluator counts a recovery only when the case is oracle-recoverable and at leas
 `payment.captured` confirmation exists; any attempted action outside eligibility incurs the locked
 incorrect-action cost.
 
+## Guarded Chakravyuh tournament
+
+Chakravyuh receives the same observed case and narrow provider gateway as the baselines. It reduces
+the complete temporal journey, evaluates production invariants at the locked case time, and permits
+only one exact `authorized_not_captured` finding to enter recovery. A server-derived proposal then
+passes through the production deterministic policy and `RecoveryActionControlPlane`.
+
+The arena action repository implements the same repository protocol and state transitions as the
+PostgreSQL action store: immutable seed load, idempotent proposal, policy decision, independent
+checker decision, execution claim and lease, mutation checkpoint, terminal result, and idempotent
+repeat. It is deliberately isolated from operational tables so 10,005 synthetic cases cannot pollute
+merchant evidence. Every transition enters a per-case SHA-256 hash chain; all case audit roots then
+form a tournament commitment. Phase 12F separately proves the complete signed HTTP, PostgreSQL,
+Neo4j, and worker path under load.
+
+Provider errors remain visible. A timeout after mutation is reconciled by authoritative fetch and
+receives credit only when the twin emits `payment.captured`. A timeout before mutation becomes an
+uncertain exception because the mutation checkpoint forbids blind retry. The evaluator therefore
+separates detector false negatives, eligible-action misses, and provider-failure misses.
+
+The locked result recovers the same ₹157,280 as retry all, but with 457 exact actions instead of
+4,002 attempts, zero incorrect actions instead of 3,545, and positive ₹148,140 net value after
+₹9,140 of explicit checker cost. Incident-type precision, recall, and F1 are each 1.0 over 4,002
+positive cases; exact executable targeting is 457 of 457. These are synthetic held-out measurements,
+not production merchant claims.
+
 ## Production-code rule
 
-Chakravyuh must use the real normalization, temporal reduction, invariant, diagnosis guard, policy,
-maker-checker, execution, webhook, and resolution paths. Baselines may be smaller, but they receive
-the same observed inputs and predetermined provider outcomes. No strategy reads the oracle.
+The complete Phase 12 proof must use the real normalization, temporal reduction, invariant,
+diagnosis guard, policy, maker-checker, execution, webhook, and resolution paths. Phase 12D proves
+the production reducer-through-execution slice against an isolated repository implementation;
+Phase 12F adds signed HTTP intake, PostgreSQL, Neo4j, and workers. Baselines may be smaller, but they
+receive the same observed inputs and predetermined provider outcomes. No strategy reads the oracle.
 
 ## Claims boundary
 

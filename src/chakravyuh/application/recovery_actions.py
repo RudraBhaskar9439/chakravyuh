@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -46,6 +47,8 @@ class RecoveryActionControlPlane:
         *,
         proposal_ttl_seconds: int,
         execution_lease_seconds: int,
+        clock: Callable[[], datetime] | None = None,
+        uuid_factory: Callable[[], UUID] | None = None,
     ) -> None:
         if not 60 <= proposal_ttl_seconds <= 3_600:
             raise ValueError("proposal TTL is outside supported bounds")
@@ -56,6 +59,8 @@ class RecoveryActionControlPlane:
         self._gateway = gateway
         self._proposal_ttl_seconds = proposal_ttl_seconds
         self._execution_lease_seconds = execution_lease_seconds
+        self._clock = clock or _utc_now
+        self._uuid_factory = uuid_factory or uuid4
 
     async def propose(
         self,
@@ -71,10 +76,12 @@ class RecoveryActionControlPlane:
         )
         if seed is None:
             raise ActionControlError(ActionControlErrorCode.NOT_FOUND)
-        now = datetime.now(UTC)
+        now = self._clock()
+        if now.utcoffset() is None:
+            raise ValueError("action control clock must return a timezone-aware value")
         amount = seed.amount_at_risk if seed.action_type is ActionType.CAPTURE_PAYMENT else None
         proposal = create_action_proposal(
-            proposal_id=uuid4(),
+            proposal_id=self._uuid_factory(),
             incident_id=seed.incident_id,
             source_revision_id=seed.source_revision_id,
             diagnosis_id=seed.diagnosis_id,
@@ -165,14 +172,21 @@ class RecoveryActionControlPlane:
                     if failure.retryable
                     else ActionExecutionOutcome.BLOCKED,
                     failure.code,
+                    completed_at=self._clock(),
                 )
-            return _success_result(claim, state, already_applied=False)
+            return _success_result(
+                claim,
+                state,
+                already_applied=False,
+                completed_at=self._clock(),
+            )
         if proposal.action_type is ActionType.CAPTURE_PAYMENT:
             return await self._capture(claim)
         return _failure_result(
             claim,
             ActionExecutionOutcome.BLOCKED,
             ActionControlErrorCode.POLICY_DENIED,
+            completed_at=self._clock(),
         )
 
     async def _capture(self, claim: ActionExecutionClaim) -> ActionExecutionResult:
@@ -187,18 +201,31 @@ class RecoveryActionControlPlane:
                 if failure.retryable
                 else ActionExecutionOutcome.BLOCKED,
                 failure.code,
+                completed_at=self._clock(),
             )
         mismatch = _capture_state_mismatch(proposal, current)
         if mismatch is not None:
-            return _failure_result(claim, ActionExecutionOutcome.BLOCKED, mismatch, current)
+            return _failure_result(
+                claim,
+                ActionExecutionOutcome.BLOCKED,
+                mismatch,
+                current,
+                completed_at=self._clock(),
+            )
         if current.status is PaymentStatus.CAPTURED and current.captured:
-            return _success_result(claim, current, already_applied=True)
+            return _success_result(
+                claim,
+                current,
+                already_applied=True,
+                completed_at=self._clock(),
+            )
         if current.status is not PaymentStatus.AUTHORIZED or current.captured:
             return _failure_result(
                 claim,
                 ActionExecutionOutcome.BLOCKED,
                 ActionControlErrorCode.AUTHORITATIVE_STATE_CHANGED,
                 current,
+                completed_at=self._clock(),
             )
 
         await self._repository.mark_mutation_started(claim)
@@ -213,6 +240,7 @@ class RecoveryActionControlPlane:
                     claim,
                     ActionExecutionOutcome.BLOCKED,
                     failure.code,
+                    completed_at=self._clock(),
                 )
             return await self._reconcile(claim)
         mismatch = _capture_state_mismatch(proposal, captured)
@@ -226,8 +254,14 @@ class RecoveryActionControlPlane:
                 ActionExecutionOutcome.UNCERTAIN,
                 mismatch or ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
                 captured,
+                completed_at=self._clock(),
             )
-        return _success_result(claim, captured, already_applied=False)
+        return _success_result(
+            claim,
+            captured,
+            already_applied=False,
+            completed_at=self._clock(),
+        )
 
     async def _reconcile(self, claim: ActionExecutionClaim) -> ActionExecutionResult:
         proposal = claim.proposal
@@ -238,17 +272,30 @@ class RecoveryActionControlPlane:
                 claim,
                 ActionExecutionOutcome.UNCERTAIN,
                 ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+                completed_at=self._clock(),
             )
         mismatch = _capture_state_mismatch(proposal, current)
         if mismatch is not None:
-            return _failure_result(claim, ActionExecutionOutcome.BLOCKED, mismatch, current)
+            return _failure_result(
+                claim,
+                ActionExecutionOutcome.BLOCKED,
+                mismatch,
+                current,
+                completed_at=self._clock(),
+            )
         if current.status is PaymentStatus.CAPTURED and current.captured:
-            return _success_result(claim, current, already_applied=True)
+            return _success_result(
+                claim,
+                current,
+                already_applied=True,
+                completed_at=self._clock(),
+            )
         return _failure_result(
             claim,
             ActionExecutionOutcome.UNCERTAIN,
             ActionControlErrorCode.AUTHORITATIVE_STATE_CHANGED,
             current,
+            completed_at=self._clock(),
         )
 
 
@@ -268,6 +315,7 @@ def _success_result(
     state: ProviderPaymentState,
     *,
     already_applied: bool,
+    completed_at: datetime,
 ) -> ActionExecutionResult:
     draft = ActionExecutionResult.model_construct(
         execution_id=claim.execution_id,
@@ -276,7 +324,7 @@ def _success_result(
         error_code=None,
         provider_state=state,
         already_applied=already_applied,
-        completed_at=datetime.now(UTC),
+        completed_at=completed_at,
         result_hash="0" * 64,
     )
     return ActionExecutionResult.model_validate(
@@ -289,6 +337,8 @@ def _failure_result(
     outcome: ActionExecutionOutcome,
     code: ActionControlErrorCode,
     state: ProviderPaymentState | None = None,
+    *,
+    completed_at: datetime,
 ) -> ActionExecutionResult:
     draft = ActionExecutionResult.model_construct(
         execution_id=claim.execution_id,
@@ -297,9 +347,13 @@ def _failure_result(
         error_code=code.value,
         provider_state=state,
         already_applied=False,
-        completed_at=datetime.now(UTC),
+        completed_at=completed_at,
         result_hash="0" * 64,
     )
     return ActionExecutionResult.model_validate(
         {**draft.model_dump(), "result_hash": build_result_hash(draft)}
     )
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)

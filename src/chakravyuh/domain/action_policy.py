@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,8 +37,14 @@ class DeterministicRecoveryPolicy:
 
     version = POLICY_VERSION
 
-    def __init__(self, config: RecoveryPolicyConfig) -> None:
+    def __init__(
+        self,
+        config: RecoveryPolicyConfig,
+        *,
+        uuid_factory: Callable[[], UUID] | None = None,
+    ) -> None:
         self._config = config
+        self._uuid_factory = uuid_factory or uuid4
 
     def evaluate(self, proposal: ActionProposal) -> PolicyDecision:
         reasons: list[str] = []
@@ -61,6 +69,7 @@ class DeterministicRecoveryPolicy:
 
         outcome = PolicyOutcome.DENY if reasons else safe_outcome
         return PolicyDecision(
+            decision_id=self._uuid_factory(),
             proposal_id=proposal.proposal_id,
             outcome=outcome,
             policy_version=self.version,

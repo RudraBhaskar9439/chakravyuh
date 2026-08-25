@@ -26,9 +26,10 @@
 
 ## 12D: Chakravyuh tournament
 
-- [ ] The recovery strategy traverses the production-shaped control plane.
-- [ ] Every strategy starts from an independent clone of the same case.
-- [ ] Revenue, false-action, review, provider, exception, and latency metrics are honest.
+- [x] The recovery strategy traverses the production-shaped control plane.
+- [x] Every strategy starts from an independent clone of the same case.
+- [x] Revenue, false-action, review, provider, and exception metrics are honest; end-to-end latency
+  remains explicitly assigned to the full-pipeline Phase 12F gate.
 
 ## 12E: budgeted live AI
 
