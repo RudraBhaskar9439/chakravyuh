@@ -6,11 +6,16 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
 from chakravyuh.application.evidence_assembly import AssembleEvidenceSubgraph
 from chakravyuh.config import Settings
-from chakravyuh.domain.diagnoses import DiagnosisDecision, diagnosis_prompt, guard_diagnosis
+from chakravyuh.domain.diagnoses import (
+    DiagnosisDecision,
+    DiagnosisReceipt,
+    diagnosis_prompt,
+    guard_diagnosis,
+)
 from chakravyuh.domain.enums import (
     ActionType,
     DiagnosisAbstentionReason,
@@ -35,7 +40,12 @@ from chakravyuh.domain.evidence import (
 )
 from chakravyuh.domain.incidents import IncidentEvidence, IncidentLifecycle
 from chakravyuh.domain.money import Money
+from chakravyuh.infrastructure.diagnosis.factory import build_structured_diagnostician
+from chakravyuh.infrastructure.diagnosis.failover import FailoverStructuredDiagnostician
 from chakravyuh.infrastructure.gemini.diagnostician import GeminiStructuredDiagnostician
+from chakravyuh.infrastructure.openrouter.diagnostician import (
+    OpenRouterStructuredDiagnostician,
+)
 
 NOW = datetime(2026, 8, 24, 16, tzinfo=UTC)
 STATE_HASH = "a" * 64
@@ -487,3 +497,277 @@ async def test_gemini_adapter_distinguishes_timeout_and_provider_unavailability(
 def test_gemini_adapter_requires_a_key_when_it_owns_the_client() -> None:
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
         GeminiStructuredDiagnostician(Settings(environment="test", gemini_api_key=None))
+
+
+class _FakeHttpResponse:
+    def __init__(
+        self, status_code: int, payload: object = None, *, invalid_json: bool = False
+    ) -> None:
+        self.status_code = status_code
+        self.payload = payload
+        self.invalid_json = invalid_json
+
+    def json(self) -> object:
+        if self.invalid_json:
+            raise ValueError("invalid provider JSON")
+        return self.payload
+
+
+class _FakeHttpClient:
+    def __init__(
+        self,
+        response: _FakeHttpResponse | None = None,
+        *,
+        failure: Exception | None = None,
+        delay: float = 0,
+    ) -> None:
+        self.response = response
+        self.failure = failure
+        self.delay = delay
+        self.url: str | None = None
+        self.parameters: dict[str, object] = {}
+        self.closed = False
+
+    async def post(self, url: str, **parameters: object) -> _FakeHttpResponse:
+        self.url = url
+        self.parameters = parameters
+        if self.delay:
+            await asyncio.sleep(self.delay)
+        if self.failure is not None:
+            raise self.failure
+        assert self.response is not None
+        return self.response
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+def _openrouter_payload(*, content: str | None = None) -> dict[str, object]:
+    return {
+        "id": "generation-test",
+        "model": "google/gemini-3.5-flash-lite",
+        "choices": [
+            {
+                "finish_reason": "stop",
+                "message": {"content": content or _diagnosis().model_dump_json()},
+            }
+        ],
+    }
+
+
+async def test_openrouter_adapter_requires_private_strict_structured_output() -> None:
+    client = _FakeHttpClient(_FakeHttpResponse(200, _openrouter_payload()))
+    diagnostician = OpenRouterStructuredDiagnostician(
+        Settings(environment="test"),
+        client=client,
+    )
+
+    receipt = await diagnostician.diagnose(_subgraph())
+    await diagnostician.close()
+
+    assert receipt.model == "openrouter:google/gemini-3.5-flash-lite"
+    assert receipt.provider_interaction_id == "generation-test"
+    assert receipt.diagnosis.effective_decision.disposition is DiagnosisDisposition.DIAGNOSED
+    assert client.url == "https://openrouter.ai/api/v1/chat/completions"
+    request = client.parameters["json"]
+    assert isinstance(request, dict)
+    assert request["stream"] is False
+    assert "tools" not in request
+    assert request["provider"] == {
+        "require_parameters": True,
+        "data_collection": "deny",
+    }
+    response_format = request["response_format"]
+    assert isinstance(response_format, dict)
+    assert response_format["type"] == "json_schema"
+    assert response_format["json_schema"]["strict"] is True
+    assert response_format["json_schema"]["schema"]["additionalProperties"] is False
+    assert client.closed is True
+
+
+@pytest.mark.parametrize(
+    ("response", "code"),
+    [
+        (_FakeHttpResponse(429), DiagnosisErrorCode.MODEL_UNAVAILABLE),
+        (
+            _FakeHttpResponse(200, {"choices": []}),
+            DiagnosisErrorCode.MODEL_INCOMPLETE,
+        ),
+        (
+            _FakeHttpResponse(200, _openrouter_payload(content="not-json")),
+            DiagnosisErrorCode.MODEL_INVALID_RESPONSE,
+        ),
+        (
+            _FakeHttpResponse(200, invalid_json=True),
+            DiagnosisErrorCode.MODEL_INVALID_RESPONSE,
+        ),
+    ],
+)
+async def test_openrouter_adapter_maps_provider_failures_to_stable_codes(
+    response: _FakeHttpResponse,
+    code: DiagnosisErrorCode,
+) -> None:
+    diagnostician = OpenRouterStructuredDiagnostician(
+        Settings(environment="test"),
+        client=_FakeHttpClient(response),
+    )
+
+    with pytest.raises(DiagnosisProcessingError) as raised:
+        await diagnostician.diagnose(_subgraph())
+
+    assert raised.value.code is code
+    assert raised.value.retryable is True
+
+
+async def test_openrouter_adapter_distinguishes_timeout_and_transport_failure() -> None:
+    timeout = OpenRouterStructuredDiagnostician(
+        Settings(environment="test", openrouter_timeout_seconds=0.001),
+        client=_FakeHttpClient(_FakeHttpResponse(200), delay=1),
+    )
+    unavailable = OpenRouterStructuredDiagnostician(
+        Settings(environment="test"),
+        client=_FakeHttpClient(failure=ConnectionError()),
+    )
+
+    with pytest.raises(DiagnosisProcessingError) as timed_out:
+        await timeout.diagnose(_subgraph())
+    with pytest.raises(DiagnosisProcessingError) as failed:
+        await unavailable.diagnose(_subgraph())
+
+    assert timed_out.value.code is DiagnosisErrorCode.MODEL_TIMEOUT
+    assert failed.value.code is DiagnosisErrorCode.MODEL_UNAVAILABLE
+
+
+def test_openrouter_adapter_requires_a_key_when_it_owns_the_client() -> None:
+    with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
+        OpenRouterStructuredDiagnostician(Settings(environment="test", openrouter_api_key=None))
+
+
+class _StubDiagnostician:
+    def __init__(
+        self,
+        provider: str,
+        *,
+        receipt: DiagnosisReceipt | None = None,
+        failure: DiagnosisProcessingError | None = None,
+    ) -> None:
+        self.provider = provider
+        self.receipt = receipt
+        self.failure = failure
+        self.calls = 0
+        self.closed = False
+
+    async def diagnose(self, evidence: EvidenceSubgraph) -> DiagnosisReceipt:
+        del evidence
+        self.calls += 1
+        if self.failure is not None:
+            raise self.failure
+        assert self.receipt is not None
+        return self.receipt
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def _receipt() -> DiagnosisReceipt:
+    evidence = _subgraph()
+    prompt, prompt_hash = diagnosis_prompt(evidence)
+    del prompt
+    return DiagnosisReceipt(
+        model="fallback-test",
+        provider_interaction_id="fallback-interaction",
+        prompt_hash=prompt_hash,
+        evidence_subgraph=evidence,
+        diagnosis=guard_diagnosis(evidence, _diagnosis(), minimum_confidence=0.7),
+        diagnosed_at=NOW,
+    )
+
+
+async def test_failover_uses_next_provider_only_for_retryable_model_failures() -> None:
+    primary = _StubDiagnostician(
+        "openrouter",
+        failure=DiagnosisProcessingError(
+            DiagnosisErrorCode.MODEL_UNAVAILABLE,
+            retryable=True,
+        ),
+    )
+    fallback = _StubDiagnostician("gemini", receipt=_receipt())
+    diagnostician = FailoverStructuredDiagnostician([primary, fallback])
+
+    receipt = await diagnostician.diagnose(_subgraph())
+    await diagnostician.close()
+
+    assert receipt.model == "fallback-test"
+    assert diagnostician.provider_order == ("openrouter", "gemini")
+    assert primary.calls == fallback.calls == 1
+    assert primary.closed is fallback.closed is True
+
+
+async def test_failover_fails_closed_when_all_providers_fail() -> None:
+    providers = [
+        _StubDiagnostician(
+            name,
+            failure=DiagnosisProcessingError(code, retryable=True),
+        )
+        for name, code in (
+            ("openrouter", DiagnosisErrorCode.MODEL_TIMEOUT),
+            ("gemini", DiagnosisErrorCode.MODEL_UNAVAILABLE),
+        )
+    ]
+    diagnostician = FailoverStructuredDiagnostician(providers)
+
+    with pytest.raises(DiagnosisProcessingError) as raised:
+        await diagnostician.diagnose(_subgraph())
+
+    assert raised.value.code is DiagnosisErrorCode.MODEL_FAILOVER_EXHAUSTED
+    assert all(provider.calls == 1 for provider in providers)
+
+
+async def test_failover_does_not_mask_single_provider_or_nonretryable_failure() -> None:
+    single_failure = DiagnosisProcessingError(
+        DiagnosisErrorCode.MODEL_TIMEOUT,
+        retryable=True,
+    )
+    single = FailoverStructuredDiagnostician([_StubDiagnostician("gemini", failure=single_failure)])
+    with pytest.raises(DiagnosisProcessingError) as raised_single:
+        await single.diagnose(_subgraph())
+    assert raised_single.value is single_failure
+
+    permanent_failure = DiagnosisProcessingError(
+        DiagnosisErrorCode.MODEL_INVALID_RESPONSE,
+        retryable=False,
+    )
+    primary = _StubDiagnostician("openrouter", failure=permanent_failure)
+    fallback = _StubDiagnostician("gemini", receipt=_receipt())
+    chain = FailoverStructuredDiagnostician([primary, fallback])
+    with pytest.raises(DiagnosisProcessingError) as raised_permanent:
+        await chain.diagnose(_subgraph())
+    assert raised_permanent.value is permanent_failure
+    assert fallback.calls == 0
+
+
+async def test_diagnosis_factory_preserves_explicit_provider_order() -> None:
+    settings = Settings(
+        environment="test",
+        diagnosis_primary_provider="openrouter",
+        diagnosis_fallback_provider="gemini",
+        openrouter_api_key=SecretStr("openrouter-test-key"),
+        gemini_api_key=SecretStr("gemini-test-key"),
+    )
+
+    diagnostician = build_structured_diagnostician(settings)
+    assert diagnostician.provider_order == ("openrouter", "gemini")
+    await diagnostician.close()
+
+
+def test_diagnosis_factory_preflights_every_configured_key() -> None:
+    with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
+        build_structured_diagnostician(
+            Settings(
+                environment="test",
+                diagnosis_primary_provider="gemini",
+                diagnosis_fallback_provider="openrouter",
+                gemini_api_key=SecretStr("gemini-test-key"),
+                openrouter_api_key=None,
+            )
+        )

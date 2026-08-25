@@ -13,7 +13,7 @@ checkpoints, and provider receipts. PostgreSQL is authoritative; Neo4j and the U
 | Razorpay webhook to API | Forgery, replay, oversized body, event-ID collision | Exact-byte HMAC, bounded stream, durable idempotency identity, collision rejection |
 | API to PostgreSQL | Partial commits, tampering, stale work | Transactions, leases/generations, append-only triggers, migrations outside startup |
 | PostgreSQL to Neo4j | Projection drift, stale overwrite | Rebuildable projection, epoch/generation fencing, lag health |
-| Neo4j/Gemini diagnosis | Prompt injection, unsupported claim, stale evidence | Allowlist, bounded subgraph, schema output, no tools, citation guard, abstention |
+| Neo4j/model diagnosis | Prompt injection, unsupported claim, stale evidence, provider outage | Allowlist, bounded subgraph, strict schema, no tools, citation guard, abstention, explicit failover |
 | Browser/operator API | Token theft, excessive privilege, cache leakage, brute force | In-memory session only, hashed tokens, scopes, no-store, trusted host/CORS, rate limits |
 | Recovery action to Razorpay | Wrong target/amount, single-person action, crash retry | Deterministic policy, maker-checker, preflight, exact amount, mutation checkpoint, no blind retry |
 | Runtime platform | Root breakout, lateral movement, secret committed in Git | Non-root/read-only workloads, dropped capabilities, seccomp, default-deny network, external Secret |

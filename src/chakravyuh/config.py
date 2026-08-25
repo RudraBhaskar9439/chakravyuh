@@ -75,12 +75,22 @@ class Settings(BaseSettings):
     diagnosis_max_facts: int = Field(default=128, ge=1, le=1_000)
     diagnosis_max_relationships: int = Field(default=256, ge=0, le=5_000)
     diagnosis_minimum_confidence: float = Field(default=0.7, ge=0, le=1)
+    diagnosis_primary_provider: Literal["gemini", "openrouter"] = "gemini"
+    diagnosis_fallback_provider: Literal["gemini", "openrouter"] | None = None
     gemini_api_key: SecretStr | None = Field(
         default=None,
         validation_alias=AliasChoices("GEMINI_API_KEY", "CHAKRAVYUH_GEMINI_API_KEY"),
     )
     gemini_model: str = Field(default="gemini-3.5-flash", min_length=1, max_length=128)
     gemini_timeout_seconds: float = Field(default=30, gt=0, le=120)
+    openrouter_api_key: SecretStr | None = None
+    openrouter_model: str = Field(
+        default="google/gemini-3.5-flash-lite",
+        min_length=3,
+        max_length=110,
+        pattern=r"^[A-Za-z0-9._~:-]+/[A-Za-z0-9._~:-]+$",
+    )
+    openrouter_timeout_seconds: float = Field(default=30, gt=0, le=120)
     operator_token_hashes: dict[str, str] = Field(default_factory=dict)
     operator_principal_scopes: dict[str, frozenset[OperatorScope]] = Field(default_factory=dict)
     operator_requests_per_minute: int = Field(default=120, ge=1, le=10_000)
@@ -148,6 +158,7 @@ class Settings(BaseSettings):
         "razorpay_key_id",
         "razorpay_merchant_id",
         "razorpay_account_id",
+        "diagnosis_fallback_provider",
         mode="before",
     )
     @classmethod
@@ -160,6 +171,7 @@ class Settings(BaseSettings):
         "razorpay_key_secret",
         "razorpay_webhook_secret",
         "gemini_api_key",
+        "openrouter_api_key",
         mode="before",
     )
     @classmethod
@@ -179,6 +191,9 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         if len(secrets) != len(set(secrets)):
             msg = "webhook rotation secrets must be unique"
+            raise ValueError(msg)
+        if self.diagnosis_primary_provider == self.diagnosis_fallback_provider:
+            msg = "diagnosis fallback provider must differ from the primary provider"
             raise ValueError(msg)
         for principal_id, token_hash in self.operator_token_hashes.items():
             if not principal_id.strip() or len(principal_id) > 64:

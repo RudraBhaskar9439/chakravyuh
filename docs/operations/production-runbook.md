@@ -29,10 +29,15 @@ Create the referenced Secret objects through the platform's external-secret inte
 - `chakravyuh-rate-limit-secrets`: `CHAKRAVYUH_REDIS_DSN`;
 - `chakravyuh-operator-secrets`: explicit operator token hashes and principal scopes;
 - `chakravyuh-provider-secrets`: Razorpay webhook and dormant Test Mode action credentials; and
-- `chakravyuh-model-secrets`: the Gemini API key.
+- `chakravyuh-model-secrets`: the explicitly enabled Gemini and/or OpenRouter API keys.
 
 This separation ensures each process receives only its required secret classes. Never put raw
 tokens or Secret YAML in Git, shell history, screenshots, tickets, or logs.
+
+Choose the model route explicitly. For OpenRouter-first operation with direct Gemini fallback, set
+`CHAKRAVYUH_DIAGNOSIS_PRIMARY_PROVIDER=openrouter` and
+`CHAKRAVYUH_DIAGNOSIS_FALLBACK_PROVIDER=gemini`. Confirm both accounts have bounded budgets and
+capacity. Key presence alone never activates a provider. Do not configure the same provider twice.
 
 Keep both `CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED=false` and
 `CHAKRAVYUH_TEST_CHECKOUT_ENABLED=false`. This repository rejects live Razorpay keys for actions and

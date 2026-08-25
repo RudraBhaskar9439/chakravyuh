@@ -23,8 +23,10 @@ from chakravyuh.domain.evidence import EvidenceSubgraph
 class GeminiStructuredDiagnostician:
     """Ask Gemini for a data-only proposal; never provide tools or execution authority."""
 
+    provider = "gemini"
+
     def __init__(self, settings: Settings, *, client: Any | None = None) -> None:
-        self._model = settings.gemini_model
+        self.model = settings.gemini_model
         self._timeout_seconds = settings.gemini_timeout_seconds
         self._minimum_confidence = settings.diagnosis_minimum_confidence
         if client is not None:
@@ -44,7 +46,7 @@ class GeminiStructuredDiagnostician:
         try:
             interaction = await asyncio.wait_for(
                 self._client.aio.interactions.create(
-                    model=self._model,
+                    model=self.model,
                     input=prompt,
                     stream=False,
                     store=False,
@@ -98,7 +100,7 @@ class GeminiStructuredDiagnostician:
         )
         interaction_id = getattr(interaction, "id", None)
         return DiagnosisReceipt(
-            model=self._model,
+            model=self.model,
             provider_interaction_id=(
                 interaction_id if isinstance(interaction_id, str) and interaction_id else None
             ),

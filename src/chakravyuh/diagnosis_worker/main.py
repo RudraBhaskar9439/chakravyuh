@@ -11,9 +11,10 @@ import structlog
 from chakravyuh import __version__
 from chakravyuh.application.diagnosis import DiagnosisBatchResult, ProcessDiagnosisBatch
 from chakravyuh.application.evidence_assembly import AssembleEvidenceSubgraph
+from chakravyuh.application.ports import StructuredDiagnostician
 from chakravyuh.config import Settings, get_settings
 from chakravyuh.infrastructure.database import Database
-from chakravyuh.infrastructure.gemini.diagnostician import GeminiStructuredDiagnostician
+from chakravyuh.infrastructure.diagnosis.factory import build_structured_diagnostician
 from chakravyuh.infrastructure.neo4j.evidence_reader import Neo4jEvidenceReader
 from chakravyuh.infrastructure.postgres.diagnosis_repository import (
     PostgresDiagnosisRepository,
@@ -42,9 +43,9 @@ async def diagnosis_worker_main(
     event = shutdown_event or asyncio.Event()
     database: Database | None = None
     reader: Neo4jEvidenceReader | None = None
-    diagnostician: GeminiStructuredDiagnostician | None = None
+    diagnostician: StructuredDiagnostician | None = None
     if processor is None:
-        diagnostician = GeminiStructuredDiagnostician(runtime_settings)
+        diagnostician = build_structured_diagnostician(runtime_settings)
         try:
             database = Database(runtime_settings)
             reader = Neo4jEvidenceReader(runtime_settings)
@@ -77,7 +78,8 @@ async def diagnosis_worker_main(
         environment=runtime_settings.environment,
         version=__version__,
         batch_size=runtime_settings.diagnosis_batch_size,
-        model=runtime_settings.gemini_model,
+        diagnosis_primary_provider=runtime_settings.diagnosis_primary_provider,
+        diagnosis_fallback_provider=runtime_settings.diagnosis_fallback_provider,
     )
     try:
         while not event.is_set():

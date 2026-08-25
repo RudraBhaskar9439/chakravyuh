@@ -26,3 +26,6 @@
 Phase 11 is approved for the isolated Razorpay Test Mode scope. The full redacted provider-backed
 record is in [Phase 11B external evidence](phase-11b-external-evidence.md). Live credentials and
 real-money mutation remain unsupported by design.
+
+The post-proof OpenRouter resilience extension and its synthetic live verification are recorded in
+[Phase 11C provider failover evidence](phase-11c-provider-failover-evidence.md).

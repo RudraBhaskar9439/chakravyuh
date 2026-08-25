@@ -166,16 +166,22 @@ transaction, and audit contract.
 
 Every non-resolved incident revision now advances an isolated diagnosis queue. The diagnosis worker
 loads the immutable PostgreSQL checkpoint, reads one bounded allowlisted Neo4j subgraph, requires an
-exact generation and state-hash match, and calls Gemini with strict JSON Schema output, disabled
-provider storage, and no tools.
+exact generation and state-hash match, and calls the explicitly configured model-provider chain
+with strict JSON Schema output, provider-specific privacy controls, and no tools. OpenRouter can be
+primary with direct Gemini as an independent application-level fallback:
+
+    CHAKRAVYUH_DIAGNOSIS_PRIMARY_PROVIDER=openrouter
+    CHAKRAVYUH_DIAGNOSIS_FALLBACK_PROVIDER=gemini
+    CHAKRAVYUH_OPENROUTER_API_KEY=stored-outside-git
+    CHAKRAVYUH_OPENROUTER_MODEL=google/gemini-3.5-flash-lite
 
     make diagnosis-worker
 
 The deterministic post-model guard requires real citations including invariant evidence, an
 incident-allowlisted root cause and action, and minimum confidence. Anything unsafe or weak becomes
 an explicit abstention. The model cannot create or resolve incidents and its recommendation cannot
-execute. Receipts, attempts, prompt hashes, evidence hashes, retries, dead letters, and guard
-interventions are immutable audit records. See
+execute. Receipts, attempts, prompt hashes, evidence hashes, retries, provider exhaustion, dead
+letters, and guard interventions are immutable audit records. See
 [Phase 7 architecture](docs/architecture/phase-7-grounded-ai-diagnosis.md) for the complete boundary.
 
 After the cause of a temporary provider or graph outage is verified as recovered, an operator can

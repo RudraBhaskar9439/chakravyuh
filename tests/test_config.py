@@ -32,11 +32,30 @@ def test_blank_optional_provider_configuration_is_disabled() -> None:
         razorpay_merchant_id=" ",
         razorpay_account_id="",
         razorpay_webhook_secret="",
+        diagnosis_fallback_provider="",
+        openrouter_api_key="",
     )
 
     assert settings.razorpay_merchant_id is None
     assert settings.razorpay_account_id is None
     assert settings.webhook_secrets == ()
+    assert settings.diagnosis_fallback_provider is None
+    assert settings.openrouter_api_key is None
+
+
+def test_diagnosis_provider_order_is_explicit_and_distinct() -> None:
+    settings = Settings(
+        diagnosis_primary_provider="openrouter",
+        diagnosis_fallback_provider="gemini",
+    )
+    assert settings.diagnosis_primary_provider == "openrouter"
+    assert settings.diagnosis_fallback_provider == "gemini"
+
+    with pytest.raises(ValidationError, match="must differ"):
+        Settings(
+            diagnosis_primary_provider="gemini",
+            diagnosis_fallback_provider="gemini",
+        )
 
 
 def test_webhook_secret_rotation_is_validated() -> None:

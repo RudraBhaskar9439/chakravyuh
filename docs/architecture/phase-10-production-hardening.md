@@ -74,7 +74,8 @@ selected retry returns duplicate.
   resource requests/limits, temporary-volume caps, disruption budgets, and default-deny networking.
 
 No Secret is committed. Workloads reference separate PostgreSQL, graph, rate-limit, operator,
-provider, and model Secret objects so a database migration never receives a Razorpay or Gemini key.
+provider, and model Secret objects so a database migration never receives a Razorpay, Gemini, or
+OpenRouter key.
 The placeholder origins make a copied manifest fail closed until an operator supplies
 environment-specific secrets, hosts, ingress, TLS, managed databases, Redis, Neo4j, and immutable
 image digests.

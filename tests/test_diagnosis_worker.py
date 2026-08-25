@@ -84,7 +84,7 @@ async def test_diagnosis_worker_owns_and_closes_all_dependencies() -> None:
         patch("chakravyuh.diagnosis_worker.main.Database", return_value=database),
         patch("chakravyuh.diagnosis_worker.main.Neo4jEvidenceReader", return_value=reader),
         patch(
-            "chakravyuh.diagnosis_worker.main.GeminiStructuredDiagnostician",
+            "chakravyuh.diagnosis_worker.main.build_structured_diagnostician",
             return_value=diagnostician,
         ),
     ):
@@ -105,7 +105,7 @@ async def test_diagnosis_worker_closes_partial_dependencies_when_startup_fails()
             side_effect=RuntimeError("neo4j setup failed"),
         ),
         patch(
-            "chakravyuh.diagnosis_worker.main.GeminiStructuredDiagnostician",
+            "chakravyuh.diagnosis_worker.main.build_structured_diagnostician",
             return_value=diagnostician,
         ),
         pytest.raises(RuntimeError, match="neo4j setup failed"),

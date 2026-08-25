@@ -87,6 +87,8 @@ def test_production_config_fails_closed_and_network_is_default_deny() -> None:
     assert config["CHAKRAVYUH_RATE_LIMIT_BACKEND"] == "redis"
     assert config["CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED"] == "false"
     assert config["CHAKRAVYUH_TEST_CHECKOUT_ENABLED"] == "false"
+    assert config["CHAKRAVYUH_DIAGNOSIS_PRIMARY_PROVIDER"] == "gemini"
+    assert config["CHAKRAVYUH_DIAGNOSIS_FALLBACK_PROVIDER"] == ""
     assert config["CHAKRAVYUH_TRUSTED_HOSTS"] != '["*"]'
     assert "default-deny" in policies
     assert "allow-dns" in policies

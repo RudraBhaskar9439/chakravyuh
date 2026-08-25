@@ -1,0 +1,1 @@
+"""OpenRouter structured-diagnosis adapter."""

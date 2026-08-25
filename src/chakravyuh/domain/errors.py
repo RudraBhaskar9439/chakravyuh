@@ -83,6 +83,7 @@ class DiagnosisErrorCode(StrEnum):
     MODEL_TIMEOUT = "diagnosis_model_timeout"
     MODEL_INCOMPLETE = "diagnosis_model_incomplete"
     MODEL_INVALID_RESPONSE = "diagnosis_model_invalid_response"
+    MODEL_FAILOVER_EXHAUSTED = "diagnosis_model_failover_exhausted"
 
 
 class DiagnosisProcessingError(Exception):

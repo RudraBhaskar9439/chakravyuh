@@ -16,12 +16,12 @@ model authority over incident truth, graph scope, or money movement.
       ├── reads one bounded Neo4j journey subgraph
       ├── verifies merchant, correlation, state generation, and state hash
       ├── adds deterministic invariant evidence and canonical hash
-      ├── calls Gemini with JSON Schema, store=false, and no tools
+      ├── calls the explicit provider chain with strict JSON Schema and no tools
       ├── applies citation, cause, action, and confidence guards
       └── atomically appends receipt plus attempt and advances the checkpoint
 
-Detection and diagnosis are separate processes and queues. Gemini or Neo4j failure cannot stop the
-main webhook, normalization, reduction, or invariant worker.
+Detection and diagnosis are separate processes and queues. Model-provider or Neo4j failure cannot
+stop the main webhook, normalization, reduction, or invariant worker.
 
 ## Evidence boundary
 
@@ -49,10 +49,18 @@ prompt, allowed root causes, and allowed actions.
 
 ## Model and guard boundary
 
-The Gemini request uses the stable v1 Interactions API with a strict `DiagnosisDecision` JSON
-Schema. Request storage is disabled, streaming is disabled, no tools are passed, a provider timeout
-is enforced, and the configured model name is recorded. The prompt says that all identifiers and
-statuses are untrusted data and that insufficient or contradictory evidence requires abstention.
+The direct Gemini adapter uses the stable v1 Interactions API with a strict `DiagnosisDecision` JSON
+Schema and provider storage disabled. The OpenRouter adapter uses Chat Completions with strict JSON
+Schema, parameter-capable endpoint routing, and data-collection denial. Both disable streaming,
+pass no tools, enforce independent timeouts, and record the effective model and provider receipt
+identifier. The prompt says that all identifiers and statuses are untrusted data and that
+insufficient or contradictory evidence requires abstention.
+
+Routing is configuration, not key-presence magic. The worker constructs the primary and optional
+distinct fallback in a fixed order. Only sanitized, retryable `DiagnosisProcessingError` failures
+advance to the next provider. A successful fallback receives the identical canonical prompt and
+passes the identical schema and deterministic guard. A permanent failure stops immediately;
+complete exhaustion becomes the stable `diagnosis_model_failover_exhausted` code.
 
 Schema validation is necessary but not sufficient. The deterministic post-model guard rejects:
 
@@ -77,10 +85,11 @@ A resolved revision synchronously advances and completes the checkpoint while re
 lease, so a stale diagnosis cannot be published after the incident disappears. A later reopen
 creates a fresh pending target.
 
-Transient graph unavailability/staleness and model timeout/unavailability/incomplete/invalid output
-retry with a bounded delay. Oversized evidence is a permanent failure. A newer target resets the
-failure counter; an older claim cannot dead-letter the newer revision. Exhausted or permanent
-failures become visible dead letters with stable payload-free codes.
+Transient graph unavailability/staleness and exhausted model-provider chains retry with a bounded
+delay. Oversized evidence is a permanent failure. A newer target resets the failure counter; an
+older claim cannot dead-letter the newer revision. Exhausted or permanent failures become visible
+dead letters with stable payload-free codes. Structured fallback logs contain provider names and
+stable codes only—never prompts, responses, keys, or raw provider errors.
 
 After an operator verifies that the external dependency recovered, one dead-lettered diagnosis can
 be requeued through `chakravyuh-diagnosis-replay`. The transition is accepted only from the
@@ -100,5 +109,5 @@ every abstention intervention observable.
 - The graph remains rebuildable and never becomes authoritative financial state.
 - No public diagnosis endpoint or operator interface exists until Phase 8.
 - No recovery proposal can execute until Phase 9 policy and approval enforcement.
-- Live merchant quality, drift, privacy retention, capacity, and provider failover remain Phase 10
-  deployment gates.
+- Live merchant quality, drift, privacy retention, and capacity remain deployment gates. Provider
+  failover is implemented and tested, but managed production capacity is still external.
