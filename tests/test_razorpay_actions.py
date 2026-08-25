@@ -152,6 +152,89 @@ async def test_adapter_creates_manual_order_and_verifies_checkout_signature() ->
     await client.aclose()
 
 
+async def test_adapter_falls_back_to_legacy_manual_capture_only_on_explicit_rejection() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "code": "BAD_REQUEST_ERROR",
+                        "description": "capture is/are not required and should not be sent",
+                        "reason": "extra_field_sent",
+                        "metadata": {"must_not_cross_boundary": "provider-detail"},
+                    }
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "id": "order_legacy",
+                "entity": "order",
+                "amount": 1_000,
+                "currency": "INR",
+                "receipt": "chkr-legacy",
+                "status": "created",
+                "created_at": 1_787_571_200,
+            },
+        )
+
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://api.razorpay.com",
+    )
+    gateway = RazorpayTestModePaymentGateway(_settings(), client=client)
+
+    order = await gateway.create_manual_capture_order(
+        amount=Money(amount_subunits=1_000, currency="INR"),
+        receipt="chkr-legacy",
+    )
+    await client.aclose()
+
+    assert order.order_id == "order_legacy"
+    assert len(requests) == 2
+    assert json.loads(requests[0].content)["capture"] == "manual"
+    assert "payment_capture" not in json.loads(requests[0].content)
+    assert json.loads(requests[1].content)["payment_capture"] is False
+    assert "capture" not in json.loads(requests[1].content)
+
+
+async def test_adapter_does_not_fallback_for_an_unrecognized_provider_rejection() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            400,
+            json={
+                "error": {
+                    "code": "BAD_REQUEST_ERROR",
+                    "description": "another field failed validation",
+                    "reason": "input_validation_failed",
+                }
+            },
+        )
+
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://api.razorpay.com",
+    )
+    gateway = RazorpayTestModePaymentGateway(_settings(), client=client)
+
+    with pytest.raises(RazorpayActionError) as captured:
+        await gateway.create_manual_capture_order(
+            amount=Money(amount_subunits=1_000, currency="INR"),
+            receipt="chkr-rejected",
+        )
+    await client.aclose()
+
+    assert captured.value.code is ActionControlErrorCode.PROVIDER_REJECTED
+    assert len(requests) == 1
+
+
 @pytest.mark.parametrize(
     ("status_code", "code", "retryable"),
     [

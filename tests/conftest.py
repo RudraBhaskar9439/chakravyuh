@@ -18,6 +18,11 @@ def test_settings() -> Settings:
 
 @pytest.fixture(autouse=True)
 def isolate_settings_cache() -> Generator[None, None, None]:
+    configured_env_file = Settings.model_config.get("env_file")
+    Settings.model_config["env_file"] = None
     clear_settings_cache()
-    yield
-    clear_settings_cache()
+    try:
+        yield
+    finally:
+        Settings.model_config["env_file"] = configured_env_file
+        clear_settings_cache()

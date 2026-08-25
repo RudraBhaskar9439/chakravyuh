@@ -94,6 +94,20 @@ class _OrderResponse(BaseModel):
     created_at: int = Field(ge=0)
 
 
+class _ProviderErrorDetails(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    code: str = Field(max_length=64)
+    description: str = Field(max_length=255)
+    reason: str | None = Field(default=None, max_length=64)
+
+
+class _ProviderErrorEnvelope(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    error: _ProviderErrorDetails
+
+
 class RazorpayTestModePaymentGateway:
     """Fetch and capture payments without ever accepting a live credential."""
 
@@ -138,17 +152,30 @@ class RazorpayTestModePaymentGateway:
                 ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
                 retryable=False,
             )
-        response = await self._request(
+        common_payload = {
+            "amount": amount.amount_subunits,
+            "currency": amount.currency,
+            "receipt": receipt,
+            "notes": {"source": "chakravyuh-buildathon"},
+        }
+        provider_response = await self._send(
             "POST",
             "/v1/orders",
             json={
-                "amount": amount.amount_subunits,
-                "currency": amount.currency,
-                "receipt": receipt,
+                **common_payload,
                 "capture": "manual",
-                "notes": {"source": "chakravyuh-buildathon"},
             },
         )
+        if _requires_legacy_manual_capture(provider_response):
+            provider_response = await self._send(
+                "POST",
+                "/v1/orders",
+                json={
+                    **common_payload,
+                    "payment_capture": False,
+                },
+            )
+        response = _decode_response(provider_response)
         try:
             parsed = _OrderResponse.model_validate(response)
             provider_created_at = datetime.fromtimestamp(parsed.created_at, tz=UTC)
@@ -225,8 +252,12 @@ class RazorpayTestModePaymentGateway:
             await self._client.aclose()
 
     async def _request(self, method: str, path: str, **parameters: Any) -> Any:
+        response = await self._send(method, path, **parameters)
+        return _decode_response(response)
+
+    async def _send(self, method: str, path: str, **parameters: Any) -> httpx.Response:
         try:
-            response = await self._client.request(
+            return await self._client.request(
                 method,
                 path,
                 auth=self._auth,
@@ -237,28 +268,46 @@ class RazorpayTestModePaymentGateway:
                 ActionControlErrorCode.PROVIDER_UNAVAILABLE,
                 retryable=True,
             ) from failure
-        if response.status_code == 429 or response.status_code >= 500:
-            raise RazorpayActionError(
-                ActionControlErrorCode.PROVIDER_UNAVAILABLE,
-                retryable=True,
-            )
-        if response.status_code >= 400:
-            raise RazorpayActionError(
-                ActionControlErrorCode.PROVIDER_REJECTED,
-                retryable=False,
-            )
-        if len(response.content) > _MAX_RESPONSE_BYTES:
-            raise RazorpayActionError(
-                ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
-                retryable=False,
-            )
-        try:
-            return response.json()
-        except ValueError as failure:
-            raise RazorpayActionError(
-                ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
-                retryable=False,
-            ) from failure
+
+
+def _decode_response(response: httpx.Response) -> Any:
+    if response.status_code == 429 or response.status_code >= 500:
+        raise RazorpayActionError(
+            ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+            retryable=True,
+        )
+    if response.status_code >= 400:
+        raise RazorpayActionError(
+            ActionControlErrorCode.PROVIDER_REJECTED,
+            retryable=False,
+        )
+    if len(response.content) > _MAX_RESPONSE_BYTES:
+        raise RazorpayActionError(
+            ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
+            retryable=False,
+        )
+    try:
+        return response.json()
+    except ValueError as failure:
+        raise RazorpayActionError(
+            ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
+            retryable=False,
+        ) from failure
+
+
+def _requires_legacy_manual_capture(response: httpx.Response) -> bool:
+    """Retry only a confirmed, side-effect-free rejection of the new capture field."""
+    if response.status_code != 400 or len(response.content) > _MAX_RESPONSE_BYTES:
+        return False
+    try:
+        error = _ProviderErrorEnvelope.model_validate(response.json()).error
+    except (ValueError, ValidationError):
+        return False
+    return (
+        error.code == "BAD_REQUEST_ERROR"
+        and error.reason == "extra_field_sent"
+        and error.description == "capture is/are not required and should not be sent"
+    )
 
 
 def _validate_payment_id(payment_id: str) -> None:
