@@ -13,10 +13,10 @@
 
 ## 12B: deterministic provider twin
 
-- [ ] Independent strategy clones receive identical predetermined provider behavior.
-- [ ] Provider fetch, capture, confirmation webhook, and mutation ledger are deterministic.
-- [ ] Before/after-mutation timeout and state-change faults are supported.
-- [ ] Oracle state is not present in the strategy input contract.
+- [x] Independent strategy clones receive identical predetermined provider behavior.
+- [x] Provider fetch, capture, confirmation webhook, and mutation ledger are deterministic.
+- [x] Before/after-mutation timeout and state-change faults are supported.
+- [x] Oracle state is not present in the strategy input contract.
 
 ## 12C: held-out economic portfolio and baselines
 

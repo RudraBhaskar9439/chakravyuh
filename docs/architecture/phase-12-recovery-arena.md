@@ -34,6 +34,25 @@ contains no expected outcome or recoverability field. Later slices add a private
 oracle, provider twin, economic outcomes, tournament runner, dashboard, and per-case proof tree
 without weakening this contract.
 
+## Deterministic provider twin
+
+The in-process Razorpay-shaped twin implements the same narrow fetch/capture gateway protocol as the
+real Test Mode adapter. An evaluator-owned plan fixes initial state, one optional capture fault,
+fault attempt, state-change outcome, duplicate confirmation count, identities, and time before a
+strategy runs. Independent twin instances created from the same plan have identical hashes and do
+not share state.
+
+The strategy receives a three-method gateway view only: fetch, capture, and close. It cannot request
+the plan, mutation ledger, snapshot, pending webhooks, or oracle. The evaluator retains those
+surfaces and atomically drains provider-shaped `payment.captured` events into later pipeline stages.
+
+Every fetch and capture appends a content-hashed operation receipt with before/after state hashes,
+outcome, mutation bit, and deterministic identity. The twin serializes concurrent calls and applies
+at most one capture mutation. It supports permanent rejection, timeout before mutation, timeout
+after mutation, and a predetermined non-recovery state change during capture. A timeout after
+mutation emits confirmation and lets the real control plane reconcile through fetch without a
+second mutation.
+
 ## Production-code rule
 
 Chakravyuh must use the real normalization, temporal reduction, invariant, diagnosis guard, policy,

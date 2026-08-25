@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
+from chakravyuh.application.ports import RazorpayPaymentGateway
 from chakravyuh.application.recovery_actions import RecoveryActionControlPlane
 from chakravyuh.domain.action_policy import DeterministicRecoveryPolicy, RecoveryPolicyConfig
 from chakravyuh.domain.actions import (
@@ -29,6 +30,11 @@ from chakravyuh.domain.enums import (
 from chakravyuh.domain.errors import ActionControlErrorCode, RazorpayActionError
 from chakravyuh.domain.events import EntityReference
 from chakravyuh.domain.money import Money
+from chakravyuh.simulation.razorpay_twin import (
+    ArenaProviderFault,
+    DeterministicRazorpayTwin,
+    create_provider_plan,
+)
 
 
 def _seed(action_type: ActionType = ActionType.CAPTURE_PAYMENT) -> ActionProposalSeed:
@@ -155,7 +161,7 @@ class _Gateway:
 
 def _control(
     repository: _Repository,
-    gateway: _Gateway,
+    gateway: RazorpayPaymentGateway,
 ) -> RecoveryActionControlPlane:
     return RecoveryActionControlPlane(
         repository,
@@ -176,7 +182,7 @@ def _control(
 
 async def _propose_and_claim(
     repository: _Repository,
-    gateway: _Gateway,
+    gateway: RazorpayPaymentGateway,
     *,
     operation: ActionExecutionOperation = ActionExecutionOperation.EXECUTE,
 ) -> tuple[RecoveryActionControlPlane, ActionProposal]:
@@ -335,3 +341,31 @@ async def test_crash_recovery_claim_only_reconciles_and_never_posts_again() -> N
     assert view.execution_status is ActionExecutionStatus.SUCCEEDED
     assert gateway.fetch_calls == 1
     assert gateway.capture_calls == repository.mutation_starts == 0
+
+
+async def test_real_control_plane_reconciles_twin_timeout_after_one_mutation() -> None:
+    repository = _Repository(_seed())
+    twin = DeterministicRazorpayTwin(
+        create_provider_plan(
+            case_id="control-plane-timeout",
+            merchant_id="merchant-test",
+            account_id="acc_test123",
+            initial_state=_state(PaymentStatus.AUTHORIZED, captured=False),
+            capture_fault=ArenaProviderFault.TIMEOUT_AFTER_MUTATION,
+        )
+    )
+    gateway = twin.strategy_gateway()
+    control, proposal = await _propose_and_claim(repository, gateway)
+
+    view = await control.execute(
+        proposal.proposal_id,
+        principal_id="checker",
+        request_id="execute-twin-timeout",
+    )
+    snapshot = await twin.snapshot()
+
+    assert view.execution_status is ActionExecutionStatus.SUCCEEDED
+    assert view.latest_result is not None and view.latest_result.already_applied
+    assert repository.mutation_starts == 1
+    assert snapshot.applied_mutation_count == 1
+    assert len(await twin.drain_webhooks()) == 1
