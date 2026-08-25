@@ -31,9 +31,9 @@ describe("Test Checkout", () => {
     render(<DemoCheckoutPage />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Create the incident." }),
+      screen.getByRole("heading", { level: 1, name: "Run a live recovery." }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/fixed ₹10 Test Mode payment/i)).toBeInTheDocument();
+    expect(screen.getByText(/fixed ₹10 Razorpay Test Mode payment/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Scoped demo operator token")).toHaveAttribute("type", "password");
   });
 
@@ -56,19 +56,26 @@ describe("Test Checkout", () => {
       }
     } as never;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      if (String(input).endsWith("/v1/demo/checkout/orders")) return jsonResponse(prepared, 201);
-      return jsonResponse({
-        verification_id: "22222222-2222-4222-8222-222222222222",
-        verification_hash: "a".repeat(64),
-        payment: {
-          payment_id: "pay_123",
-          order_id: "order_123",
-          status: "authorized",
-          amount_subunits: 1000,
-          currency: "INR",
-          captured: false,
-        },
-      });
+      const url = String(input);
+      if (url.endsWith("/v1/demo/checkout/orders")) return jsonResponse(prepared, 201);
+      if (url.endsWith("/v1/demo/checkout/verifications")) {
+        return jsonResponse({
+          verification_id: "22222222-2222-4222-8222-222222222222",
+          verification_hash: "a".repeat(64),
+          payment: {
+            payment_id: "pay_123",
+            order_id: "order_123",
+            status: "authorized",
+            amount_subunits: 1000,
+            currency: "INR",
+            captured: false,
+          },
+        });
+      }
+      if (url.includes("/v1/operator/incidents?limit=100")) {
+        return jsonResponse({ items: [], next_cursor: null });
+      }
+      throw new Error(`Unexpected request: ${url}`);
     });
     render(<DemoCheckoutPage />);
 
@@ -90,14 +97,189 @@ describe("Test Checkout", () => {
 
     expect(await screen.findByText("Ready for recovery")).toBeInTheDocument();
     expect(screen.getByText("authorized")).toBeInTheDocument();
-    expect(screen.getByText("₹10.00")).toBeInTheDocument();
+    expect(screen.getAllByText("₹10.00")).toHaveLength(2);
     expect(screen.getByText(/do not capture/i)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const verificationRequest = fetchMock.mock.calls[1]?.[1];
+    expect(screen.getByRole("heading", { name: "Follow this payment." })).toBeInTheDocument();
+    expect(screen.getByText(/This is not a replay/i)).toBeInTheDocument();
+    expect(screen.getByText("Waiting for deterministic detection")).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    const verificationCall = fetchMock.mock.calls.find(([input]) =>
+      String(input).endsWith("/v1/demo/checkout/verifications"),
+    );
+    const verificationRequest = verificationCall?.[1];
     expect(verificationRequest?.body).toContain("razorpay_signature");
     expect(verificationRequest?.headers).toMatchObject({
       Authorization: "Bearer demo-token",
     });
+  });
+
+  it("advances the exact payment into its live diagnosed incident", async () => {
+    let handler: ((proof: object) => void) | undefined;
+    window.Razorpay = class {
+      constructor(options: { handler: (proof: object) => void }) {
+        handler = options.handler;
+      }
+      open() {}
+    } as never;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/v1/demo/checkout/orders")) return jsonResponse(prepared, 201);
+      if (url.endsWith("/v1/demo/checkout/verifications")) {
+        return jsonResponse({
+          verification_id: "22222222-2222-4222-8222-222222222222",
+          verification_hash: "a".repeat(64),
+          payment: {
+            payment_id: "pay_123",
+            order_id: "order_123",
+            status: "authorized",
+            amount_subunits: 1000,
+            currency: "INR",
+            captured: false,
+          },
+        });
+      }
+      if (url.includes("/v1/operator/incidents?limit=100")) {
+        return jsonResponse({
+          items: [
+            {
+              incident_id: "33333333-3333-4333-8333-333333333333",
+              affected_entity: { entity_type: "payment", entity_id: "pay_123" },
+            },
+          ],
+          next_cursor: null,
+        });
+      }
+      if (url.endsWith("/actions")) return jsonResponse([]);
+      if (url.includes("/v1/operator/incidents/33333333-3333-4333-8333-333333333333")) {
+        return jsonResponse({
+          incident: {
+            incident_id: "33333333-3333-4333-8333-333333333333",
+            status: "diagnosed",
+            incident_type: "authorized_not_captured",
+          },
+          revisions: [],
+          latest_diagnosis: {
+            diagnosis: {
+              effective_decision: {
+                summary: "Capture was not completed for the verified authorization.",
+                confidence: 1,
+              },
+            },
+          },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<DemoCheckoutPage />);
+
+    fireEvent.change(screen.getByLabelText("Scoped demo operator token"), {
+      target: { value: "demo-token" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Test Checkout" }));
+    await waitFor(() => expect(handler).toBeDefined());
+    handler?.({
+      razorpay_order_id: "order_123",
+      razorpay_payment_id: "pay_123",
+      razorpay_signature: "b".repeat(64),
+    });
+
+    expect(
+      await screen.findByText("Capture was not completed for the verified authorization."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Confidence\s+100%/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Prepare bounded recovery" })).toBeEnabled();
+  });
+
+  it("waits for signed webhooks before claiming recovery", async () => {
+    let handler: ((proof: object) => void) | undefined;
+    window.Razorpay = class {
+      constructor(options: { handler: (proof: object) => void }) {
+        handler = options.handler;
+      }
+      open() {}
+    } as never;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/v1/demo/checkout/orders")) return jsonResponse(prepared, 201);
+      if (url.endsWith("/v1/demo/checkout/verifications")) {
+        return jsonResponse({
+          verification_id: "22222222-2222-4222-8222-222222222222",
+          verification_hash: "a".repeat(64),
+          payment: {
+            payment_id: "pay_123",
+            order_id: "order_123",
+            status: "authorized",
+            amount_subunits: 1000,
+            currency: "INR",
+            captured: false,
+          },
+        });
+      }
+      if (url.includes("/v1/operator/incidents?limit=100")) {
+        return jsonResponse({
+          items: [
+            {
+              incident_id: "33333333-3333-4333-8333-333333333333",
+              affected_entity: { entity_type: "payment", entity_id: "pay_123" },
+            },
+          ],
+          next_cursor: null,
+        });
+      }
+      if (url.endsWith("/actions")) {
+        return jsonResponse([
+          {
+            proposal: {
+              proposal_id: "44444444-4444-4444-8444-444444444444",
+              target: { entity_type: "payment", entity_id: "pay_123" },
+              amount: { amount_subunits: 1000, currency: "INR" },
+            },
+            approvals: [{ decision: "approved" }],
+            execution_status: "succeeded",
+            latest_result: {
+              outcome: "succeeded",
+              provider_state: {
+                amount: { amount_subunits: 1000, currency: "INR" },
+              },
+            },
+          },
+        ]);
+      }
+      if (url.includes("/v1/operator/incidents/33333333-3333-4333-8333-333333333333")) {
+        return jsonResponse({
+          incident: {
+            incident_id: "33333333-3333-4333-8333-333333333333",
+            status: "diagnosed",
+            incident_type: "authorized_not_captured",
+          },
+          revisions: [],
+          latest_diagnosis: {
+            diagnosis: {
+              effective_decision: { summary: "Capture not completed.", confidence: 1 },
+            },
+          },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<DemoCheckoutPage />);
+
+    fireEvent.change(screen.getByLabelText("Scoped demo operator token"), {
+      target: { value: "demo-token" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Test Checkout" }));
+    await waitFor(() => expect(handler).toBeDefined());
+    handler?.({
+      razorpay_order_id: "order_123",
+      razorpay_payment_id: "pay_123",
+      razorpay_signature: "b".repeat(64),
+    });
+
+    expect(
+      await screen.findByText("Capture accepted. Awaiting provider confirmation."),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Governed")).toHaveLength(2);
+    expect(screen.queryByText("Provider-confirmed recovery")).not.toBeInTheDocument();
   });
 
   it("fails closed when the hosted script loads without its Checkout constructor", async () => {

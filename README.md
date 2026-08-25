@@ -13,6 +13,9 @@ The judge-facing [`/recovery-story`](http://localhost:3000/recovery-story) route
 completed Razorpay Test Mode recovery as a simple, read-only visual replay. It exposes the exact
 evidence, model receipt, safety boundaries, and tamper-evident hashes without tokens, role switching,
 or an action API. The full operator console remains available separately for engineering inspection.
+The [`/demo-checkout`](http://localhost:3000/demo-checkout) route is the live counterpart: after a
+new Razorpay Test Mode authorization it polls that exact payment through deterministic detection,
+bounded AI diagnosis, maker-checker governance, exact execution, and webhook-confirmed resolution.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
