@@ -71,6 +71,7 @@ jobs:
       - run: uv run mypy
       - run: uv run pytest
       - run: uv run chakravyuh-judge-demo --seed-count 25
+      - run: uv run chakravyuh-recovery-proof-pack verify --input-dir proof/phase-12
 
   web:
     needs: repository-policy
@@ -121,6 +122,12 @@ jobs:
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-recovery-arena-tournament'
       - run: docker run --rm chakravyuh-api:test chakravyuh-recovery-arena-tournament
       - run: docker run --rm --entrypoint sh chakravyuh-api:test -c 'command -v chakravyuh-recovery-proof-pack'
+      - run: >-
+          docker run --rm -v "$PWD/proof/phase-12:/proof:ro"
+          chakravyuh-api:test chakravyuh-recovery-proof-pack verify
+          --input-dir /proof
+          --expected-code-revision e52178e43c9de457f403b12fe1a714373385675a
+          --expected-proof-root 8ddaeee4d689d91810a89ed0c1d53cfb3b93ab630171ef6a3e02ee3da240bc53
       - run: docker run --rm chakravyuh-api:test chakravyuh-judge-demo --seed-count 5
       - run: docker build --file apps/web/Dockerfile --tag chakravyuh-web:test .
       - run: docker run --rm --entrypoint sh chakravyuh-web:test -c 'test "$(id -u)" != "0"'

@@ -320,16 +320,18 @@ verify both that revision and the printed root:
 
     uv run chakravyuh-recovery-proof-pack build \
       --output-dir proof/phase-12 \
-      --code-revision 0123456789abcdef0123456789abcdef01234567
+      --code-revision e52178e43c9de457f403b12fe1a714373385675a
     uv run chakravyuh-recovery-proof-pack verify \
       --input-dir proof/phase-12 \
-      --expected-code-revision 0123456789abcdef0123456789abcdef01234567 \
-      --expected-proof-root <printed-proof-root>
+      --expected-code-revision e52178e43c9de457f403b12fe1a714373385675a \
+      --expected-proof-root 8ddaeee4d689d91810a89ed0c1d53cfb3b93ab630171ef6a3e02ee3da240bc53
 
 Generation refuses to overwrite an existing directory. The verifier checks the outer checksum
 file, typed manifest, every canonical JSONL record and embedded result hash, the per-case Merkle
 root, and optional external trust anchors. The committed `proof/phase-12` directory can be checked
 with `make proof-pack-verify` and contains no credential, customer, or live-provider payload.
+Exact artifact commitments and final release gates are recorded in
+[Phase 12H evidence](docs/review/phase-12h-evidence.md).
 
 ## Production hardening and proof
 

@@ -53,7 +53,7 @@
 
 ## 12H: final proof pack
 
-- [ ] JSON, JSONL, CSV, HTML, and SHA-256 artifacts are reproducible.
-- [ ] Per-case hashes bind to a root proof and the code revision.
-- [ ] An intentional negative control makes the proof gate fail.
-- [ ] Full backend, frontend, migration, container, security, and secret gates pass.
+- [x] JSON, JSONL, CSV, HTML, and SHA-256 artifacts are reproducible.
+- [x] Per-case hashes bind to a root proof and the code revision.
+- [x] An intentional negative control makes the proof gate fail.
+- [x] Full backend, frontend, migration, container, security, and secret gates pass.
