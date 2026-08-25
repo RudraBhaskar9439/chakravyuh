@@ -12,6 +12,6 @@ resources:
   - resilience.yaml
 images:
   - name: ghcr.io/rudrabhaskar9439/chakravyuh-api
-    newTag: 0.10.0
+    newTag: 0.11.0
   - name: ghcr.io/rudrabhaskar9439/chakravyuh-web
-    newTag: 0.10.0
+    newTag: 0.11.0

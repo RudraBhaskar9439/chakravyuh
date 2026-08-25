@@ -1248,3 +1248,69 @@ Index(
     action_access_audit.c.principal_id,
     action_access_audit.c.recorded_at,
 )
+
+test_checkout_orders = Table(
+    "test_checkout_orders",
+    metadata,
+    Column("checkout_id", Uuid(as_uuid=True), primary_key=True),
+    Column("merchant_id", String(255), nullable=False),
+    Column("order_id", String(255), nullable=False, unique=True),
+    Column("amount_subunits", BigInteger(), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("receipt", String(40), nullable=False, unique=True),
+    Column("provider_created_at", DateTime(timezone=True), nullable=False),
+    Column("created_by", String(64), nullable=False),
+    Column("request_id", String(255), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("order_hash", String(64), nullable=False),
+    CheckConstraint("order_id ~ '^order_[A-Za-z0-9]+$'", name="ck_test_checkout_order_id"),
+    CheckConstraint("amount_subunits > 0", name="ck_test_checkout_order_amount"),
+    CheckConstraint("currency = 'INR'", name="ck_test_checkout_order_currency"),
+    CheckConstraint("expires_at > created_at", name="ck_test_checkout_order_expiry"),
+    CheckConstraint("order_hash ~ '^[0-9a-f]{64}$'", name="ck_test_checkout_order_hash"),
+)
+
+Index(
+    "ix_test_checkout_orders_merchant_time",
+    test_checkout_orders.c.merchant_id,
+    test_checkout_orders.c.created_at,
+)
+
+test_checkout_verifications = Table(
+    "test_checkout_verifications",
+    metadata,
+    Column("verification_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "checkout_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.test_checkout_orders.checkout_id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("payment_id", String(255), nullable=False, unique=True),
+    Column("order_id", String(255), nullable=False),
+    Column("status", String(32), nullable=False),
+    Column("amount_subunits", BigInteger(), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("captured", Boolean(), nullable=False),
+    Column("verified_by", String(64), nullable=False),
+    Column("request_id", String(255), nullable=False),
+    Column("verified_at", DateTime(timezone=True), nullable=False),
+    Column("verification_hash", String(64), nullable=False),
+    CheckConstraint("payment_id ~ '^pay_[A-Za-z0-9]+$'", name="ck_test_checkout_payment_id"),
+    CheckConstraint("order_id ~ '^order_[A-Za-z0-9]+$'", name="ck_test_checkout_payment_order"),
+    CheckConstraint("status = 'authorized'", name="ck_test_checkout_payment_status"),
+    CheckConstraint("captured = false", name="ck_test_checkout_payment_uncaptured"),
+    CheckConstraint("amount_subunits > 0", name="ck_test_checkout_payment_amount"),
+    CheckConstraint("currency = 'INR'", name="ck_test_checkout_payment_currency"),
+    CheckConstraint(
+        "verification_hash ~ '^[0-9a-f]{64}$'",
+        name="ck_test_checkout_verification_hash",
+    ),
+)
+
+Index(
+    "ix_test_checkout_verifications_time",
+    test_checkout_verifications.c.verified_at,
+)

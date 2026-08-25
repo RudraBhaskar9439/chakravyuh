@@ -238,4 +238,4 @@ async def test_metrics_endpoint_has_separate_scope_and_template_labels() -> None
     assert response.headers["Cache-Control"] == "no-store"
     assert response.headers["Content-Type"].startswith("text/plain")
     assert 'route="/health/live",status="200"} 1' in response.text
-    assert 'environment="test",version="0.10.0"' in response.text
+    assert 'environment="test",version="0.11.0"' in response.text

@@ -1,6 +1,7 @@
 """Razorpay Test Mode adapter contract and failure-sanitization tests."""
 
 import base64
+import hmac
 import json
 
 import httpx
@@ -97,6 +98,58 @@ async def test_adapter_captures_exact_amount_and_validates_terminal_state() -> N
     assert requests[0].method == "POST"
     assert requests[0].url.path == "/v1/payments/pay_123/capture"
     assert json.loads(requests[0].content) == {"amount": 10_000, "currency": "INR"}
+
+
+async def test_adapter_creates_manual_order_and_verifies_checkout_signature() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "id": "order_123",
+                "entity": "order",
+                "amount": 1_000,
+                "currency": "INR",
+                "receipt": "chkr-contract",
+                "status": "created",
+                "created_at": 1_787_571_200,
+                "notes": {"ignored": "at-boundary"},
+            },
+        )
+
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://api.razorpay.com",
+    )
+    gateway = RazorpayTestModePaymentGateway(_settings(), client=client)
+    order = await gateway.create_manual_capture_order(
+        amount=Money(amount_subunits=1_000, currency="INR"),
+        receipt="chkr-contract",
+    )
+    signature = hmac.digest(b"test-secret", b"order_123|pay_123", "sha256").hex()
+
+    assert order.order_id == "order_123"
+    assert gateway.verify_checkout_signature(
+        order_id="order_123",
+        payment_id="pay_123",
+        signature=signature,
+    )
+    assert not gateway.verify_checkout_signature(
+        order_id="order_123",
+        payment_id="pay_123",
+        signature="0" * 64,
+    )
+    assert requests[0].url.path == "/v1/orders"
+    assert json.loads(requests[0].content) == {
+        "amount": 1_000,
+        "currency": "INR",
+        "receipt": "chkr-contract",
+        "capture": "manual",
+        "notes": {"source": "chakravyuh-buildathon"},
+    }
+    await client.aclose()
 
 
 @pytest.mark.parametrize(

@@ -4,6 +4,7 @@ import re
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from time import perf_counter
+from typing import cast
 from uuid import uuid4
 
 import structlog
@@ -19,16 +20,20 @@ from chakravyuh.api.actions import router as action_router
 from chakravyuh.api.health import router as health_router
 from chakravyuh.api.metrics import router as metrics_router
 from chakravyuh.api.operators import router as operator_router
+from chakravyuh.api.test_checkout import router as test_checkout_router
 from chakravyuh.api.webhooks import router as webhook_router
 from chakravyuh.application.ports import (
     ActionControlPlane,
     GraphProjector,
     OperatorReadModel,
     RazorpayPaymentGateway,
+    RazorpayTestCheckoutGateway,
+    TestCheckoutControlPlane,
     WebhookEventStore,
 )
 from chakravyuh.application.projection_health import CheckGraphProjectionHealth
 from chakravyuh.application.recovery_actions import RecoveryActionControlPlane
+from chakravyuh.application.test_checkout import RazorpayTestCheckoutControlPlane
 from chakravyuh.application.webhook_ingestion import IngestVerifiedWebhook
 from chakravyuh.config import Settings, get_settings
 from chakravyuh.domain.action_policy import DeterministicRecoveryPolicy, RecoveryPolicyConfig
@@ -41,6 +46,9 @@ from chakravyuh.infrastructure.postgres.graph_projection_repository import (
     PostgresGraphProjectionRepository,
 )
 from chakravyuh.infrastructure.postgres.operator_read_model import PostgresOperatorReadModel
+from chakravyuh.infrastructure.postgres.test_checkout_repository import (
+    PostgresTestCheckoutRepository,
+)
 from chakravyuh.infrastructure.postgres.webhook_event_store import PostgresWebhookEventStore
 from chakravyuh.infrastructure.rate_limiting import RateLimiter, build_rate_limiter
 from chakravyuh.infrastructure.razorpay.actions import (
@@ -94,6 +102,7 @@ def create_app(
     operator_read_model: OperatorReadModel | None = None,
     payment_gateway: RazorpayPaymentGateway | None = None,
     action_control_plane: ActionControlPlane | None = None,
+    test_checkout_control_plane: TestCheckoutControlPlane | None = None,
     operator_rate_limiter: RateLimiter | None = None,
     process_metrics: ProcessMetrics | None = None,
 ) -> FastAPI:
@@ -112,7 +121,7 @@ def create_app(
     )
     resolved_payment_gateway = payment_gateway or (
         RazorpayTestModePaymentGateway(resolved_settings)
-        if resolved_settings.razorpay_test_actions_configured
+        if resolved_settings.razorpay_test_provider_configured
         else DisabledRazorpayPaymentGateway()
     )
     resolved_rate_limiter = operator_rate_limiter or build_rate_limiter(resolved_settings)
@@ -135,6 +144,15 @@ def create_app(
         resolved_payment_gateway,
         proposal_ttl_seconds=resolved_settings.action_proposal_ttl_seconds,
         execution_lease_seconds=resolved_settings.action_execution_lease_seconds,
+    )
+    resolved_test_checkout = test_checkout_control_plane or RazorpayTestCheckoutControlPlane(
+        PostgresTestCheckoutRepository(resolved_database),
+        cast("RazorpayTestCheckoutGateway", resolved_payment_gateway),
+        enabled=resolved_settings.test_checkout_enabled,
+        merchant_id=resolved_settings.razorpay_merchant_id,
+        public_key_id=resolved_settings.razorpay_key_id,
+        amount_subunits=resolved_settings.test_checkout_amount_subunits,
+        ttl_seconds=resolved_settings.test_checkout_ttl_seconds,
     )
 
     app = FastAPI(
@@ -162,6 +180,7 @@ def create_app(
     app.state.ingest_webhook = IngestVerifiedWebhook(resolved_webhook_store)
     app.state.operator_read_model = resolved_operator_read_model
     app.state.action_control_plane = resolved_action_control_plane
+    app.state.test_checkout_control_plane = resolved_test_checkout
     app.state.operator_rate_limiter = resolved_rate_limiter
     app.state.process_metrics = resolved_metrics
     app.add_middleware(
@@ -233,6 +252,7 @@ def create_app(
     app.include_router(webhook_router)
     app.include_router(operator_router)
     app.include_router(action_router)
+    app.include_router(test_checkout_router)
     app.include_router(metrics_router)
     return app
 

@@ -4,7 +4,7 @@ metadata:
   name: chakravyuh-api
   labels:
     app.kubernetes.io/name: chakravyuh-api
-    app.kubernetes.io/version: 0.10.0
+    app.kubernetes.io/version: 0.11.0
 spec:
   replicas: 3
   revisionHistoryLimit: 3
@@ -34,7 +34,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: ghcr.io/rudrabhaskar9439/chakravyuh-api:0.10.0
+          image: ghcr.io/rudrabhaskar9439/chakravyuh-api:0.11.0
           ports:
             - name: http
               containerPort: 8000

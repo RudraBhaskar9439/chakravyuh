@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: chakravyuh-migrate-0-10-0
+  name: chakravyuh-migrate-0-11-0
   labels:
     app.kubernetes.io/name: chakravyuh-migration
-    app.kubernetes.io/version: 0.10.0
+    app.kubernetes.io/version: 0.11.0
 spec:
   backoffLimit: 2
   ttlSecondsAfterFinished: 86400
@@ -25,7 +25,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: migrate
-          image: ghcr.io/rudrabhaskar9439/chakravyuh-api:0.10.0
+          image: ghcr.io/rudrabhaskar9439/chakravyuh-api:0.11.0
           args: ["alembic", "upgrade", "head"]
           envFrom:
             - configMapRef:

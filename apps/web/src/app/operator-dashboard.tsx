@@ -160,7 +160,7 @@ export function OperatorDashboard() {
           <div className="brandMark" aria-hidden="true">
             च
           </div>
-          <p className="eyebrow">Phase 10 · Production-hardened recovery control plane</p>
+          <p className="eyebrow">Phase 11 · Real Razorpay Test Mode proof</p>
           <h1 id="product-title">Chakravyuh</h1>
           <p className="tagline">Every rupee has a path.</p>
           <p className="summary">
@@ -182,6 +182,9 @@ export function OperatorDashboard() {
             </div>
             <p>The token stays in memory and is never stored by this browser.</p>
           </form>
+          <a className="checkoutLink" href="/demo-checkout">
+            Create a real Test Mode incident →
+          </a>
         </section>
       </main>
     );

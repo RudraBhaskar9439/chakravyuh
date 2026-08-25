@@ -38,6 +38,12 @@ if TYPE_CHECKING:
         ProjectionLag,
         ProjectionWorkClaim,
     )
+    from chakravyuh.domain.test_checkout import (
+        PreparedTestCheckout,
+        ProviderManualCaptureOrder,
+        TestCheckoutOrder,
+        TestCheckoutVerification,
+    )
 
 
 class Clock(Protocol):
@@ -299,6 +305,55 @@ class RazorpayPaymentGateway(Protocol):
     ) -> ProviderPaymentState: ...
 
     async def close(self) -> None: ...
+
+
+class RazorpayTestCheckoutGateway(Protocol):
+    async def create_manual_capture_order(
+        self,
+        *,
+        amount: Money,
+        receipt: str,
+    ) -> ProviderManualCaptureOrder: ...
+
+    def verify_checkout_signature(
+        self,
+        *,
+        order_id: str,
+        payment_id: str,
+        signature: str,
+    ) -> bool: ...
+
+    async def fetch_payment(self, payment_id: str) -> ProviderPaymentState: ...
+
+
+class TestCheckoutRepository(Protocol):
+    async def record_order(self, order: TestCheckoutOrder) -> TestCheckoutOrder: ...
+
+    async def get_order(self, order_id: str) -> TestCheckoutOrder | None: ...
+
+    async def record_verification(
+        self,
+        verification: TestCheckoutVerification,
+    ) -> TestCheckoutVerification: ...
+
+
+class TestCheckoutControlPlane(Protocol):
+    async def prepare(
+        self,
+        *,
+        principal_id: str,
+        request_id: str,
+    ) -> PreparedTestCheckout: ...
+
+    async def verify(
+        self,
+        *,
+        order_id: str,
+        payment_id: str,
+        signature: str,
+        principal_id: str,
+        request_id: str,
+    ) -> TestCheckoutVerification: ...
 
 
 class ActionControlPlane(Protocol):

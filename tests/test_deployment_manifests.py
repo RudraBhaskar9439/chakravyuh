@@ -41,7 +41,7 @@ def test_manifests_commit_no_secret_and_pin_versioned_images() -> None:
         for container in document["spec"]["template"]["spec"]["containers"]
     ]
     assert containers
-    assert all(container["image"].endswith(":0.10.0") for container in containers)
+    assert all(container["image"].endswith(":0.11.0") for container in containers)
     assert all(":latest" not in container["image"] for container in containers)
 
 
@@ -86,6 +86,7 @@ def test_production_config_fails_closed_and_network_is_default_deny() -> None:
     assert config["CHAKRAVYUH_ENVIRONMENT"] == "production"
     assert config["CHAKRAVYUH_RATE_LIMIT_BACKEND"] == "redis"
     assert config["CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED"] == "false"
+    assert config["CHAKRAVYUH_TEST_CHECKOUT_ENABLED"] == "false"
     assert config["CHAKRAVYUH_TRUSTED_HOSTS"] != '["*"]'
     assert "default-deny" in policies
     assert "allow-dns" in policies
@@ -93,7 +94,7 @@ def test_production_config_fails_closed_and_network_is_default_deny() -> None:
 
 
 def test_migration_is_an_explicit_predeployment_job() -> None:
-    migration = _named("Job", "chakravyuh-migrate-0-10-0")
+    migration = _named("Job", "chakravyuh-migrate-0-11-0")
     container = migration["spec"]["template"]["spec"]["containers"][0]
 
     assert migration["spec"]["backoffLimit"] == 2
@@ -102,7 +103,7 @@ def test_migration_is_an_explicit_predeployment_job() -> None:
 
 def test_workloads_receive_only_their_secret_classes() -> None:
     expected = {
-        ("Job", "chakravyuh-migrate-0-10-0"): {"chakravyuh-postgres-secrets"},
+        ("Job", "chakravyuh-migrate-0-11-0"): {"chakravyuh-postgres-secrets"},
         ("Deployment", "chakravyuh-api"): {
             "chakravyuh-postgres-secrets",
             "chakravyuh-graph-secrets",

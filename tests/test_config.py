@@ -148,3 +148,35 @@ def test_test_credentials_do_not_enable_actions_without_explicit_kill_switch() -
     )
 
     assert not settings.razorpay_test_actions_configured
+
+
+def test_test_checkout_is_separately_gated_and_never_allowed_in_production() -> None:
+    token_hash = "a" * 64
+    configured = Settings(
+        test_checkout_enabled=True,
+        razorpay_key_id="rzp_test_checkout",
+        razorpay_key_secret=SecretStr("secret"),
+        razorpay_merchant_id="merchant-test",
+        operator_token_hashes={"maker": token_hash},
+    )
+    assert configured.razorpay_test_credentials_configured
+    assert configured.razorpay_test_provider_configured
+
+    with pytest.raises(ValidationError, match="operator token"):
+        Settings(
+            test_checkout_enabled=True,
+            razorpay_key_id="rzp_test_checkout",
+            razorpay_key_secret=SecretStr("secret"),
+            razorpay_merchant_id="merchant-test",
+        )
+    with pytest.raises(ValidationError, match="production environment"):
+        Settings(
+            environment="production",
+            test_checkout_enabled=True,
+            rate_limit_backend="redis",
+            razorpay_key_id="rzp_test_checkout",
+            razorpay_key_secret=SecretStr("secret"),
+            razorpay_merchant_id="merchant-test",
+            operator_token_hashes={"maker": token_hash},
+            operator_principal_scopes={"maker": ["test-checkout:operate"]},
+        )

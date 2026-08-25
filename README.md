@@ -2,11 +2,12 @@
 
 Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
 
-The project is implemented in ten auditable phases. Phase 10 hardens the complete evidence and action
-mesh with scoped operator authority, fail-closed throttling, low-cardinality metrics, deterministic
-correctness and chaos proofs, a bounded signed-ingress load probe, and production deployment
-manifests. AI remains non-executable: deterministic policy, immutable maker-checker approval,
-exact-amount preflight, and a Test-Mode-only Razorpay adapter control every outbound operation.
+The project is implemented in eleven auditable phases. Phase 10 hardens the complete evidence and
+action mesh with scoped operator authority, fail-closed throttling, deterministic correctness and
+chaos proofs, and production deployment manifests. Phase 11 adds a separately gated Razorpay Test
+Checkout that can create the exact authorized-but-uncaptured payment used in the recovery proof. AI
+remains non-executable: deterministic policy, immutable maker-checker approval, exact-amount
+preflight, and Test-Mode-only Razorpay adapters control every outbound operation.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -222,6 +223,27 @@ never a blind capture retry. Every proposal, policy decision, checker decision, 
 mutation authorization, result, and operator access event is append-only. See
 [Phase 9 architecture](docs/architecture/phase-9-guarded-test-mode-actions.md) for the complete
 safety and failure contract.
+
+## Real Razorpay Test Checkout proof
+
+Phase 11 can create one fixed ₹10 Razorpay Test Mode order with per-order manual capture, launch the
+official hosted Checkout, and verify its signed success response against authoritative provider
+state. The capability has its own `test-checkout:operate` scope and kill switch, stores neither the
+Checkout signature nor raw provider bodies, and writes immutable order and verification hashes.
+
+After applying migrations and issuing an operator token with the Test Checkout scope, enable the
+capability only in an isolated local or staging environment:
+
+    CHAKRAVYUH_TEST_CHECKOUT_ENABLED=true
+
+Open `http://localhost:3000/demo-checkout`, paste the scoped token, and authorize the displayed ₹10
+Test Mode order using Razorpay's documented test credentials. Do not manually capture the payment.
+The screen proves the exact provider order, authorized payment, amount, uncaptured state, and
+verification hash. A public HTTPS webhook and the final provider-backed incident-to-recovery run are
+external Phase 11 gates; the repository never claims those proofs before they are performed.
+
+See [Phase 11 architecture](docs/architecture/phase-11-real-test-checkout.md) for the complete
+boundary and [Phase 11 checklist](docs/review/phase-11-checklist.md) for the remaining gates.
 
 ## Production hardening and proof
 

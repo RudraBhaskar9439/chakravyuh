@@ -31,6 +31,7 @@ class OperatorScope(StrEnum):
     ACTION_PROPOSE = "action:propose"
     ACTION_APPROVE = "action:approve"
     ACTION_EXECUTE = "action:execute"
+    TEST_CHECKOUT = "test-checkout:operate"
     METRICS_READ = "metrics:read"
 
 

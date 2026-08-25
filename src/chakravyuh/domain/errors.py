@@ -133,3 +133,27 @@ class RazorpayActionError(RuntimeError):
         self.code = code
         self.retryable = retryable
         super().__init__(code.value)
+
+
+class TestCheckoutErrorCode(StrEnum):
+    """Stable, secret-free reasons a Test Mode Checkout request cannot complete."""
+
+    DISABLED = "test_checkout_disabled"
+    ORDER_NOT_FOUND = "test_checkout_order_not_found"
+    ORDER_EXPIRED = "test_checkout_order_expired"
+    INVALID_SIGNATURE = "test_checkout_invalid_signature"
+    PAYMENT_MISMATCH = "test_checkout_payment_mismatch"
+    PAYMENT_NOT_AUTHORIZED = "test_checkout_payment_not_authorized"
+    PROVIDER_UNAVAILABLE = "test_checkout_provider_unavailable"
+    PROVIDER_REJECTED = "test_checkout_provider_rejected"
+    PROVIDER_INVALID_RESPONSE = "test_checkout_provider_invalid_response"
+    IDENTITY_CONFLICT = "test_checkout_identity_conflict"
+
+
+class TestCheckoutError(RuntimeError):
+    """A bounded Test Checkout failure safe to expose as a stable code."""
+
+    def __init__(self, code: TestCheckoutErrorCode, *, retryable: bool = False) -> None:
+        self.code = code
+        self.retryable = retryable
+        super().__init__(code.value)

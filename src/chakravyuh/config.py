@@ -100,6 +100,10 @@ class Settings(BaseSettings):
     action_minimum_capture_confidence: float = Field(default=0.9, ge=0, le=1)
     razorpay_action_timeout_seconds: float = Field(default=10, gt=0, le=30)
 
+    test_checkout_enabled: bool = False
+    test_checkout_amount_subunits: int = Field(default=1_000, ge=100, le=100_000)
+    test_checkout_ttl_seconds: int = Field(default=1_800, ge=300, le=3_600)
+
     razorpay_key_id: str | None = None
     razorpay_key_secret: SecretStr | None = None
     razorpay_merchant_id: str | None = None
@@ -215,6 +219,16 @@ class Settings(BaseSettings):
             if not self.razorpay_key_id.startswith("rzp_test_"):
                 msg = "Razorpay actions accept Test Mode credentials only"
                 raise ValueError(msg)
+        if self.test_checkout_enabled:
+            if self.is_production:
+                msg = "Test Checkout cannot be enabled in the production environment"
+                raise ValueError(msg)
+            if not self.razorpay_test_credentials_configured:
+                msg = "Test Checkout requires Test Mode key credentials and a merchant ID"
+                raise ValueError(msg)
+            if not self.operator_token_hashes:
+                msg = "Test Checkout requires at least one scoped operator token"
+                raise ValueError(msg)
         return self
 
     @property
@@ -240,6 +254,19 @@ class Settings(BaseSettings):
             and self.razorpay_key_secret is not None
             and self.razorpay_merchant_id is not None
         )
+
+    @property
+    def razorpay_test_credentials_configured(self) -> bool:
+        return bool(
+            self.razorpay_key_id is not None
+            and self.razorpay_key_id.startswith("rzp_test_")
+            and self.razorpay_key_secret is not None
+            and self.razorpay_merchant_id is not None
+        )
+
+    @property
+    def razorpay_test_provider_configured(self) -> bool:
+        return bool(self.razorpay_test_actions_configured or self.test_checkout_enabled)
 
     def scopes_for_principal(self, principal_id: str) -> frozenset[OperatorScope]:
         """Return explicit scopes, with a non-production compatibility default for local review."""

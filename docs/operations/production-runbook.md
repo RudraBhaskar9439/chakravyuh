@@ -7,10 +7,10 @@ Complete every environment-specific gate before applying them.
 
 Build the API image from the repository root. Build the web image with the public TLS API origin:
 
-    docker build -t REGISTRY/chakravyuh-api:0.10.0 .
+    docker build -t REGISTRY/chakravyuh-api:0.11.0 .
     docker build -f apps/web/Dockerfile \
       --build-arg NEXT_PUBLIC_API_BASE_URL=https://api.example.com \
-      -t REGISTRY/chakravyuh-web:0.10.0 .
+      -t REGISTRY/chakravyuh-web:0.11.0 .
 
 Scan both images, push them to a private registry, and replace the Kustomize image values with the
 registry-provided immutable digests. Do not deploy a mutable tag.
@@ -34,8 +34,10 @@ Create the referenced Secret objects through the platform's external-secret inte
 This separation ensures each process receives only its required secret classes. Never put raw
 tokens or Secret YAML in Git, shell history, screenshots, tickets, or logs.
 
-Keep `CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED=false`. This repository rejects live Razorpay keys for
-actions; enabling Test Mode actions is a separately reviewed demonstration change.
+Keep both `CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED=false` and
+`CHAKRAVYUH_TEST_CHECKOUT_ENABLED=false`. This repository rejects live Razorpay keys for actions and
+rejects Test Checkout entirely when `CHAKRAVYUH_ENVIRONMENT=production`. Enabling either capability
+is a separately reviewed change restricted to an isolated Test Mode demonstration environment.
 
 ## 3. Preflight and migrate
 
@@ -58,6 +60,10 @@ denials, uncertain executions, and Redis availability.
 Start with actions disabled. If a reviewed Test Mode demonstration enables them, use separate maker,
 checker, and executor principals; set a small amount cap; execute one known authorization; and verify
 the append-only proposal, approval, mutation checkpoint, and receipt before proceeding.
+
+Test Checkout is not a production workload. If an isolated staging demonstration enables it, grant
+`test-checkout:operate` only to the demo principal, retain the fixed low amount and short TTL, and
+disable it immediately after collecting the signed provider proof.
 
 ## 5. Roll back safely
 

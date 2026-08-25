@@ -211,9 +211,7 @@ describe("operator console", () => {
     render(<Home />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Chakravyuh" })).toBeInTheDocument();
-    expect(
-      screen.getByText("Phase 10 · Production-hardened recovery control plane"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Phase 11 · Real Razorpay Test Mode proof")).toBeInTheDocument();
     expect(screen.getByText(/policy-approved Razorpay Test Mode/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Operator access token")).toHaveAttribute("type", "password");
     expect(screen.getByText(/token stays in memory/i)).toBeInTheDocument();

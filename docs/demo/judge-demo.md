@@ -2,16 +2,21 @@
 
 ## The five-minute story
 
-1. Show one intentionally broken payment journey as a connected evidence mesh: merchant, journey,
+1. Open `/demo-checkout` and authorize the fixed ₹10 Razorpay Test Mode order. Show its signed,
+   authoritative `authorized` and `captured=false` proof without exposing a key secret.
+2. Show the resulting broken payment journey as a connected evidence mesh: merchant, journey,
    payment, order, immutable events, incident, and diagnosis.
-2. Open the cited evidence and explain that deterministic invariants—not Gemini—own incident truth.
-3. Create the server-derived exact-capture proposal. Show its policy hash, cap, confidence, target,
+3. Open the cited evidence and explain that deterministic invariants—not Gemini—own incident truth.
+4. Create the server-derived exact-capture proposal. Show its policy hash, cap, confidence, target,
    and immutable maker identity.
-4. Demonstrate that the maker cannot self-approve, then use the checker identity and execute the
+5. Demonstrate that the maker cannot self-approve, then use the checker identity and execute the
    bounded Test Mode action. Show authoritative preflight, mutation checkpoint, provider receipt,
    and an idempotent second execution with no second provider mutation.
-5. Run the proof command and point to exact false-positive/false-negative counts, chaos checks, policy
+6. Run the proof command and point to exact false-positive/false-negative counts, chaos checks, policy
    denial checks, latency, throughput, and the stable SHA-256 proof.
+
+The first step requires a reviewed isolated environment, Test Mode credentials, a scoped operator
+token, and `CHAKRAVYUH_TEST_CHECKOUT_ENABLED=true`. Keep the capability disabled everywhere else.
 
 ## Reproducible commands
 
@@ -48,3 +53,6 @@ authorization. The remote-target flag is an acknowledgment, not authorization.
   staged rollout.
 - “Is this production?” It is production-shaped and directly deployable after the external gates in
   the runbook; live money movement remains deliberately unsupported.
+- “Did the repository fabricate the provider proof?” No. The immutable verification is written only
+  after Checkout HMAC verification and an authoritative Razorpay payment fetch agree on order,
+  amount, `authorized` status, and `captured=false`; the external run is reported separately.
