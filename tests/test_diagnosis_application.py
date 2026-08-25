@@ -1,12 +1,17 @@
 """Diagnosis orchestration tests for retries, dead letters, and lease fencing."""
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
-from uuid import uuid4
+from typing import Any, cast
+from uuid import UUID, uuid4
 
 import pytest
 
-from chakravyuh.application.diagnosis import ProcessDiagnosisBatch, _diagnosis_failure
+from chakravyuh.application.diagnosis import (
+    ProcessDiagnosisBatch,
+    RequestDiagnosisReplay,
+    _diagnosis_failure,
+)
+from chakravyuh.application.ports import DiagnosisRepository
 from chakravyuh.domain.diagnoses import DiagnosisWorkClaim
 from chakravyuh.domain.errors import (
     DiagnosisErrorCode,
@@ -58,6 +63,16 @@ class _Repository:
             raise DiagnosisLeaseLostError()
         self.failures.append(parameters)
         return self.dead_letter
+
+    async def request_replay(
+        self,
+        incident_id: UUID,
+        *,
+        requested_by: str,
+        reason: str,
+    ) -> UUID:
+        del incident_id, requested_by, reason
+        return uuid4()
 
 
 class _Assembler:
@@ -160,3 +175,29 @@ def test_unknown_diagnosis_failures_are_payload_free_and_retryable() -> None:
         DiagnosisErrorCode.INTERNAL.value,
         True,
     )
+
+
+async def test_diagnosis_replay_forwards_bounded_operator_intent() -> None:
+    incident_id = uuid4()
+    replay_id = uuid4()
+
+    class _ReplayRepository:
+        async def request_replay(
+            self,
+            requested_incident_id: UUID,
+            *,
+            requested_by: str,
+            reason: str,
+        ) -> UUID:
+            assert requested_incident_id == incident_id
+            assert requested_by == "operator-1"
+            assert reason == "Temporary model capacity recovered."
+            return replay_id
+
+    observed = await RequestDiagnosisReplay(cast(DiagnosisRepository, _ReplayRepository())).execute(
+        incident_id,
+        requested_by="operator-1",
+        reason="Temporary model capacity recovered.",
+    )
+
+    assert observed == replay_id

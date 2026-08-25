@@ -13,16 +13,16 @@
 
 ## External Razorpay evidence
 
-- [ ] Public HTTPS staging webhook is created and registered in Razorpay Test Mode.
-- [ ] One real ₹10 Test Checkout payment is authorized and remains uncaptured.
-- [ ] Signature verification and authoritative payment proof are recorded in PostgreSQL.
-- [ ] Signed provider webhook produces the canonical journey and invariant incident.
-- [ ] Grounded diagnosis cites the real provider-backed evidence mesh.
-- [ ] Distinct maker and checker execute exactly one bounded Test Mode capture.
-- [ ] Provider and local state prove capture idempotency and incident resolution.
+- [x] Public HTTPS staging webhook is created and registered in Razorpay Test Mode.
+- [x] One real ₹10 Test Checkout payment is authorized and remains uncaptured.
+- [x] Signature verification and authoritative payment proof are recorded in PostgreSQL.
+- [x] Signed provider webhook produces the canonical journey and invariant incident.
+- [x] Grounded diagnosis cites the real provider-backed evidence mesh.
+- [x] Distinct maker, checker, and executor principals execute exactly one bounded Test Mode capture.
+- [x] Provider and local state prove capture idempotency and incident resolution.
 
 ## Review outcome
 
-Implementation is in review. Phase 11 is not approved until the unchecked external gates have real,
-redacted evidence. This distinction prevents mocked contracts from being presented as a live
-provider proof.
+Phase 11 is approved for the isolated Razorpay Test Mode scope. The full redacted provider-backed
+record is in [Phase 11B external evidence](phase-11b-external-evidence.md). Live credentials and
+real-money mutation remain unsupported by design.

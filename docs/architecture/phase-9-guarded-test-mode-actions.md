@@ -53,7 +53,9 @@ Every decision and execution locks current PostgreSQL rows and verifies:
 
 The idempotency key hashes the incident, revision, diagnosis, action, target, and exact amount. A
 repeated proposal request returns the existing immutable record. A repeated execution after success
-returns the existing receipt without another provider call.
+returns the existing receipt without another provider call, even if the successful provider webhook
+has already resolved the incident or the proposal TTL has elapsed. Freshness and policy gates still
+run before every non-terminal execution claim.
 
 ## Provider boundary
 

@@ -354,17 +354,8 @@ class PostgresRecoveryActionRepository:
             if proposal_row is None or work is None:
                 failure = ActionControlError(ActionControlErrorCode.NOT_FOUND)
             else:
-                policy_row = await _policy_row(session, proposal_id)
-                approvals = await _approval_rows(session, proposal_id)
-                failure = await _execution_denial(
-                    session,
-                    proposal_row,
-                    policy_row,
-                    approvals,
-                    now,
-                )
                 status = ActionExecutionStatus(work["status"])
-                if failure is None and status is ActionExecutionStatus.SUCCEEDED:
+                if status is ActionExecutionStatus.SUCCEEDED:
                     result = await _view(session, proposal_id)
                     await _audit(
                         session,
@@ -375,68 +366,81 @@ class PostgresRecoveryActionRepository:
                         outcome="success",
                         details={},
                     )
-                elif failure is None and status in {
-                    ActionExecutionStatus.BLOCKED,
-                    ActionExecutionStatus.UNCERTAIN,
-                }:
-                    failure = ActionControlError(ActionControlErrorCode.EXECUTION_TERMINAL)
-                elif (
-                    failure is None
-                    and status is ActionExecutionStatus.PROCESSING
-                    and work["lease_expires_at"] > now
-                ):
-                    failure = ActionControlError(ActionControlErrorCode.EXECUTION_IN_PROGRESS)
-                elif failure is None:
-                    operation = (
-                        ActionExecutionOperation.RECONCILE
-                        if work["mutation_attempted"]
-                        else ActionExecutionOperation.EXECUTE
+                else:
+                    policy_row = await _policy_row(session, proposal_id)
+                    approvals = await _approval_rows(session, proposal_id)
+                    failure = await _execution_denial(
+                        session,
+                        proposal_row,
+                        policy_row,
+                        approvals,
+                        now,
                     )
-                    execution_id = uuid4()
-                    attempt_number = int(work["attempt_count"]) + 1
-                    leased_until = now + timedelta(seconds=lease_seconds)
-                    await session.execute(
-                        update(action_execution_work)
-                        .where(action_execution_work.c.proposal_id == proposal_id)
-                        .values(
-                            status=ActionExecutionStatus.PROCESSING.value,
-                            attempt_count=attempt_number,
-                            latest_execution_id=execution_id,
-                            lease_owner=principal_id,
-                            lease_expires_at=leased_until,
-                            last_error_code=None,
-                            updated_at=now,
+                    if failure is None and status in {
+                        ActionExecutionStatus.BLOCKED,
+                        ActionExecutionStatus.UNCERTAIN,
+                    }:
+                        failure = ActionControlError(ActionControlErrorCode.EXECUTION_TERMINAL)
+                    elif (
+                        failure is None
+                        and status is ActionExecutionStatus.PROCESSING
+                        and work["lease_expires_at"] > now
+                    ):
+                        failure = ActionControlError(ActionControlErrorCode.EXECUTION_IN_PROGRESS)
+                    elif failure is None:
+                        operation = (
+                            ActionExecutionOperation.RECONCILE
+                            if work["mutation_attempted"]
+                            else ActionExecutionOperation.EXECUTE
                         )
-                    )
-                    await session.execute(
-                        insert(action_execution_claims).values(
+                        execution_id = uuid4()
+                        attempt_number = int(work["attempt_count"]) + 1
+                        leased_until = now + timedelta(seconds=lease_seconds)
+                        await session.execute(
+                            update(action_execution_work)
+                            .where(action_execution_work.c.proposal_id == proposal_id)
+                            .values(
+                                status=ActionExecutionStatus.PROCESSING.value,
+                                attempt_count=attempt_number,
+                                latest_execution_id=execution_id,
+                                lease_owner=principal_id,
+                                lease_expires_at=leased_until,
+                                last_error_code=None,
+                                updated_at=now,
+                            )
+                        )
+                        await session.execute(
+                            insert(action_execution_claims).values(
+                                execution_id=execution_id,
+                                proposal_id=proposal_id,
+                                attempt_number=attempt_number,
+                                operation=operation.value,
+                                requested_by=principal_id,
+                                request_id=request_id,
+                                lease_expires_at=leased_until,
+                            )
+                        )
+                        result = ActionExecutionClaim(
                             execution_id=execution_id,
-                            proposal_id=proposal_id,
                             attempt_number=attempt_number,
-                            operation=operation.value,
+                            operation=operation,
+                            proposal=_proposal(proposal_row),
                             requested_by=principal_id,
                             request_id=request_id,
                             lease_expires_at=leased_until,
                         )
-                    )
-                    result = ActionExecutionClaim(
-                        execution_id=execution_id,
-                        attempt_number=attempt_number,
-                        operation=operation,
-                        proposal=_proposal(proposal_row),
-                        requested_by=principal_id,
-                        request_id=request_id,
-                        lease_expires_at=leased_until,
-                    )
-                    await _audit(
-                        session,
-                        principal_id,
-                        request_id,
-                        action="execution_claim",
-                        resource_id=str(proposal_id),
-                        outcome="success",
-                        details={"attempt_number": attempt_number, "operation": operation.value},
-                    )
+                        await _audit(
+                            session,
+                            principal_id,
+                            request_id,
+                            action="execution_claim",
+                            resource_id=str(proposal_id),
+                            outcome="success",
+                            details={
+                                "attempt_number": attempt_number,
+                                "operation": operation.value,
+                            },
+                        )
             if failure is not None:
                 await _audit(
                     session,

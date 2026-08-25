@@ -202,6 +202,14 @@ class DiagnosisRepository(Protocol):
         retry_delay_seconds: float,
     ) -> bool: ...
 
+    async def request_replay(
+        self,
+        incident_id: UUID,
+        *,
+        requested_by: str,
+        reason: str,
+    ) -> UUID: ...
+
 
 class OperatorReadModel(Protocol):
     async def overview(self, *, principal_id: str, request_id: str) -> IncidentOverview: ...

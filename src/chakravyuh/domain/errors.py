@@ -98,6 +98,10 @@ class DiagnosisLeaseLostError(RuntimeError):
     """Raised when a diagnosis worker no longer owns its checkpoint lease."""
 
 
+class DiagnosisReplayNotAllowedError(RuntimeError):
+    """A diagnosis was not dead-lettered and cannot be replayed."""
+
+
 class ActionControlErrorCode(StrEnum):
     NOT_FOUND = "action_resource_not_found"
     DIAGNOSIS_REQUIRED = "action_diagnosis_required"

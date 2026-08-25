@@ -44,6 +44,7 @@ from chakravyuh.domain.errors import (
     ActionControlError,
     ActionControlErrorCode,
     DiagnosisLeaseLostError,
+    DiagnosisReplayNotAllowedError,
 )
 from chakravyuh.domain.invariants import DeterministicPaymentInvariantEvaluator, InvariantPolicy
 from chakravyuh.domain.journeys import TemporalPaymentJourneyReducer
@@ -79,6 +80,7 @@ from chakravyuh.infrastructure.postgres.tables import (
     action_proposals,
     diagnoses,
     diagnosis_attempts,
+    diagnosis_replays,
     diagnosis_work,
     incident_revisions,
     incidents,
@@ -470,6 +472,49 @@ async def test_bounded_graph_is_checkpointed_with_append_only_grounded_receipt()
             retry_delay_seconds=0,
         )
 
+        replay_id = await repository.request_replay(
+            incident_id,
+            requested_by=operator_principal,
+            reason="Verified the bounded evidence dependency recovered.",
+        )
+        with pytest.raises(DiagnosisReplayNotAllowedError, match="dead-lettered"):
+            await repository.request_replay(
+                incident_id,
+                requested_by=operator_principal,
+                reason="A second replay must be rejected while work is pending.",
+            )
+        async with database.session_factory() as session:
+            replay = (
+                (
+                    await session.execute(
+                        select(diagnosis_replays).where(diagnosis_replays.c.replay_id == replay_id)
+                    )
+                )
+                .mappings()
+                .one()
+            )
+            replayed_work = (
+                (
+                    await session.execute(
+                        select(diagnosis_work).where(diagnosis_work.c.incident_id == incident_id)
+                    )
+                )
+                .mappings()
+                .one()
+            )
+        assert replay["previous_error_code"] == "diagnosis_evidence_too_large"
+        assert replay["requested_by"] == operator_principal
+        assert replayed_work["status"] == DiagnosisWorkStatus.PENDING.value
+        assert replayed_work["failure_count"] == 0
+        assert replayed_work["last_error_code"] is None
+        with pytest.raises(DBAPIError, match="append-only"):
+            async with database.transaction() as session:
+                await session.execute(
+                    update(diagnosis_replays)
+                    .where(diagnosis_replays.c.replay_id == replay_id)
+                    .values(reason="changed")
+                )
+
         async with database.transaction() as session:
             await session.execute(
                 update(diagnosis_work)
@@ -703,6 +748,13 @@ async def test_action_chain_is_dual_control_idempotent_and_append_only() -> None
         assert executed.latest_result.provider_state is not None
         assert executed.latest_result.provider_state.status is PaymentStatus.CAPTURED
         assert gateway.fetch_count == gateway.capture_count == 1
+
+        async with database.transaction() as session:
+            await session.execute(
+                update(incidents)
+                .where(incidents.c.incident_id == incident_id)
+                .values(status=IncidentStatus.RESOLVED.value, resolved_at=func.now())
+            )
 
         idempotent = await control.execute(
             proposal.proposal.proposal_id,

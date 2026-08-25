@@ -38,6 +38,7 @@ dev = [
 
 [project.scripts]
 chakravyuh-api = "chakravyuh.api.main:run"
+chakravyuh-diagnosis-replay = "chakravyuh.operations.diagnosis_replay:run"
 chakravyuh-diagnosis-worker = "chakravyuh.diagnosis_worker.main:run"
 chakravyuh-evaluate-invariants = "chakravyuh.operations.evaluate_invariants:run"
 chakravyuh-graph-rebuild = "chakravyuh.operations.graph_rebuild:run"

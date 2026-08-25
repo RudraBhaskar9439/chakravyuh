@@ -1,7 +1,7 @@
 """PostgreSQL leases and immutable audit receipts for grounded diagnosis."""
 
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
@@ -10,13 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from chakravyuh.domain.diagnoses import DiagnosisReceipt, DiagnosisWorkClaim
 from chakravyuh.domain.enums import DiagnosisAttemptOutcome, DiagnosisWorkStatus
-from chakravyuh.domain.errors import DiagnosisLeaseLostError
+from chakravyuh.domain.errors import DiagnosisLeaseLostError, DiagnosisReplayNotAllowedError
 from chakravyuh.domain.evidence import DiagnosisSeed
 from chakravyuh.domain.incidents import IncidentLifecycle
 from chakravyuh.infrastructure.database import Database
 from chakravyuh.infrastructure.postgres.tables import (
     diagnoses,
     diagnosis_attempts,
+    diagnosis_replays,
     diagnosis_work,
     incident_revisions,
     payment_journey_revisions,
@@ -254,6 +255,61 @@ class PostgresDiagnosisRepository:
                 )
             )
         return dead_lettered
+
+    async def request_replay(
+        self,
+        incident_id: UUID,
+        *,
+        requested_by: str,
+        reason: str,
+    ) -> UUID:
+        requested_by = _bounded_text(requested_by, field="requested_by", maximum=255)
+        reason = _bounded_text(reason, field="reason", maximum=2_000)
+        replay_id = uuid4()
+        async with self._database.transaction() as session:
+            row = (
+                (
+                    await session.execute(
+                        select(diagnosis_work)
+                        .where(diagnosis_work.c.incident_id == incident_id)
+                        .with_for_update()
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is None or row["status"] != DiagnosisWorkStatus.DEAD_LETTER.value:
+                msg = "only a dead-lettered diagnosis can be replayed"
+                raise DiagnosisReplayNotAllowedError(msg)
+            previous_error = row["last_error_code"]
+            if not isinstance(previous_error, str) or not previous_error:
+                msg = "dead-lettered diagnosis is missing its stable error code"
+                raise DiagnosisReplayNotAllowedError(msg)
+            await session.execute(
+                insert(diagnosis_replays).values(
+                    replay_id=replay_id,
+                    incident_id=row["incident_id"],
+                    source_revision_id=row["source_revision_id"],
+                    target_version=row["target_version"],
+                    previous_error_code=previous_error,
+                    requested_by=requested_by,
+                    reason=reason,
+                )
+            )
+            await session.execute(
+                update(diagnosis_work)
+                .where(diagnosis_work.c.incident_id == row["incident_id"])
+                .values(
+                    status=DiagnosisWorkStatus.PENDING.value,
+                    failure_count=0,
+                    available_at=func.now(),
+                    lease_owner=None,
+                    lease_expires_at=None,
+                    last_error_code=None,
+                    updated_at=func.now(),
+                )
+            )
+        return replay_id
 
 
 async def _locked_lease(session: AsyncSession, claim: DiagnosisWorkClaim) -> RowMapping:

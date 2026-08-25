@@ -1,6 +1,7 @@
 """Leased orchestration for bounded, grounded incident diagnosis."""
 
 from dataclasses import dataclass
+from uuid import UUID
 
 from chakravyuh.application.ports import (
     DiagnosisRepository,
@@ -93,6 +94,26 @@ class ProcessDiagnosisBatch:
             retried=retried,
             dead_lettered=dead_lettered,
             lease_lost=lease_lost,
+        )
+
+
+class RequestDiagnosisReplay:
+    """Requeue one dead-lettered diagnosis with immutable operator intent."""
+
+    def __init__(self, repository: DiagnosisRepository) -> None:
+        self._repository = repository
+
+    async def execute(
+        self,
+        incident_id: UUID,
+        *,
+        requested_by: str,
+        reason: str,
+    ) -> UUID:
+        return await self._repository.request_replay(
+            incident_id,
+            requested_by=requested_by,
+            reason=reason,
         )
 
 

@@ -82,7 +82,14 @@ retry with a bounded delay. Oversized evidence is a permanent failure. A newer t
 failure counter; an older claim cannot dead-letter the newer revision. Exhausted or permanent
 failures become visible dead letters with stable payload-free codes.
 
-`ledger.diagnoses` and `ledger.diagnosis_attempts` reject update, delete, and truncate. A completed
+After an operator verifies that the external dependency recovered, one dead-lettered diagnosis can
+be requeued through `chakravyuh-diagnosis-replay`. The transition is accepted only from the
+dead-letter state. An append-only record stores the operator, reason, prior stable error, exact
+source revision, target version, and database time before the existing attempt sequence continues.
+Concurrent or repeated replay requests fail closed.
+
+`ledger.diagnoses`, `ledger.diagnosis_attempts`, and `ledger.diagnosis_replays` reject update,
+delete, and truncate. A completed
 receipt contains both the raw schema-valid model decision and the guarded effective decision, making
 every abstention intervention observable.
 

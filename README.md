@@ -178,6 +178,14 @@ execute. Receipts, attempts, prompt hashes, evidence hashes, retries, dead lette
 interventions are immutable audit records. See
 [Phase 7 architecture](docs/architecture/phase-7-grounded-ai-diagnosis.md) for the complete boundary.
 
+After the cause of a temporary provider or graph outage is verified as recovered, an operator can
+requeue exactly one dead-lettered diagnosis. The command records the operator, reason, prior stable
+error, source incident revision, and target version before returning the item to the queue:
+
+    chakravyuh-diagnosis-replay incident-uuid \
+      --requested-by operator-id \
+      --reason "Verified model capacity and graph health recovered"
+
 ## Operator evidence mesh
 
 The internal operator API reads PostgreSQL incident truth and immutable diagnosis receipts through

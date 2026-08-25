@@ -51,5 +51,5 @@ added only after the isolated external run succeeds.
   lint/type gates, executed PostgreSQL/Neo4j tests with branch coverage, built both production
   images, verified non-root execution, and repeated the deterministic judge proof.
 
-Phase 11A remains in review because its external Razorpay gates are intentionally separate and
-still pending.
+The external gates were completed separately after this implementation record. See
+[Phase 11B external evidence](phase-11b-external-evidence.md).

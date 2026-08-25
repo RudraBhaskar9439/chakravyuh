@@ -950,6 +950,45 @@ diagnosis_attempts = Table(
     ),
 )
 
+diagnosis_replays = Table(
+    "diagnosis_replays",
+    metadata,
+    Column("replay_id", Uuid(as_uuid=True), primary_key=True),
+    Column(
+        "incident_id",
+        Uuid(as_uuid=True),
+        ForeignKey("state.incidents.incident_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column(
+        "source_revision_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ledger.incident_revisions.revision_id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    Column("target_version", Integer, nullable=False),
+    Column("previous_error_code", String(64), nullable=False),
+    Column("requested_by", String(255), nullable=False),
+    Column("reason", Text, nullable=False),
+    Column("requested_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("target_version >= 1", name="ck_diagnosis_replay_target_version"),
+    CheckConstraint(
+        "length(trim(previous_error_code)) >= 1",
+        name="ck_diagnosis_replay_previous_error",
+    ),
+    CheckConstraint(
+        "length(trim(requested_by)) >= 1",
+        name="ck_diagnosis_replay_requested_by",
+    ),
+    CheckConstraint("length(trim(reason)) >= 1", name="ck_diagnosis_replay_reason"),
+)
+
+Index(
+    "ix_diagnosis_replays_incident_time",
+    diagnosis_replays.c.incident_id,
+    diagnosis_replays.c.requested_at,
+)
+
 operator_read_audit = Table(
     "operator_read_audit",
     metadata,
