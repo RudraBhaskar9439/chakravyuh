@@ -18,3 +18,5 @@ tmp
 sources
 htmlcov
 coverage.xml
+apps/video
+artifacts
