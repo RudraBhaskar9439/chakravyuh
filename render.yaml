@@ -5,7 +5,7 @@ services:
     plan: free
     region: singapore
     dockerfilePath: ./Dockerfile
-    dockerCommand: sh -c 'alembic upgrade head && exec chakravyuh-hosted'
+    dockerCommand: chakravyuh-hosted
     healthCheckPath: /health/live
     envVars:
       - key: DATABASE_URL

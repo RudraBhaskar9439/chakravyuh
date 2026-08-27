@@ -3,6 +3,8 @@
 import asyncio
 import os
 
+from alembic.command import upgrade
+from alembic.config import Config as AlembicConfig
 from uvicorn import Config, Server
 
 from chakravyuh.config import Settings, get_settings
@@ -67,7 +69,8 @@ def _hosted_port(settings: Settings) -> int:
 
 
 def run() -> None:
-    """Start the single-container hosted runtime."""
+    """Migrate the authoritative ledger, then start the hosted runtime."""
+    upgrade(AlembicConfig("alembic.ini"), "head")
     asyncio.run(hosted_main())
 
 

@@ -63,13 +63,20 @@ async def test_hosted_runtime_stops_all_processors_with_api(
 
 def test_run_starts_hosted_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[Awaitable[None]] = []
+    migrations: list[tuple[object, str]] = []
 
     def fake_run(awaitable: Awaitable[None]) -> None:
         captured.append(awaitable)
         awaitable.close()  # type: ignore[attr-defined]
 
+    def fake_upgrade(configuration: object, revision: str) -> None:
+        migrations.append((configuration, revision))
+
     monkeypatch.setattr(asyncio, "run", fake_run)
+    monkeypatch.setattr(hosted, "upgrade", fake_upgrade)
 
     hosted.run()
 
     assert len(captured) == 1
+    assert len(migrations) == 1
+    assert migrations[0][1] == "head"

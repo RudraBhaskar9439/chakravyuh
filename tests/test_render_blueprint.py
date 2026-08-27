@@ -14,7 +14,7 @@ def test_render_blueprint_uses_only_free_resources_and_secret_placeholders() -> 
     assert service["runtime"] == "docker"
     assert service["plan"] == "free"
     assert database["plan"] == "free"
-    assert "chakravyuh-hosted" in service["dockerCommand"]
+    assert service["dockerCommand"] == "chakravyuh-hosted"
     assert service["healthCheckPath"] == "/health/live"
 
     sensitive_suffixes = {
