@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
+const standaloneOutput = process.env.VERCEL === "1" ? {} : ({ output: "standalone" } as const);
+
 const nextConfig: NextConfig = {
+  ...standaloneOutput,
   agentRules: false,
-  output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
   typedRoutes: true,
