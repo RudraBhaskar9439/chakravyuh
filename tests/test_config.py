@@ -22,6 +22,37 @@ def test_settings_identify_production() -> None:
     assert Settings(environment="production").is_production
 
 
+@pytest.mark.parametrize(
+    ("supplied", "expected"),
+    [
+        (
+            "postgresql://user:secret@database.example/chakravyuh",
+            "postgresql+asyncpg://user:secret@database.example/chakravyuh",
+        ),
+        (
+            "postgres://user:secret@database.example/chakravyuh",
+            "postgresql+asyncpg://user:secret@database.example/chakravyuh",
+        ),
+    ],
+)
+def test_settings_normalize_hosted_postgres_urls(supplied: str, expected: str) -> None:
+    assert Settings(postgres_dsn=supplied).postgres_dsn == expected
+
+
+def test_settings_accept_render_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CHAKRAVYUH_POSTGRES_DSN", raising=False)
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://user:secret@render.example/chakravyuh",
+    )
+
+    settings = Settings(_env_file=None)
+
+    assert settings.postgres_dsn == (
+        "postgresql+asyncpg://user:secret@render.example/chakravyuh"
+    )
+
+
 def test_wildcard_cors_is_rejected() -> None:
     with pytest.raises(ValidationError, match="CORS wildcard is not permitted"):
         Settings(cors_origins=["*"])

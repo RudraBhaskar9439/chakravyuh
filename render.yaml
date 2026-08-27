@@ -1,0 +1,81 @@
+services:
+  - type: web
+    name: chakravyuh-api-rb9439
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerCommand: sh -c 'alembic upgrade head && exec chakravyuh-hosted'
+    healthCheckPath: /health/live
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chakravyuh-db
+          property: connectionString
+      - key: CHAKRAVYUH_ENVIRONMENT
+        value: staging
+      - key: CHAKRAVYUH_LOG_LEVEL
+        value: INFO
+      - key: CHAKRAVYUH_CORS_ORIGINS
+        value: '["https://chakravyuh-web.vercel.app"]'
+      - key: CHAKRAVYUH_TRUSTED_HOSTS
+        value: '["chakravyuh-api-rb9439.onrender.com"]'
+      - key: CHAKRAVYUH_RATE_LIMIT_BACKEND
+        value: memory
+      - key: CHAKRAVYUH_POSTGRES_POOL_SIZE
+        value: '3'
+      - key: CHAKRAVYUH_POSTGRES_MAX_OVERFLOW
+        value: '2'
+      - key: CHAKRAVYUH_WORKER_BATCH_SIZE
+        value: '10'
+      - key: CHAKRAVYUH_JOURNEY_REDUCTION_BATCH_SIZE
+        value: '10'
+      - key: CHAKRAVYUH_INVARIANT_EVALUATION_BATCH_SIZE
+        value: '10'
+      - key: CHAKRAVYUH_GRAPH_PROJECTION_BATCH_SIZE
+        value: '10'
+      - key: CHAKRAVYUH_DIAGNOSIS_BATCH_SIZE
+        value: '3'
+      - key: CHAKRAVYUH_INVARIANT_AUTHORIZED_CAPTURE_GRACE_SECONDS
+        value: '1'
+      - key: CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED
+        value: 'true'
+      - key: CHAKRAVYUH_TEST_CHECKOUT_ENABLED
+        value: 'true'
+      - key: CHAKRAVYUH_DIAGNOSIS_PRIMARY_PROVIDER
+        value: openrouter
+      - key: CHAKRAVYUH_DIAGNOSIS_FALLBACK_PROVIDER
+        value: gemini
+      - key: CHAKRAVYUH_NEO4J_URI
+        sync: false
+      - key: CHAKRAVYUH_NEO4J_USERNAME
+        sync: false
+      - key: CHAKRAVYUH_NEO4J_PASSWORD
+        sync: false
+      - key: CHAKRAVYUH_NEO4J_DATABASE
+        sync: false
+      - key: CHAKRAVYUH_RAZORPAY_KEY_ID
+        sync: false
+      - key: CHAKRAVYUH_RAZORPAY_KEY_SECRET
+        sync: false
+      - key: CHAKRAVYUH_RAZORPAY_MERCHANT_ID
+        sync: false
+      - key: CHAKRAVYUH_RAZORPAY_ACCOUNT_ID
+        sync: false
+      - key: CHAKRAVYUH_RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: CHAKRAVYUH_OPENROUTER_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CHAKRAVYUH_OPERATOR_TOKEN_HASHES
+        sync: false
+      - key: CHAKRAVYUH_OPERATOR_PRINCIPAL_SCOPES
+        sync: false
+
+databases:
+  - name: chakravyuh-db
+    plan: free
+    region: singapore
+    databaseName: chakravyuh
+    user: chakravyuh

@@ -30,8 +30,12 @@ class Settings(BaseSettings):
         default_factory=lambda: ["localhost", "127.0.0.1", "test", "testserver"]
     )
 
-    postgres_dsn: str = (
-        "postgresql+asyncpg://chakravyuh:local-development-only@localhost:5432/chakravyuh"
+    postgres_dsn: str = Field(
+        default=(
+            "postgresql+asyncpg://"
+            "chakravyuh:local-development-only@localhost:5432/chakravyuh"
+        ),
+        validation_alias=AliasChoices("CHAKRAVYUH_POSTGRES_DSN", "DATABASE_URL"),
     )
     postgres_pool_size: int = Field(default=10, ge=1, le=100)
     postgres_max_overflow: int = Field(default=20, ge=0, le=200)
@@ -152,6 +156,16 @@ class Settings(BaseSettings):
         ):
             msg = "trusted host wildcard or invalid character is not permitted"
             raise ValueError(msg)
+        return value
+
+    @field_validator("postgres_dsn", mode="before")
+    @classmethod
+    def normalize_postgres_driver(cls, value: object) -> object:
+        """Use asyncpg when a hosting provider supplies a standard Postgres URL."""
+        if isinstance(value, str) and value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if isinstance(value, str) and value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+asyncpg://", 1)
         return value
 
     @field_validator(
