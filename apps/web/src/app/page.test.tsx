@@ -210,11 +210,13 @@ describe("operator console", () => {
   it("states the Test Mode policy boundary before accepting a session token", () => {
     render(<Home />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Chakravyuh" })).toBeInTheDocument();
-    expect(screen.getByText("Phase 11 · Real Razorpay Test Mode proof")).toBeInTheDocument();
-    expect(screen.getByText(/policy-approved Razorpay Test Mode/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Recover money stuck between states." }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Payment recovery control plane")).toBeInTheDocument();
+    expect(screen.getByText(/provider confirmation/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Operator access token")).toHaveAttribute("type", "password");
-    expect(screen.getByText(/token stays in memory/i)).toBeInTheDocument();
+    expect(screen.getByText(/session-only credential/i)).toBeInTheDocument();
   });
 
   it("loads audited incident evidence using an in-memory bearer token", async () => {
@@ -247,7 +249,7 @@ describe("operator console", () => {
     fireEvent.change(screen.getByLabelText("Operator access token"), {
       target: { value: "session-secret" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Open operator console" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to operations" }));
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Captured But Order Unpaid" }),
@@ -277,7 +279,7 @@ describe("operator console", () => {
     }
 
     fireEvent.click(screen.getByRole("button", { name: "End session" }));
-    expect(screen.getByRole("button", { name: "Open operator console" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue to operations" })).toBeInTheDocument();
     expect(screen.getByLabelText("Operator access token")).toHaveValue("");
   });
 
@@ -353,7 +355,7 @@ describe("operator console", () => {
     fireEvent.change(screen.getByLabelText("Operator access token"), {
       target: { value: "checker-secret" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Open operator console" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to operations" }));
 
     fireEvent.click(await screen.findByRole("button", { name: "Approve as independent checker" }));
     fireEvent.click(

@@ -31,10 +31,10 @@ describe("Test Checkout", () => {
     render(<DemoCheckoutPage />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Run a live recovery." }),
+      screen.getByRole("heading", { level: 1, name: "Follow a payment end to end." }),
     ).toBeInTheDocument();
     expect(screen.getByText(/fixed ₹10 Razorpay Test Mode payment/i)).toBeInTheDocument();
-    expect(screen.getByLabelText("Scoped demo operator token")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("Operator access token")).toHaveAttribute("type", "password");
   });
 
   it("creates the server-side order and verifies the Checkout proof", async () => {
@@ -79,10 +79,10 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
-    fireEvent.change(screen.getByLabelText("Scoped demo operator token"), {
+    fireEvent.change(screen.getByLabelText("Operator access token"), {
       target: { value: "demo-token" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Test Checkout" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
     await waitFor(() => expect(opened).toBe(true));
     expect(checkoutOptions).toMatchObject({
       amount: 1000,
@@ -100,7 +100,7 @@ describe("Test Checkout", () => {
     expect(screen.getAllByText("₹10.00")).toHaveLength(2);
     expect(screen.getByText(/do not capture/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Follow this payment." })).toBeInTheDocument();
-    expect(screen.getByText(/This is not a replay/i)).toBeInTheDocument();
+    expect(screen.getByText(/Every stage below is read from the payment/i)).toBeInTheDocument();
     expect(screen.getByText("Waiting for deterministic detection")).toBeInTheDocument();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     const verificationCall = fetchMock.mock.calls.find(([input]) =>
@@ -172,10 +172,10 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
-    fireEvent.change(screen.getByLabelText("Scoped demo operator token"), {
+    fireEvent.change(screen.getByLabelText("Operator access token"), {
       target: { value: "demo-token" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Test Checkout" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
     await waitFor(() => expect(handler).toBeDefined());
     handler?.({
       razorpay_order_id: "order_123",
@@ -264,10 +264,10 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
-    fireEvent.change(screen.getByLabelText("Scoped demo operator token"), {
+    fireEvent.change(screen.getByLabelText("Operator access token"), {
       target: { value: "demo-token" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Test Checkout" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
     await waitFor(() => expect(handler).toBeDefined());
     handler?.({
       razorpay_order_id: "order_123",
@@ -295,7 +295,7 @@ describe("Test Checkout", () => {
         "Razorpay Checkout loaded without initializing. Reload and try again.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open Razorpay Test Checkout" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Open Razorpay Checkout" })).toBeDisabled();
   });
 });
 

@@ -156,42 +156,114 @@ export function OperatorDashboard() {
   if (!connected) {
     return (
       <main className="accessShell">
-        <section className="accessCard" aria-labelledby="product-title">
-          <div className="brandMark" aria-hidden="true">
-            च
+        <header className="accessTopbar">
+          <a className="accessBrand" href="/" aria-label="Chakravyuh home">
+            <span className="miniMark" aria-hidden="true">
+              च
+            </span>
+            <span>
+              <strong>Chakravyuh</strong>
+              <small>Payment recovery control</small>
+            </span>
+          </a>
+          <nav aria-label="Product navigation">
+            <a href="/payments/authorize">Live authorization</a>
+            <a href="/recoveries/verified">Verified recovery</a>
+            <a href="/reliability">Reliability</a>
+          </nav>
+          <div className="environmentBadge">
+            <span /> Razorpay Test Mode
           </div>
-          <p className="eyebrow">Phase 11 · Real Razorpay Test Mode proof</p>
-          <h1 id="product-title">Chakravyuh</h1>
-          <p className="tagline">Every rupee has a path.</p>
-          <p className="summary">
-            Inspect deterministic incidents, verify the exact evidence mesh, and run only scoped,
-            policy-approved Razorpay Test Mode recovery actions with an immutable audit trail.
-          </p>
-          <form className="accessForm" onSubmit={connect}>
-            <label htmlFor="operator-token">Operator access token</label>
-            <div>
-              <input
-                autoComplete="off"
-                id="operator-token"
-                onChange={(event) => setToken(event.target.value)}
-                placeholder="Paste the token for this session"
-                type="password"
-                value={token}
-              />
-              <button type="submit">Open operator console</button>
+        </header>
+
+        <section className="accessHero" aria-labelledby="product-title">
+          <div className="accessCopy">
+            <p className="eyebrow">Payment recovery control plane</p>
+            <h1 id="product-title">Recover money stuck between states.</h1>
+            <p className="tagline">Every rupee has a path.</p>
+            <p className="summary">
+              Detect stalled payment lifecycles, verify the connected evidence, and recover funds
+              through deterministic policy, independent approval, and provider confirmation.
+            </p>
+            <section className="capabilityList" aria-label="Product safeguards">
+              <article>
+                <span>01</span>
+                <strong>Deterministic detection</strong>
+                <p>Replayable invariants identify broken payment states without model authority.</p>
+              </article>
+              <article>
+                <span>02</span>
+                <strong>Controlled execution</strong>
+                <p>Policy fixes the exact target and amount before independent approval.</p>
+              </article>
+              <article>
+                <span>03</span>
+                <strong>Confirmed recovery</strong>
+                <p>Revenue is credited only after the provider returns authoritative evidence.</p>
+              </article>
+            </section>
+          </div>
+
+          <aside className="accessPanel" aria-label="Secure operator access">
+            <div className="accessPanelHeader">
+              <span>Secure operator access</span>
+              <span className="accessState">
+                <i /> Protected
+              </span>
             </div>
-            <p>The token stays in memory and is never stored by this browser.</p>
-          </form>
-          <a className="checkoutLink" href="/demo-checkout">
-            Create a real Test Mode incident →
+            <div className="accessPanelBody">
+              <p className="kicker">Operations workspace</p>
+              <h2>Continue to incident control.</h2>
+              <p>
+                Use a scoped operator credential to inspect evidence and run policy-approved Test
+                Mode recoveries.
+              </p>
+              <form className="accessForm" onSubmit={connect}>
+                <label htmlFor="operator-token">Operator access token</label>
+                <input
+                  autoComplete="off"
+                  id="operator-token"
+                  onChange={(event) => setToken(event.target.value)}
+                  placeholder="Enter your session token"
+                  type="password"
+                  value={token}
+                />
+                <button disabled={!token.trim()} type="submit">
+                  Continue to operations <span aria-hidden="true">→</span>
+                </button>
+                <p>Session-only credential · cleared when you end the session</p>
+              </form>
+            </div>
+            <div className="accessPanelFooter">
+              <span>Environment</span>
+              <strong>Test Mode · dual control enabled</strong>
+            </div>
+          </aside>
+        </section>
+
+        <section className="accessProductNav" aria-label="Product areas">
+          <a href="/payments/authorize">
+            <span>Live authorization</span>
+            <strong>Create and follow a Razorpay Test Mode payment.</strong>
+            <em>Open transaction →</em>
           </a>
-          <a className="checkoutLink secondaryLink" href="/recovery-story">
-            Watch the verified recovery story →
+          <a href="/recoveries/verified">
+            <span>Verified recovery</span>
+            <strong>Inspect one completed recovery from event to confirmation.</strong>
+            <em>View recovery →</em>
           </a>
-          <a className="checkoutLink secondaryLink" href="/judge">
-            Open the Phase 12 judge evidence room →
+          <a href="/reliability">
+            <span>Reliability</span>
+            <strong>Review safety, scale, failure, and counterfactual measurements.</strong>
+            <em>View reliability →</em>
           </a>
         </section>
+
+        <footer className="accessFooter">
+          <span>Test environment</span>
+          <p>Razorpay Test Mode semantics · no live funds move</p>
+          <p>Signed evidence · immutable audit trail</p>
+        </footer>
       </main>
     );
   }

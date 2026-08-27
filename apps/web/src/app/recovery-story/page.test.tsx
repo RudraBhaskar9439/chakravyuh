@@ -13,7 +13,7 @@ describe("verified recovery story", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: /A payment got stuck/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Read-only replay")).toBeInTheDocument();
+    expect(screen.getByText("Read-only record")).toBeInTheDocument();
     expect(screen.getByText("Razorpay Test Mode")).toBeInTheDocument();
     expect(screen.getByText("₹10", { selector: "dd" })).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();

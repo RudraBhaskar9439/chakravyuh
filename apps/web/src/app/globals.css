@@ -54,15 +54,12 @@ a {
 }
 
 .accessShell {
-  display: grid;
+  width: min(1480px, calc(100% - 48px));
   min-height: 100vh;
-  place-items: center;
-  padding: 32px;
+  margin: 0 auto;
+  overflow: hidden;
 }
 
-.accessCard {
-  width: min(760px, 100%);
-}
 .brandMark,
 .miniMark {
   display: grid;
@@ -74,8 +71,60 @@ a {
 .brandMark {
   width: 54px;
   height: 54px;
-  margin-bottom: 48px;
   font-size: 1.5rem;
+}
+.accessTopbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 84px;
+  border-bottom: 1px solid var(--border);
+}
+.accessBrand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-self: start;
+  text-decoration: none;
+}
+.accessBrand strong,
+.accessBrand small {
+  display: block;
+}
+.accessBrand strong {
+  font-size: 0.86rem;
+  letter-spacing: -0.02em;
+}
+.accessBrand small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+.accessTopbar nav {
+  display: flex;
+  gap: 30px;
+}
+.accessTopbar nav a {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+.environmentBadge {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-self: end;
+  color: var(--muted);
+  font-size: 0.69rem;
+}
+.environmentBadge > span,
+.accessState i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--healthy);
+  box-shadow: 0 0 14px rgb(98 208 155 / 70%);
 }
 .eyebrow,
 .kicker {
@@ -86,45 +135,142 @@ a {
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-.accessCard h1 {
+.accessHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(380px, 0.65fr);
+  gap: clamp(54px, 8vw, 130px);
+  align-items: center;
+  min-height: 710px;
+  padding: 88px 34px 84px;
+  position: relative;
+}
+.accessHero::before {
+  position: absolute;
+  z-index: -1;
+  top: 8%;
+  right: -8%;
+  width: 620px;
+  height: 620px;
+  border: 1px solid rgb(230 170 76 / 8%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(230 170 76 / 10%), transparent 67%);
+  content: "";
+}
+.accessCopy h1 {
+  max-width: 880px;
   margin: 0;
-  font-size: clamp(4rem, 13vw, 8rem);
-  letter-spacing: -0.075em;
-  line-height: 0.86;
+  font-size: clamp(4rem, 7.6vw, 7.6rem);
+  letter-spacing: -0.073em;
+  line-height: 0.88;
 }
 .tagline {
-  margin: 30px 0 0;
+  margin: 34px 0 0;
   color: var(--gold);
-  font-size: clamp(1.25rem, 3vw, 1.9rem);
+  font-size: clamp(1.15rem, 2vw, 1.55rem);
 }
 .summary {
-  max-width: 660px;
-  margin: 16px 0 0;
+  max-width: 720px;
+  margin: 18px 0 0;
   color: var(--muted);
-  font-size: 1.05rem;
+  font-size: 1rem;
   line-height: 1.7;
 }
+.capabilityList {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 850px;
+  margin-top: 52px;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.capabilityList article {
+  min-height: 165px;
+  padding: 20px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgb(17 16 13 / 50%);
+}
+.capabilityList span {
+  color: var(--gold);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.58rem;
+}
+.capabilityList strong {
+  display: block;
+  margin-top: 24px;
+  font-size: 0.77rem;
+}
+.capabilityList p {
+  margin: 9px 0 0;
+  color: #827a6e;
+  font-size: 0.67rem;
+  line-height: 1.5;
+}
+.accessPanel {
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(rgb(230 170 76 / 2%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(230 170 76 / 2%) 1px, transparent 1px), rgb(13 12 9 / 92%);
+  background-size: 36px 36px;
+  box-shadow: 0 30px 90px rgb(0 0 0 / 34%);
+}
+.accessPanelHeader,
+.accessPanelFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 0 22px;
+  color: var(--muted);
+  font-size: 0.63rem;
+}
+.accessPanelHeader {
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.accessState {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--healthy);
+}
+.accessState i {
+  display: block;
+}
+.accessPanelBody {
+  padding: 42px 38px 40px;
+}
+.accessPanelBody h2 {
+  max-width: 390px;
+  margin: 0;
+  font-size: clamp(2rem, 3.2vw, 3.35rem);
+  letter-spacing: -0.06em;
+  line-height: 0.98;
+}
+.accessPanelBody > p:not(.kicker) {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
 .accessForm {
-  margin-top: 46px;
-  padding-top: 28px;
+  display: grid;
+  gap: 11px;
+  margin-top: 34px;
+  padding-top: 26px;
   border-top: 1px solid var(--border);
 }
 .accessForm label {
-  display: block;
-  margin-bottom: 10px;
   color: var(--muted);
-  font-size: 0.8rem;
-}
-.accessForm > div {
-  display: flex;
-  gap: 10px;
+  font-size: 0.68rem;
 }
 .accessForm input {
-  flex: 1;
-  min-width: 0;
-  padding: 14px 16px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 15px;
   border: 1px solid var(--border-bright);
-  border-radius: 4px;
+  border-radius: 3px;
   background: var(--surface);
   color: var(--text);
 }
@@ -137,23 +283,164 @@ a {
   font-weight: 750;
   padding: 0 20px;
 }
+.accessForm button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+.accessForm button:hover:not(:disabled) {
+  box-shadow: 0 14px 34px rgb(230 170 76 / 16%);
+  transform: translateY(-1px);
+}
+.accessForm button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
 .accessForm > p {
+  margin: 2px 0 0;
   color: #746e63;
-  font-size: 0.72rem;
+  font-size: 0.63rem;
 }
-.checkoutLink {
-  display: inline-block;
-  margin-top: 20px;
-  color: var(--gold);
-  font-size: 0.82rem;
+.accessPanelFooter {
+  border-top: 1px solid var(--border);
+}
+.accessPanelFooter strong {
+  color: var(--text);
+  font-size: 0.65rem;
+}
+.accessProductNav {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.accessProductNav a {
+  display: flex;
+  flex-direction: column;
+  min-height: 190px;
+  padding: 26px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgb(11 10 8 / 45%);
   text-decoration: none;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
 }
-.checkoutLink:hover {
-  text-decoration: underline;
+.accessProductNav a:hover {
+  background: rgb(230 170 76 / 6%);
+  transform: translateY(-2px);
 }
-.secondaryLink {
-  margin-left: 22px;
+.accessTopbar nav a:hover {
+  color: var(--text);
+}
+.accessProductNav span {
+  color: var(--gold);
+  font-size: 0.61rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.accessProductNav strong {
+  max-width: 330px;
+  margin-top: 23px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.accessProductNav em {
+  margin-top: auto;
   color: var(--muted);
+  font-size: 0.66rem;
+  font-style: normal;
+}
+.accessFooter {
+  display: flex;
+  gap: 26px;
+  align-items: center;
+  min-height: 76px;
+  color: #746e63;
+  font-size: 0.64rem;
+}
+.accessFooter span {
+  padding: 5px 8px;
+  border: 1px solid var(--gold-soft);
+  border-radius: 999px;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.accessFooter p:last-child {
+  margin-left: auto;
+}
+
+@media (width <= 1080px) {
+  .accessTopbar {
+    grid-template-columns: 1fr auto;
+  }
+  .accessTopbar nav {
+    display: none;
+  }
+  .accessHero {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .accessPanel {
+    max-width: 720px;
+  }
+}
+
+@media (width <= 700px) {
+  .accessShell {
+    width: min(100% - 18px, 1480px);
+  }
+  .accessTopbar {
+    min-height: 72px;
+  }
+  .accessBrand small {
+    display: none;
+  }
+  .environmentBadge {
+    font-size: 0.6rem;
+  }
+  .accessHero {
+    gap: 48px;
+    padding: 68px 8px 62px;
+  }
+  .accessCopy h1 {
+    font-size: clamp(3.35rem, 16vw, 5.5rem);
+  }
+  .capabilityList,
+  .accessProductNav {
+    grid-template-columns: 1fr;
+  }
+  .capabilityList article {
+    min-height: 142px;
+  }
+  .accessPanelBody {
+    padding: 36px 22px 34px;
+  }
+  .accessPanelFooter {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    min-height: 72px;
+  }
+  .accessFooter {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding: 26px 0;
+  }
+  .accessFooter p {
+    margin: 0;
+  }
+  .accessFooter p:last-child {
+    margin-left: 0;
+  }
 }
 
 .checkoutShell {
@@ -1273,12 +1560,6 @@ a {
 }
 
 @media (width <= 620px) {
-  .accessShell {
-    padding: 22px;
-  }
-  .accessForm > div {
-    flex-direction: column;
-  }
   .accessForm button {
     min-height: 48px;
   }
@@ -1333,7 +1614,7 @@ a {
   }
 }
 
-/* Phase 12 judge evidence room */
+/* Reliability report */
 .judgeShell {
   width: min(1500px, calc(100% - 40px));
   margin: 0 auto;

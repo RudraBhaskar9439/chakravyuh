@@ -19,17 +19,17 @@ export function JudgeDashboard() {
           </span>
           <span>
             <strong>Chakravyuh</strong>
-            <small>Recovery Arena · locked proof</small>
+            <small>Reliability · signed measurements</small>
           </span>
         </a>
         <div className="judgeBoundary">
-          <span /> Read-only · no action API connected
+          <span /> Read-only · action endpoints disconnected
         </div>
       </header>
 
       <section className="judgeHero">
         <div>
-          <p className="eyebrow">Phase 12 · judge evidence room</p>
+          <p className="eyebrow">Safety and reliability</p>
           <h1>
             Follow the money.
             <br />
@@ -38,7 +38,7 @@ export function JudgeDashboard() {
         </div>
         <p>
           A held-out counterfactual tournament, a metered live-model sample, one real Razorpay Test
-          Mode payment, and a 100,000-event local pipeline proof—kept visibly separate.
+          Mode payment, and a 100,000-event reliability run—kept visibly separate.
         </p>
       </section>
 
@@ -57,7 +57,7 @@ export function JudgeDashboard() {
         />
         <SourceCard
           kind="real-provider"
-          label="Real provider"
+          label="Provider transaction"
           value="₹10 Test Mode"
           note="Razorpay authorization and recovery semantics"
         />
@@ -69,7 +69,7 @@ export function JudgeDashboard() {
         />
       </section>
 
-      <nav className="judgeTabs" aria-label="Judge proof views">
+      <nav className="judgeTabs" aria-label="Reliability report views">
         {views.map((item, index) => (
           <button
             aria-current={item === view ? "page" : undefined}
@@ -93,12 +93,12 @@ export function JudgeDashboard() {
 
       <footer className="judgeFooter">
         <p>
-          Proofs are reproducible local measurements, not a production SLA or merchant revenue
-          claim. Only webhook-confirmed synthetic recovery is scored.
+          Results are reproducible local measurements, not a production SLA or merchant revenue
+          claim. Only webhook-confirmed synthetic recoveries are credited.
         </p>
         <div>
-          <a href="/recovery-story">Watch the verified recovery story →</a>
-          <a href="/demo-checkout">Create a separate Test Mode incident →</a>
+          <a href="/recoveries/verified">View the verified recovery →</a>
+          <a href="/payments/authorize">Authorize a Test Mode payment →</a>
         </div>
       </footer>
     </main>
@@ -293,7 +293,7 @@ function Chaos() {
   return (
     <>
       <ViewHeader
-        copy="The proof is strongest where systems usually become ambiguous: retries, crashes, reordering, and partial failure."
+        copy="The system is exercised where money movement usually becomes ambiguous: retries, crashes, reordering, and partial failure."
         eyebrow="Adversarial gates"
         index="04"
         title="Nine ways to fail. Nine bounded outcomes."
@@ -338,12 +338,12 @@ function Exceptions() {
   return (
     <>
       <ViewHeader
-        copy="Failures remain first-class results. Cost, abstention, replay, and lost revenue are never rounded away."
+        copy="Failures remain first-class results. Cost, abstention, retries, and lost revenue are never rounded away."
         eyebrow="Honest exception ledger"
         index="05"
-        title="What did not work is part of the proof."
+        title="Every failure remains visible."
       />
-      <section className="exceptionTable" aria-label="Reported proof exceptions">
+      <section className="exceptionTable" aria-label="Reported reliability exceptions">
         {exceptions.map((exception) => (
           <article key={exception.title}>
             <span className={`sourcePill source-${exception.source}`}>

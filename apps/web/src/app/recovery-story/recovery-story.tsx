@@ -36,22 +36,22 @@ export function RecoveryStory() {
   return (
     <main className="storyShell">
       <header className="storyTopbar">
-        <a className="storyBrand" href="/recovery-story">
+        <a className="storyBrand" href="/recoveries/verified">
           <span className="miniMark" aria-hidden="true">
             च
           </span>
           <span>
             <strong>Chakravyuh</strong>
-            <small>Verified recovery story</small>
+            <small>Verified recovery</small>
           </span>
         </a>
-        <nav aria-label="Recovery story navigation">
-          <a href="#proof-ledger">Proof ledger</a>
-          <a href="/judge">Scale evidence</a>
+        <nav aria-label="Recovery navigation">
+          <a href="#proof-ledger">Audit ledger</a>
+          <a href="/reliability">Reliability</a>
           <a href="/">Ops console</a>
         </nav>
         <div className="storyReadOnly">
-          <span /> Read-only replay
+          <span /> Read-only record
         </div>
       </header>
 
@@ -70,9 +70,9 @@ export function RecoveryStory() {
           <div className="storyHeroActions">
             <button onClick={replay} type="button">
               <span aria-hidden="true">▶</span>{" "}
-              {playing ? "Replaying verified recovery…" : "Replay verified recovery"}
+              {playing ? "Playing recovery timeline…" : "Play recovery timeline"}
             </button>
-            <a href="#proof-ledger">Inspect every proof hash</a>
+            <a href="#proof-ledger">Inspect the audit ledger</a>
           </div>
         </div>
         <dl className="storyMetrics" aria-label="Verified recovery metrics">
@@ -273,10 +273,10 @@ export function RecoveryStory() {
           </p>
         </div>
         <p>
-          This is a read-only replay of one completed Razorpay Test Mode recovery. It does not call
-          an action API and makes no production-SLA claim.
+          This is a read-only record of one completed Razorpay Test Mode recovery. It does not call
+          an action endpoint and makes no production-SLA claim.
         </p>
-        <a href="/">Open engineering console →</a>
+        <a href="/">Open operations console →</a>
       </footer>
     </main>
   );

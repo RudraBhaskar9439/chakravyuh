@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
 import type { ActionView, IncidentDetail, IncidentPage } from "../operator-types";
@@ -225,15 +224,15 @@ export function TestCheckout() {
   return (
     <main className="checkoutShell">
       <header className="checkoutTopbar">
-        <Link href="/">← Operator console</Link>
+        <a href="/">← Operator console</a>
         <div>
-          <Link href="/recovery-story">Verified replay</Link>
+          <a href="/recoveries/verified">Verified recovery</a>
           <span>Razorpay Test Mode only</span>
         </div>
       </header>
       <section className="checkoutHero">
-        <p className="eyebrow">Live demo · real provider proof</p>
-        <h1>Run a live recovery.</h1>
+        <p className="eyebrow">Live transaction · controlled recovery</p>
+        <h1>Follow a payment end to end.</h1>
         <p>
           Authorize one fixed ₹10 Razorpay Test Mode payment, then watch that exact payment travel
           through detection, AI diagnosis, independent approval and provider-confirmed recovery.
@@ -246,7 +245,7 @@ export function TestCheckout() {
           <h2>Authorize ₹10</h2>
           <p>The order is created server-side with manual capture. No real money moves.</p>
           <form onSubmit={begin}>
-            <label htmlFor="checkout-token">Scoped demo operator token</label>
+            <label htmlFor="checkout-token">Operator access token</label>
             <input
               autoComplete="off"
               id="checkout-token"
@@ -256,7 +255,7 @@ export function TestCheckout() {
               value={token}
             />
             <button disabled={busy || !scriptReady || !token.trim()} type="submit">
-              {busy ? "Waiting for authorization…" : "Open Razorpay Test Checkout"}
+              {busy ? "Waiting for authorization…" : "Open Razorpay Checkout"}
             </button>
           </form>
           <small>{scriptReady ? "Checkout securely loaded." : "Loading Razorpay Checkout…"}</small>
@@ -407,8 +406,8 @@ function LiveRecovery({
           <p className="eyebrow">Live provider journey</p>
           <h2 id="live-recovery-title">Follow this payment.</h2>
           <p>
-            This is not a replay. Every stage below is read from the new payment’s live PostgreSQL
-            ledger, evidence graph and Razorpay Test Mode result.
+            Every stage below is read from the payment’s live PostgreSQL ledger, evidence graph, and
+            Razorpay Test Mode result.
           </p>
         </div>
         <div className={recovered ? "liveStatus recovered" : "liveStatus"}>

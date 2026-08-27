@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Chakravyuh · Money Path Operations",
-  description: "Read-only incident evidence and grounded payment diagnosis",
+  title: "Chakravyuh · Payment Recovery Control",
+  description: "Detect, govern, and confirm recovery for payment lifecycles in Razorpay Test Mode",
 };
 
 type RootLayoutProps = Readonly<{

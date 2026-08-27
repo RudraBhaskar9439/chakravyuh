@@ -15,9 +15,9 @@ describe("judge evidence room", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Held-out synthetic")).toBeInTheDocument();
     expect(screen.getByText("Live AI")).toBeInTheDocument();
-    expect(screen.getByText("Real provider")).toBeInTheDocument();
+    expect(screen.getByText("Provider transaction")).toBeInTheDocument();
     expect(screen.getByText("Local scale")).toBeInTheDocument();
-    expect(screen.getByText(/no action API connected/i)).toBeInTheDocument();
+    expect(screen.getByText(/action endpoints disconnected/i)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /execute|approve|capture/i }),
     ).not.toBeInTheDocument();
