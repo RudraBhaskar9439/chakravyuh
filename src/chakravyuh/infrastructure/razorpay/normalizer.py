@@ -12,7 +12,7 @@ from chakravyuh.domain.errors import NormalizationError, NormalizationErrorCode
 from chakravyuh.domain.events import EntityReference, NormalizedEvent
 from chakravyuh.domain.webhooks import RawWebhookEvent
 
-NORMALIZER_VERSION: Final = "razorpay-webhook-v1"
+NORMALIZER_VERSION: Final = "razorpay-provider-v2"
 
 _PRIMARY_ENTITY_TYPES: Final[dict[str, EntityType]] = {
     "order": EntityType.RAZORPAY_ORDER,
@@ -29,7 +29,10 @@ class RazorpayWebhookNormalizer(WebhookNormalizer):
     version = NORMALIZER_VERSION
 
     def normalize(self, event: RawWebhookEvent) -> NormalizedEvent:
-        if event.source is not EventSource.RAZORPAY_WEBHOOK:
+        if event.source not in {
+            EventSource.RAZORPAY_API,
+            EventSource.RAZORPAY_WEBHOOK,
+        }:
             raise NormalizationError(NormalizationErrorCode.UNSUPPORTED_SOURCE)
         if event.occurred_at > event.observed_at:
             raise NormalizationError(NormalizationErrorCode.EVENT_TIME_AFTER_OBSERVATION)

@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from chakravyuh.application.ports import RazorpayTestCheckoutGateway, TestCheckoutRepository
-from chakravyuh.domain.enums import PaymentStatus
+from chakravyuh.application.ports import (
+    RazorpayTestCheckoutGateway,
+    TestCheckoutRepository,
+    WebhookEventStore,
+)
+from chakravyuh.domain.enums import EventSource, PaymentStatus
 from chakravyuh.domain.errors import TestCheckoutError, TestCheckoutErrorCode
 from chakravyuh.domain.money import Money
 from chakravyuh.domain.test_checkout import (
@@ -15,6 +20,7 @@ from chakravyuh.domain.test_checkout import (
     create_test_checkout_order,
     create_test_checkout_verification,
 )
+from chakravyuh.domain.webhooks import RawWebhookEvent
 
 
 class RazorpayTestCheckoutControlPlane:
@@ -25,6 +31,7 @@ class RazorpayTestCheckoutControlPlane:
         repository: TestCheckoutRepository,
         gateway: RazorpayTestCheckoutGateway,
         *,
+        event_store: WebhookEventStore | None = None,
         enabled: bool,
         merchant_id: str | None,
         public_key_id: str | None,
@@ -35,6 +42,7 @@ class RazorpayTestCheckoutControlPlane:
     ) -> None:
         self._repository = repository
         self._gateway = gateway
+        self._event_store = event_store
         self._enabled = enabled
         self._merchant_id = merchant_id
         self._public_key_id = public_key_id
@@ -107,7 +115,87 @@ class RazorpayTestCheckoutControlPlane:
             request_id=request_id,
             verified_at=verified_at,
         )
-        return await self._repository.record_verification(verification)
+        recorded = await self._repository.record_verification(verification)
+        await self._record_authoritative_authorization(order.merchant_id, recorded)
+        return recorded
+
+    async def reconcile(
+        self,
+        *,
+        payment_id: str,
+        principal_id: str,
+        request_id: str,
+    ) -> TestCheckoutVerification:
+        """Re-ingest a previously verified payment when its webhook is delayed or absent.
+
+        The operator identity and request ID are intentionally accepted for the control-plane
+        contract and transport audit. The immutable verification remains the event provenance.
+        """
+        del principal_id, request_id
+        self._require_enabled()
+        verification = await self._repository.get_verification(payment_id)
+        if verification is None:
+            raise TestCheckoutError(TestCheckoutErrorCode.VERIFICATION_NOT_FOUND)
+        order_id = verification.payment.order_id
+        if order_id is None:  # pragma: no cover - domain contract guard
+            raise TestCheckoutError(TestCheckoutErrorCode.PAYMENT_MISMATCH)
+        order = await self._repository.get_order(order_id)
+        if order is None:  # pragma: no cover - append-only ledger contract guard
+            raise TestCheckoutError(TestCheckoutErrorCode.ORDER_NOT_FOUND)
+        current = await self._gateway.fetch_payment(payment_id)
+        if current.order_id != order_id or current.amount != verification.payment.amount:
+            raise TestCheckoutError(TestCheckoutErrorCode.PAYMENT_MISMATCH)
+        if current.status is not PaymentStatus.AUTHORIZED or current.captured:
+            raise TestCheckoutError(TestCheckoutErrorCode.PAYMENT_NOT_AUTHORIZED)
+        await self._record_authoritative_authorization(order.merchant_id, verification)
+        return verification
+
+    async def _record_authoritative_authorization(
+        self,
+        merchant_id: str,
+        verification: TestCheckoutVerification,
+    ) -> None:
+        if self._event_store is None:
+            return
+        payment = verification.payment
+        assert payment.order_id is not None
+        entity = {
+            "id": payment.payment_id,
+            "entity": "payment",
+            "amount": payment.amount.amount_subunits,
+            "currency": payment.amount.currency,
+            "status": payment.status.value,
+            "order_id": payment.order_id,
+            "captured": payment.captured,
+        }
+        payload = {
+            "entity": "event",
+            "event": "payment.authorized",
+            "created_at": int(verification.verified_at.timestamp()),
+            "contains": ["payment"],
+            "payload": {"payment": {"entity": entity}},
+        }
+        raw_body = json.dumps(
+            payload,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode()
+        event = RawWebhookEvent(
+            event_id=uuid5(
+                NAMESPACE_URL,
+                f"chakravyuh:razorpay-api:{merchant_id}:{payment.payment_id}:authorized",
+            ),
+            merchant_id=merchant_id,
+            source=EventSource.RAZORPAY_API,
+            source_event_id=f"checkout-verification:{payment.payment_id}:authorized",
+            event_type="payment.authorized",
+            occurred_at=verification.verified_at,
+            observed_at=verification.verified_at,
+            payload=payload,
+            raw_body=raw_body,
+        )
+        await self._event_store.append(event)
 
     def _require_enabled(self) -> None:
         if not self._enabled or self._merchant_id is None or self._public_key_id is None:

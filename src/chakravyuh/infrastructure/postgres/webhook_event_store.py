@@ -14,7 +14,7 @@ from chakravyuh.infrastructure.postgres.tables import normalization_work, webhoo
 
 
 class PostgresWebhookEventStore:
-    """Persist verified provider events exactly once per merchant identity."""
+    """Persist verified provider intake exactly once per source identity."""
 
     def __init__(self, database: Database) -> None:
         self._database = database

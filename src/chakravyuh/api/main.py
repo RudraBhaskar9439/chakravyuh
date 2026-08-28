@@ -148,6 +148,7 @@ def create_app(
     resolved_test_checkout = test_checkout_control_plane or RazorpayTestCheckoutControlPlane(
         PostgresTestCheckoutRepository(resolved_database),
         cast("RazorpayTestCheckoutGateway", resolved_payment_gateway),
+        event_store=resolved_webhook_store,
         enabled=resolved_settings.test_checkout_enabled,
         merchant_id=resolved_settings.razorpay_merchant_id,
         public_key_id=resolved_settings.razorpay_key_id,

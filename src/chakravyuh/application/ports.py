@@ -344,6 +344,11 @@ class TestCheckoutRepository(Protocol):
         verification: TestCheckoutVerification,
     ) -> TestCheckoutVerification: ...
 
+    async def get_verification(
+        self,
+        payment_id: str,
+    ) -> TestCheckoutVerification | None: ...
+
 
 class TestCheckoutControlPlane(Protocol):
     async def prepare(
@@ -359,6 +364,14 @@ class TestCheckoutControlPlane(Protocol):
         order_id: str,
         payment_id: str,
         signature: str,
+        principal_id: str,
+        request_id: str,
+    ) -> TestCheckoutVerification: ...
+
+    async def reconcile(
+        self,
+        *,
+        payment_id: str,
         principal_id: str,
         request_id: str,
     ) -> TestCheckoutVerification: ...

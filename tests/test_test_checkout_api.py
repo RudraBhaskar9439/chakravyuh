@@ -79,6 +79,15 @@ class FakeControlPlane:
             verified_at=datetime.now(UTC),
         )
 
+    async def reconcile(self, **parameters: Any) -> CheckoutVerification:
+        self.calls.append(("reconcile", parameters))
+        if self.failure is not None:
+            raise self.failure
+        return await self.verify(
+            principal_id=parameters["principal_id"],
+            request_id=parameters["request_id"],
+        )
+
 
 def _settings(*, allowed: bool = True) -> Settings:
     return Settings(
@@ -138,6 +147,27 @@ async def test_prepare_and_verify_forward_scoped_operator_identity() -> None:
     )
     assert control.calls[1][1]["signature"] == "a" * 64
     assert control.calls[1][1]["request_id"] == "verify-api-request"
+
+
+async def test_reconcile_forwards_scoped_operator_identity() -> None:
+    control = FakeControlPlane()
+    async with _client(control) as client:
+        response = await client.post(
+            "/v1/demo/checkout/verifications/pay_123/reconcile",
+            headers={"X-Request-ID": "reconcile-api-request"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.json()["payment"]["payment_id"] == "pay_123"
+    assert control.calls[0] == (
+        "reconcile",
+        {
+            "payment_id": "pay_123",
+            "principal_id": "maker",
+            "request_id": "reconcile-api-request",
+        },
+    )
 
 
 async def test_checkout_api_rejects_missing_scope_and_invalid_body() -> None:

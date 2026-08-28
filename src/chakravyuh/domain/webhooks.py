@@ -1,4 +1,4 @@
-"""Immutable contracts for verified provider webhook intake."""
+"""Immutable contracts for authenticated or authoritatively verified provider intake."""
 
 from hashlib import sha256
 from uuid import UUID, uuid4
@@ -11,11 +11,11 @@ MAX_STORED_WEBHOOK_BYTES = 262_144
 
 
 class RawWebhookEvent(BaseModel):
-    """A signature-verified webhook retained exactly as it was received.
+    """A provider event retained exactly as received or canonically API-derived.
 
-    Authentication happens before this contract can be constructed. The exact raw
-    bytes are retained because parsing and re-encoding JSON would destroy the bytes
-    over which the provider signature was calculated.
+    Provider authentication or authoritative API verification happens before this
+    contract can be constructed. Webhook bytes remain exact; API fallback bytes are
+    canonical, deterministic evidence derived from the allowlisted provider state.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")

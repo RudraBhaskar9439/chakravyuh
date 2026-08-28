@@ -136,6 +136,22 @@ export function TestCheckout() {
     }
   }, []);
 
+  const reconcileLiveState = useCallback(async (paymentId: string, operatorToken: string) => {
+    setCheckingLiveState(true);
+    try {
+      await fetchJson<Verification>(
+        `/v1/demo/checkout/verifications/${paymentId}/reconcile`,
+        operatorToken,
+        { method: "POST" },
+      );
+      setTrackingError(null);
+    } catch (failure) {
+      setTrackingError(message(failure));
+    } finally {
+      setCheckingLiveState(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!verification || !token) return;
     void loadLiveState(verification.payment.payment_id, token);
@@ -344,7 +360,7 @@ export function TestCheckout() {
               token,
             )
           }
-          onRefresh={() => void loadLiveState(verification.payment.payment_id, token)}
+          onRefresh={() => void reconcileLiveState(verification.payment.payment_id, token)}
           trackingError={trackingError}
           verification={verification}
         />

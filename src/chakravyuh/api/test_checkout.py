@@ -3,7 +3,7 @@
 from typing import Annotated, Literal, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response, status
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from chakravyuh.api.operator_auth import OperatorPrincipal, require_operator, require_scope
@@ -110,6 +110,30 @@ async def verify_test_checkout(
         raise _http_error(failure) from failure
 
 
+@router.post("/verifications/{payment_id}/reconcile")
+async def reconcile_test_checkout(
+    payment_id: Annotated[
+        str,
+        Path(pattern=r"^pay_[A-Za-z0-9]+$", max_length=255),
+    ],
+    request: Request,
+    response: Response,
+    principal: OperatorDependency,
+) -> CheckoutVerificationResponse:
+    """Idempotently recover pipeline intake from an authoritative API verification."""
+    require_scope(principal, OperatorScope.TEST_CHECKOUT)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        verification = await _control_plane(request).reconcile(
+            payment_id=payment_id,
+            principal_id=principal.principal_id,
+            request_id=request.state.request_id,
+        )
+        return _public_verification(verification)
+    except (TestCheckoutError, RazorpayActionError) as failure:
+        raise _http_error(failure) from failure
+
+
 def _control_plane(request: Request) -> TestCheckoutControlPlane:
     return cast("TestCheckoutControlPlane", request.app.state.test_checkout_control_plane)
 
@@ -174,7 +198,10 @@ def _http_error(failure: TestCheckoutError | RazorpayActionError) -> HTTPExcepti
         code = failure.code
         if code is TestCheckoutErrorCode.DISABLED:
             status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        elif code is TestCheckoutErrorCode.ORDER_NOT_FOUND:
+        elif code in {
+            TestCheckoutErrorCode.ORDER_NOT_FOUND,
+            TestCheckoutErrorCode.VERIFICATION_NOT_FOUND,
+        }:
             status_code = status.HTTP_404_NOT_FOUND
         elif code is TestCheckoutErrorCode.INVALID_SIGNATURE:
             status_code = status.HTTP_400_BAD_REQUEST

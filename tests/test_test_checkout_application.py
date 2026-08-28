@@ -7,7 +7,7 @@ import pytest
 
 from chakravyuh.application.test_checkout import RazorpayTestCheckoutControlPlane
 from chakravyuh.domain.actions import ProviderPaymentState
-from chakravyuh.domain.enums import PaymentStatus
+from chakravyuh.domain.enums import EventSource, PaymentStatus
 from chakravyuh.domain.errors import (
     TestCheckoutError as CheckoutError,
 )
@@ -24,6 +24,7 @@ from chakravyuh.domain.test_checkout import (
 from chakravyuh.domain.test_checkout import (
     TestCheckoutVerification as CheckoutVerification,
 )
+from chakravyuh.domain.webhooks import RawWebhookEvent
 
 
 class MemoryCheckoutRepository:
@@ -48,6 +49,37 @@ class MemoryCheckoutRepository:
             return existing
         self.verifications[payment_id] = verification
         return verification
+
+    async def get_verification(self, payment_id: str) -> CheckoutVerification | None:
+        return self.verifications.get(payment_id)
+
+
+class MemoryProviderEventStore:
+    def __init__(self) -> None:
+        self.events: dict[tuple[str, EventSource, str], RawWebhookEvent] = {}
+
+    async def append(self, event: RawWebhookEvent) -> bool:
+        key = (event.merchant_id, event.source, event.source_event_id)
+        existing = self.events.get(key)
+        if existing is not None:
+            assert existing == event
+            return False
+        self.events[key] = event
+        return True
+
+    async def get(
+        self,
+        merchant_id: str,
+        source_event_id: str,
+    ) -> RawWebhookEvent | None:
+        return next(
+            (
+                event
+                for key, event in self.events.items()
+                if key[0] == merchant_id and key[2] == source_event_id
+            ),
+            None,
+        )
 
 
 class FakeGateway:
@@ -102,10 +134,12 @@ def _service(
     gateway: FakeGateway,
     *,
     enabled: bool = True,
+    event_store: MemoryProviderEventStore | None = None,
 ) -> RazorpayTestCheckoutControlPlane:
     return RazorpayTestCheckoutControlPlane(
         repository,
         gateway,
+        event_store=event_store,
         enabled=enabled,
         merchant_id="merchant-test",
         public_key_id="rzp_test_contract",
@@ -138,6 +172,60 @@ async def test_prepares_fixed_manual_order_and_verifies_exact_authorization() ->
     assert gateway.created[0][1].startswith("chkr-")
     assert verification.payment.status is PaymentStatus.AUTHORIZED
     assert verification.verification_hash != "0" * 64
+
+
+async def test_verification_records_idempotent_authoritative_api_fallback() -> None:
+    repository = MemoryCheckoutRepository()
+    gateway = FakeGateway()
+    event_store = MemoryProviderEventStore()
+    service = _service(repository, gateway, event_store=event_store)
+    await service.prepare(principal_id="maker", request_id="prepare-request")
+
+    first = await service.verify(
+        order_id="order_123",
+        payment_id="pay_123",
+        signature=_signature(gateway),
+        principal_id="maker",
+        request_id="verify-request",
+    )
+    second = await service.reconcile(
+        payment_id="pay_123",
+        principal_id="maker",
+        request_id="reconcile-request",
+    )
+
+    assert second == first
+    assert len(event_store.events) == 1
+    event = next(iter(event_store.events.values()))
+    assert event.source is EventSource.RAZORPAY_API
+    assert event.event_type == "payment.authorized"
+    assert event.source_event_id == "checkout-verification:pay_123:authorized"
+    assert event.payload["payload"] == {
+        "payment": {
+            "entity": {
+                "id": "pay_123",
+                "entity": "payment",
+                "amount": 1_000,
+                "currency": "INR",
+                "status": "authorized",
+                "order_id": "order_123",
+                "captured": False,
+            }
+        }
+    }
+
+
+async def test_reconciliation_requires_prior_verification() -> None:
+    service = _service(MemoryCheckoutRepository(), FakeGateway())
+
+    with pytest.raises(CheckoutError) as missing:
+        await service.reconcile(
+            payment_id="pay_123",
+            principal_id="maker",
+            request_id="request",
+        )
+
+    assert missing.value.code is CheckoutErrorCode.VERIFICATION_NOT_FOUND
 
 
 async def test_checkout_is_fail_closed_and_rejects_invalid_signature() -> None:

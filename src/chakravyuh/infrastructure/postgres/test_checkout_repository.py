@@ -138,6 +138,21 @@ class PostgresTestCheckoutRepository:
             raise TestCheckoutError(TestCheckoutErrorCode.IDENTITY_CONFLICT)
         return existing
 
+    async def get_verification(self, payment_id: str) -> TestCheckoutVerification | None:
+        async with self._database.session_factory() as session:
+            row = (
+                (
+                    await session.execute(
+                        select(test_checkout_verifications).where(
+                            test_checkout_verifications.c.payment_id == payment_id
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+        return None if row is None else _verification(row)
+
 
 def _order(row: RowMapping) -> TestCheckoutOrder:
     return TestCheckoutOrder(

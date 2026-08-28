@@ -78,6 +78,20 @@ def test_normalizer_is_deterministic_and_prefers_provider_correlation() -> None:
     assert first.correlation_id == "order_1"
 
 
+def test_normalizer_accepts_authoritative_razorpay_api_fallback() -> None:
+    raw = _raw_event(
+        "payment.authorized",
+        entity={"id": "pay_1", "order_id": "order_1", "status": "authorized"},
+        source=EventSource.RAZORPAY_API,
+    )
+
+    normalized = RazorpayWebhookNormalizer().normalize(raw)
+
+    assert normalized.source is EventSource.RAZORPAY_API
+    assert normalized.subject.entity_id == "pay_1"
+    assert normalized.correlation_id == "order_1"
+
+
 def test_normalizer_uses_related_order_for_payment_link_correlation() -> None:
     raw = _raw_event(
         "payment_link.paid",

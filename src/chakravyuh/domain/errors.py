@@ -145,6 +145,7 @@ class TestCheckoutErrorCode(StrEnum):
 
     DISABLED = "test_checkout_disabled"
     ORDER_NOT_FOUND = "test_checkout_order_not_found"
+    VERIFICATION_NOT_FOUND = "test_checkout_verification_not_found"
     ORDER_EXPIRED = "test_checkout_order_expired"
     INVALID_SIGNATURE = "test_checkout_invalid_signature"
     PAYMENT_MISMATCH = "test_checkout_payment_mismatch"
