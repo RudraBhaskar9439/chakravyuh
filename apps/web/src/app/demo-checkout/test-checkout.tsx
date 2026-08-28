@@ -360,7 +360,12 @@ export function TestCheckout() {
               token,
             )
           }
-          onRefresh={() => void reconcileLiveState(verification.payment.payment_id, token)}
+          onRefresh={() => {
+            const captureAccepted = liveActions[0]?.latest_result?.outcome === "succeeded";
+            void (captureAccepted
+              ? loadLiveState(verification.payment.payment_id, token)
+              : reconcileLiveState(verification.payment.payment_id, token));
+          }}
           trackingError={trackingError}
           verification={verification}
         />

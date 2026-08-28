@@ -198,7 +198,7 @@ describe("Test Checkout", () => {
       }
       open() {}
     } as never;
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.endsWith("/v1/demo/checkout/orders")) return jsonResponse(prepared, 201);
       if (url.endsWith("/v1/demo/checkout/verifications")) {
@@ -280,6 +280,15 @@ describe("Test Checkout", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText("Governed")).toHaveLength(2);
     expect(screen.queryByText("Provider-confirmed recovery")).not.toBeInTheDocument();
+
+    const callsBeforeRefresh = fetchMock.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Refresh now" }));
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeRefresh));
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes("/v1/demo/checkout/verifications/pay_123/reconcile"),
+      ),
+    ).toBe(false);
   });
 
   it("fails closed when the hosted script loads without its Checkout constructor", async () => {
