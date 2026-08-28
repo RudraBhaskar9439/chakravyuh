@@ -4,8 +4,10 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 
 import type { ActionView, IncidentDetail, IncidentPage } from "../operator-types";
 
-const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const apiBase = "/api/demo";
 const checkoutScript = "https://checkout.razorpay.com/v1/checkout.js";
+const livePollIntervalMs = 10_000;
+const hiddenPollIntervalMs = 30_000;
 
 type PreparedCheckout = {
   public_key_id: string;
@@ -66,7 +68,6 @@ declare global {
 }
 
 export function TestCheckout() {
-  const [token, setToken] = useState("");
   const [scriptReady, setScriptReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [prepared, setPrepared] = useState<PreparedCheckout | null>(null);
@@ -76,8 +77,6 @@ export function TestCheckout() {
   const [liveActions, setLiveActions] = useState<ActionView[]>([]);
   const [trackingError, setTrackingError] = useState<string | null>(null);
   const [checkingLiveState, setCheckingLiveState] = useState(false);
-  const [checkerToken, setCheckerToken] = useState("");
-  const [executorToken, setExecutorToken] = useState("");
   const [actionBusy, setActionBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -108,42 +107,45 @@ export function TestCheckout() {
     };
   }, []);
 
-  const loadLiveState = useCallback(async (paymentId: string, operatorToken: string) => {
+  const loadLiveState = useCallback(async (paymentId: string): Promise<number> => {
     setCheckingLiveState(true);
     try {
-      const page = await fetchJson<IncidentPage>("/v1/operator/incidents?limit=100", operatorToken);
+      const page = await fetchJson<IncidentPage>("/v1/operator/incidents?limit=100");
       const matching = page.items.find(
         (incident) => incident.affected_entity.entity_id === paymentId,
       );
       if (!matching) {
         setTrackingError(null);
-        return;
+        return livePollIntervalMs;
       }
       const [detail, actions] = await Promise.all([
-        fetchJson<IncidentDetail>(`/v1/operator/incidents/${matching.incident_id}`, operatorToken),
-        fetchJson<ActionView[]>(
-          `/v1/operator/incidents/${matching.incident_id}/actions`,
-          operatorToken,
-        ),
+        fetchJson<IncidentDetail>(`/v1/operator/incidents/${matching.incident_id}`),
+        fetchJson<ActionView[]>(`/v1/operator/incidents/${matching.incident_id}/actions`),
       ]);
       setLiveIncident(detail);
       setLiveActions(actions);
       setTrackingError(null);
+      return livePollIntervalMs;
     } catch (failure) {
+      if (failure instanceof ApiRequestError && failure.status === 429) {
+        setTrackingError(
+          "Live updates paused briefly to respect the API limit. Retrying automatically.",
+        );
+        return Math.max(failure.retryAfterMs, hiddenPollIntervalMs);
+      }
       setTrackingError(message(failure));
+      return livePollIntervalMs;
     } finally {
       setCheckingLiveState(false);
     }
   }, []);
 
-  const reconcileLiveState = useCallback(async (paymentId: string, operatorToken: string) => {
+  const reconcileLiveState = useCallback(async (paymentId: string) => {
     setCheckingLiveState(true);
     try {
-      await fetchJson<Verification>(
-        `/v1/demo/checkout/verifications/${paymentId}/reconcile`,
-        operatorToken,
-        { method: "POST" },
-      );
+      await fetchJson<Verification>(`/v1/demo/checkout/verifications/${paymentId}/reconcile`, {
+        method: "POST",
+      });
       setTrackingError(null);
     } catch (failure) {
       setTrackingError(message(failure));
@@ -153,18 +155,40 @@ export function TestCheckout() {
   }, []);
 
   useEffect(() => {
-    if (!verification || !token) return;
-    void loadLiveState(verification.payment.payment_id, token);
-    const timer = window.setInterval(
-      () => void loadLiveState(verification.payment.payment_id, token),
-      3000,
-    );
-    return () => window.clearInterval(timer);
-  }, [loadLiveState, token, verification]);
+    if (!verification) return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const paymentId = verification.payment.payment_id;
+
+    const schedule = (delay: number) => {
+      if (cancelled) return;
+      timer = window.setTimeout(() => void poll(), delay);
+    };
+    const poll = async () => {
+      if (document.visibilityState !== "visible") {
+        schedule(hiddenPollIntervalMs);
+        return;
+      }
+      schedule(await loadLiveState(paymentId));
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void poll();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [loadLiveState, verification]);
 
   async function begin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!token.trim() || busy) return;
+    if (busy) return;
     if (!scriptReady || !window.Razorpay) {
       setError("Razorpay Checkout is still loading. Try again in a moment.");
       return;
@@ -175,10 +199,8 @@ export function TestCheckout() {
     setLiveIncident(null);
     setLiveActions([]);
     setTrackingError(null);
-    setCheckerToken("");
-    setExecutorToken("");
     try {
-      const next = await fetchJson<PreparedCheckout>("/v1/demo/checkout/orders", token, {
+      const next = await fetchJson<PreparedCheckout>("/v1/demo/checkout/orders", {
         method: "POST",
       });
       setPrepared(next);
@@ -204,7 +226,7 @@ export function TestCheckout() {
 
   async function verify(proof: CheckoutProof) {
     try {
-      const verified = await fetchJson<Verification>("/v1/demo/checkout/verifications", token, {
+      const verified = await fetchJson<Verification>("/v1/demo/checkout/verifications", {
         method: "POST",
         body: proof,
       });
@@ -216,12 +238,12 @@ export function TestCheckout() {
     }
   }
 
-  async function runLiveAction(label: string, path: string, actionToken: string, body?: object) {
-    if (!verification || !actionToken.trim() || actionBusy) return;
+  async function runLiveAction(label: string, path: string, body?: object) {
+    if (!verification || actionBusy) return;
     setActionBusy(label);
     setTrackingError(null);
     try {
-      const next = await fetchJson<ActionView>(path, actionToken, {
+      const next = await fetchJson<ActionView>(path, {
         method: "POST",
         body,
       });
@@ -229,7 +251,7 @@ export function TestCheckout() {
         next,
         ...current.filter((item) => item.proposal.proposal_id !== next.proposal.proposal_id),
       ]);
-      await loadLiveState(verification.payment.payment_id, token);
+      await loadLiveState(verification.payment.payment_id);
     } catch (failure) {
       setTrackingError(message(failure));
     } finally {
@@ -261,20 +283,15 @@ export function TestCheckout() {
           <h2>Authorize ₹10</h2>
           <p>The order is created server-side with manual capture. No real money moves.</p>
           <form onSubmit={begin}>
-            <label htmlFor="checkout-token">Operator access token</label>
-            <input
-              autoComplete="off"
-              id="checkout-token"
-              onChange={(event) => setToken(event.target.value)}
-              placeholder="Token remains only in memory"
-              type="password"
-              value={token}
-            />
-            <button disabled={busy || !scriptReady || !token.trim()} type="submit">
+            <button disabled={busy || !scriptReady} type="submit">
               {busy ? "Waiting for authorization…" : "Open Razorpay Checkout"}
             </button>
           </form>
-          <small>{scriptReady ? "Checkout securely loaded." : "Loading Razorpay Checkout…"}</small>
+          <small>
+            {scriptReady
+              ? "Checkout securely loaded. Demo authority is scoped server-side."
+              : "Loading Razorpay Checkout…"}
+          </small>
         </article>
 
         <article className="checkoutCard proofCard">
@@ -329,42 +346,25 @@ export function TestCheckout() {
         <LiveRecovery
           actionBusy={actionBusy}
           actions={liveActions}
-          checkerToken={checkerToken}
           checking={checkingLiveState}
-          executorToken={executorToken}
           incident={liveIncident}
           onApprove={(proposalId) =>
-            void runLiveAction(
-              "approve",
-              `/v1/operator/actions/${proposalId}/decisions`,
-              checkerToken,
-              {
-                decision: "approved",
-                rationale: "Independently verified live Test Mode recovery evidence.",
-              },
-            )
+            void runLiveAction("approve", `/v1/operator/actions/${proposalId}/decisions`, {
+              decision: "approved",
+              rationale: "Independently verified live Test Mode recovery evidence.",
+            })
           }
-          onCheckerToken={setCheckerToken}
           onExecute={(proposalId) =>
-            void runLiveAction(
-              "execute",
-              `/v1/operator/actions/${proposalId}/execute`,
-              executorToken,
-            )
+            void runLiveAction("execute", `/v1/operator/actions/${proposalId}/execute`)
           }
-          onExecutorToken={setExecutorToken}
           onPropose={(incidentId) =>
-            void runLiveAction(
-              "propose",
-              `/v1/operator/incidents/${incidentId}/actions/proposals`,
-              token,
-            )
+            void runLiveAction("propose", `/v1/operator/incidents/${incidentId}/actions/proposals`)
           }
           onRefresh={() => {
             const captureAccepted = liveActions[0]?.latest_result?.outcome === "succeeded";
             void (captureAccepted
-              ? loadLiveState(verification.payment.payment_id, token)
-              : reconcileLiveState(verification.payment.payment_id, token));
+              ? loadLiveState(verification.payment.payment_id)
+              : reconcileLiveState(verification.payment.payment_id));
           }}
           trackingError={trackingError}
           verification={verification}
@@ -378,13 +378,9 @@ function LiveRecovery({
   verification,
   incident,
   actions,
-  checkerToken,
-  executorToken,
   checking,
   trackingError,
   actionBusy,
-  onCheckerToken,
-  onExecutorToken,
   onRefresh,
   onPropose,
   onApprove,
@@ -393,13 +389,9 @@ function LiveRecovery({
   verification: Verification;
   incident: IncidentDetail | null;
   actions: ActionView[];
-  checkerToken: string;
-  executorToken: string;
   checking: boolean;
   trackingError: string | null;
   actionBusy: string | null;
-  onCheckerToken: (value: string) => void;
-  onExecutorToken: (value: string) => void;
   onRefresh: () => void;
   onPropose: (incidentId: string) => void;
   onApprove: (proposalId: string) => void;
@@ -537,24 +529,16 @@ function LiveRecovery({
               {" · "}
               {action.proposal.target.entity_id}. The maker cannot approve this action.
             </p>
-            <label htmlFor="live-checker-token">Independent checker token</label>
-            <div className="liveTokenAction">
-              <input
-                autoComplete="off"
-                id="live-checker-token"
-                onChange={(event) => onCheckerToken(event.target.value)}
-                placeholder="Used once and kept only in memory"
-                type="password"
-                value={checkerToken}
-              />
-              <button
-                disabled={!checkerToken.trim() || actionBusy !== null}
-                onClick={() => onApprove(action.proposal.proposal_id)}
-                type="button"
-              >
-                {actionBusy === "approve" ? "Approving…" : "Approve verified recovery"}
-              </button>
-            </div>
+            <button
+              className="livePrimaryAction"
+              disabled={actionBusy !== null}
+              onClick={() => onApprove(action.proposal.proposal_id)}
+              type="button"
+            >
+              {actionBusy === "approve"
+                ? "Requesting independent approval…"
+                : "Approve verified recovery"}
+            </button>
           </>
         ) : null}
         {activeStage === 3 && action && !renewalRequired && approved && !succeeded ? (
@@ -564,24 +548,14 @@ function LiveRecovery({
               The executor can invoke only the policy-bound Test Mode capture. Duplicate execution
               is prevented by the stored idempotency key and pre-mutation checkpoint.
             </p>
-            <label htmlFor="live-executor-token">Scoped executor token</label>
-            <div className="liveTokenAction">
-              <input
-                autoComplete="off"
-                id="live-executor-token"
-                onChange={(event) => onExecutorToken(event.target.value)}
-                placeholder="Used once and kept only in memory"
-                type="password"
-                value={executorToken}
-              />
-              <button
-                disabled={!executorToken.trim() || actionBusy !== null}
-                onClick={() => onExecute(action.proposal.proposal_id)}
-                type="button"
-              >
-                {actionBusy === "execute" ? "Executing…" : "Execute exact Test Mode capture"}
-              </button>
-            </div>
+            <button
+              className="livePrimaryAction"
+              disabled={actionBusy !== null}
+              onClick={() => onExecute(action.proposal.proposal_id)}
+              type="button"
+            >
+              {actionBusy === "execute" ? "Executing…" : "Execute exact Test Mode capture"}
+            </button>
           </>
         ) : null}
         {activeStage === 3 && action && !renewalRequired && succeeded && !recovered ? (
@@ -625,7 +599,7 @@ function LiveRecovery({
         </div>
       ) : null}
       <p className="liveSafetyNote">
-        Test Mode only · no live customer funds · credentials are never stored by this page
+        Test Mode only · no live customer funds · scoped credentials remain server-side
       </p>
     </section>
   );
@@ -633,13 +607,11 @@ function LiveRecovery({
 
 async function fetchJson<T>(
   path: string,
-  token: string,
   options: { method?: "GET" | "POST"; body?: object } = {},
 ): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     method: options.method ?? "GET",
     headers: {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       "X-Request-ID": crypto.randomUUID(),
     },
@@ -651,9 +623,33 @@ async function fetchJson<T>(
       detail?: { code?: string } | string;
     } | null;
     const code = typeof payload?.detail === "object" ? payload.detail.code : null;
-    throw new Error(code ? humanizeCode(code) : `Request failed with status ${response.status}.`);
+    const retryAfterMs = parseRetryAfter(response.headers.get("Retry-After"));
+    throw new ApiRequestError(
+      code ? humanizeCode(code) : `Request failed with status ${response.status}.`,
+      response.status,
+      retryAfterMs,
+    );
   }
   return (await response.json()) as T;
+}
+
+class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly retryAfterMs: number,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
+function parseRetryAfter(value: string | null): number {
+  if (!value) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? 0 : Math.max(0, date - Date.now());
 }
 
 function humanizeCode(code: string): string {

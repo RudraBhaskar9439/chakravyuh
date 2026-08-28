@@ -34,7 +34,8 @@ describe("Test Checkout", () => {
       screen.getByRole("heading", { level: 1, name: "Follow a payment end to end." }),
     ).toBeInTheDocument();
     expect(screen.getByText(/fixed ₹10 Razorpay Test Mode payment/i)).toBeInTheDocument();
-    expect(screen.getByLabelText("Operator access token")).toHaveAttribute("type", "password");
+    expect(screen.queryByLabelText("Operator access token")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Razorpay Checkout" })).toBeEnabled();
   });
 
   it("creates the server-side order and verifies the Checkout proof", async () => {
@@ -79,9 +80,6 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
-    fireEvent.change(screen.getByLabelText("Operator access token"), {
-      target: { value: "demo-token" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
     await waitFor(() => expect(opened).toBe(true));
     expect(checkoutOptions).toMatchObject({
@@ -108,9 +106,7 @@ describe("Test Checkout", () => {
     );
     const verificationRequest = verificationCall?.[1];
     expect(verificationRequest?.body).toContain("razorpay_signature");
-    expect(verificationRequest?.headers).toMatchObject({
-      Authorization: "Bearer demo-token",
-    });
+    expect(verificationRequest?.headers).not.toHaveProperty("Authorization");
   });
 
   it("advances the exact payment into its live diagnosed incident", async () => {
@@ -172,9 +168,6 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
-    fireEvent.change(screen.getByLabelText("Operator access token"), {
-      target: { value: "demo-token" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
     await waitFor(() => expect(handler).toBeDefined());
     handler?.({
@@ -264,9 +257,6 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
-    fireEvent.change(screen.getByLabelText("Operator access token"), {
-      target: { value: "demo-token" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
     await waitFor(() => expect(handler).toBeDefined());
     handler?.({
