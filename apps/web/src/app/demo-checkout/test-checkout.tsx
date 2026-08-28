@@ -263,7 +263,7 @@ export function TestCheckout() {
   return (
     <main className="checkoutShell">
       <header className="checkoutTopbar">
-        <a href="/">← Operator console</a>
+        <a href="/">← Judge workspace</a>
         <div>
           <a href="/recoveries/verified">Verified recovery</a>
           <span>Razorpay Test Mode only</span>

@@ -41,7 +41,7 @@ describe("product navigation", () => {
     window.history.replaceState({}, "", "/recoveries/verified?payment_id=pay_exact");
     const { unmount } = render(<ProductNavigation />);
 
-    fireEvent.click(screen.getByRole("link", { name: "Scale evidence" }));
+    fireEvent.click(screen.getByRole("link", { name: "Scale evidence" }), { ctrlKey: true });
     unmount();
     pathname = "/judge";
     render(<ProductNavigation />);

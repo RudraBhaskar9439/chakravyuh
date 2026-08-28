@@ -17,6 +17,11 @@ const destinations = [
     matches: (path: string) => path === "/recoveries/verified" || path === "/recovery-story",
   },
   {
+    href: "/trace",
+    label: "Money trace",
+    matches: (path: string) => path === "/trace",
+  },
+  {
     href: "/judge",
     label: "Scale evidence",
     matches: (path: string) => path === "/judge" || path === "/reliability",
@@ -28,9 +33,11 @@ const pageNames: Record<string, string> = {
   "/demo-checkout": "Run payment",
   "/judge": "Scale evidence",
   "/payments/authorize": "Run payment",
+  "/operations": "Secure operations",
   "/recoveries/verified": "Live recovery proof",
   "/recovery-story": "Recovery story",
   "/reliability": "Scale evidence",
+  "/trace": "Money Trace",
 };
 
 const fallbackRoutes: Record<string, string> = {
@@ -40,6 +47,7 @@ const fallbackRoutes: Record<string, string> = {
   "/recoveries/verified": "/payments/authorize",
   "/recovery-story": "/recoveries/verified",
   "/reliability": "/recoveries/verified",
+  "/trace": "/",
 };
 
 const returnKey = (destination: string) => `chakravyuh:return:${destination}`;
@@ -90,7 +98,7 @@ export function ProductNavigation() {
               <Link
                 aria-current={active ? "page" : undefined}
                 className={active ? "active" : undefined}
-                href={destination.href}
+                href={destination.href as Route}
                 key={destination.href}
                 onClick={() => rememberReturn(destination.href)}
               >

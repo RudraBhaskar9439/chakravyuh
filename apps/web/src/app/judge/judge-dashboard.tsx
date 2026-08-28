@@ -1,108 +1,139 @@
 "use client";
 
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, createContext, useContext, useState } from "react";
 
-import { chaosChecks, exceptions, funnel, meshNodes, proofRoots, strategies } from "./proof-data";
+import type { ScaleEvidenceReport } from "./scale-evidence-report";
 
 const views = ["Tournament", "Recovery funnel", "Evidence mesh", "Chaos", "Exceptions"] as const;
 type View = (typeof views)[number];
 
-export function JudgeDashboard() {
+const ScaleEvidenceContext = createContext<ScaleEvidenceReport | null>(null);
+
+export function JudgeDashboard({ report }: { report: ScaleEvidenceReport }) {
   const [view, setView] = useState<View>("Tournament");
 
   return (
-    <main className="judgeShell">
-      <header className="judgeTopbar">
-        <a href="/" className="judgeBrand">
-          <span className="miniMark" aria-hidden="true">
-            च
-          </span>
-          <span>
-            <strong>Chakravyuh</strong>
-            <small>Reliability · signed measurements</small>
-          </span>
-        </a>
-        <div className="judgeBoundary">
-          <span /> Read-only · action endpoints disconnected
-        </div>
-      </header>
+    <ScaleEvidenceContext.Provider value={report}>
+      <main className="judgeShell">
+        <header className="judgeTopbar">
+          <a href="/" className="judgeBrand">
+            <span className="miniMark" aria-hidden="true">
+              च
+            </span>
+            <span>
+              <strong>Chakravyuh</strong>
+              <small>Reliability · signed measurements</small>
+            </span>
+          </a>
+          <div className="judgeBoundary">
+            <span /> Read-only · action endpoints disconnected
+          </div>
+        </header>
 
-      <section className="judgeHero">
-        <div>
-          <p className="eyebrow">Safety and reliability</p>
-          <h1>
-            Follow the money.
-            <br />
-            Challenge every claim.
-          </h1>
-        </div>
-        <p>
-          A held-out counterfactual tournament, a metered live-model sample, one real Razorpay Test
-          Mode payment, and a 100,000-event reliability run—kept visibly separate.
-        </p>
-      </section>
+        <section className="judgeHero">
+          <div>
+            <p className="eyebrow">Safety and reliability</p>
+            <h1>
+              Follow the money.
+              <br />
+              Challenge every claim.
+            </h1>
+          </div>
+          <p>
+            A held-out counterfactual tournament, a metered live-model sample, one real Razorpay
+            Test Mode payment, and a 100,000-event reliability run—kept visibly separate.
+          </p>
+        </section>
 
-      <section className="sourceStrip" aria-label="Evidence source boundaries">
-        <SourceCard
-          kind="synthetic"
-          label="Held-out synthetic"
-          value="10,005 journeys"
-          note="Deterministic provider twin · labelled INR"
-        />
-        <SourceCard
-          kind="live-ai"
-          label="Live AI"
-          value="100 calls · $0.127755"
-          note="OpenRouter · diagnosis only · zero money access"
-        />
-        <SourceCard
-          kind="real-provider"
-          label="Provider transaction"
-          value="₹10 Test Mode"
-          note="Razorpay authorization and recovery semantics"
-        />
-        <SourceCard
-          kind="local-scale"
-          label="Local scale"
-          value="110,000 deliveries"
-          note="PostgreSQL + Neo4j · single MacBook process"
-        />
-      </section>
+        <section className="sourceStrip" aria-label="Evidence source boundaries">
+          <SourceCard
+            kind="synthetic"
+            label="Held-out synthetic"
+            value="10,005 journeys"
+            note="Deterministic provider twin · labelled INR"
+          />
+          <SourceCard
+            kind="live-ai"
+            label="Live AI"
+            value="100 calls · $0.127755"
+            note="OpenRouter · diagnosis only · zero money access"
+          />
+          <SourceCard
+            kind="real-provider"
+            label="Provider transaction"
+            value="₹10 Test Mode"
+            note="Razorpay authorization and recovery semantics"
+          />
+          <SourceCard
+            kind="local-scale"
+            label="Local scale"
+            value="110,000 deliveries"
+            note="PostgreSQL + Neo4j · single MacBook process"
+          />
+        </section>
 
-      <nav className="judgeTabs" aria-label="Reliability report views">
-        {views.map((item, index) => (
-          <button
-            aria-current={item === view ? "page" : undefined}
-            className={item === view ? "selected" : ""}
-            key={item}
-            onClick={() => setView(item)}
-            type="button"
-          >
-            <span>0{index + 1}</span> {item}
-          </button>
-        ))}
-      </nav>
+        <section className="reportSeal" aria-label="Verifiable scale report">
+          <div>
+            <p>Content-addressed evidence report</p>
+            <strong>SHA-256</strong>
+            <code>{report.reportSha256}</code>
+          </div>
+          <dl>
+            <div>
+              <dt>Evidence run</dt>
+              <dd>{new Date(report.evidenceRunAt).toLocaleDateString("en-IN")}</dd>
+            </div>
+            <div>
+              <dt>Deployment revision</dt>
+              <dd>{shortRevision(report.deploymentRevision)}</dd>
+            </div>
+          </dl>
+          <a href="/api/evidence/scale" target="_blank" rel="noreferrer">
+            Inspect raw JSON ↗
+          </a>
+        </section>
 
-      <section className="judgeCanvas" aria-live="polite">
-        {view === "Tournament" ? <Tournament /> : null}
-        {view === "Recovery funnel" ? <RecoveryFunnel /> : null}
-        {view === "Evidence mesh" ? <EvidenceMesh /> : null}
-        {view === "Chaos" ? <Chaos /> : null}
-        {view === "Exceptions" ? <Exceptions /> : null}
-      </section>
+        <nav className="judgeTabs" aria-label="Reliability report views">
+          {views.map((item, index) => (
+            <button
+              aria-current={item === view ? "page" : undefined}
+              className={item === view ? "selected" : ""}
+              key={item}
+              onClick={() => setView(item)}
+              type="button"
+            >
+              <span>0{index + 1}</span> {item}
+            </button>
+          ))}
+        </nav>
 
-      <footer className="judgeFooter">
-        <p>
-          Results are reproducible local measurements, not a production SLA or merchant revenue
-          claim. Only webhook-confirmed synthetic recoveries are credited.
-        </p>
-        <div>
-          <a href="/recoveries/verified">View the verified recovery →</a>
-          <a href="/payments/authorize">Authorize a Test Mode payment →</a>
-        </div>
-      </footer>
-    </main>
+        <section className="judgeCanvas" aria-live="polite">
+          {view === "Tournament" ? <Tournament /> : null}
+          {view === "Recovery funnel" ? <RecoveryFunnel /> : null}
+          {view === "Evidence mesh" ? <EvidenceMesh /> : null}
+          {view === "Chaos" ? <Chaos /> : null}
+          {view === "Exceptions" ? <Exceptions /> : null}
+        </section>
+
+        <footer className="judgeFooter">
+          <p>
+            Results are reproducible local measurements, not a production SLA or merchant revenue
+            claim. Only webhook-confirmed synthetic recoveries are credited.
+          </p>
+          <div>
+            <a href="/recoveries/verified">View the verified recovery →</a>
+            <a href="/payments/authorize">Authorize a Test Mode payment →</a>
+          </div>
+        </footer>
+      </main>
+    </ScaleEvidenceContext.Provider>
   );
+}
+
+function useScaleEvidence() {
+  const report = useContext(ScaleEvidenceContext);
+  if (!report) throw new Error("scale evidence report is unavailable");
+  return report;
 }
 
 function SourceCard({
@@ -149,6 +180,7 @@ function ViewHeader({
 }
 
 function Tournament() {
+  const { proofRoots, strategies } = useScaleEvidence();
   const maximum = Math.max(...strategies.map((strategy) => Math.abs(strategy.netRupees)));
   return (
     <>
@@ -197,6 +229,7 @@ function Tournament() {
 }
 
 function RecoveryFunnel() {
+  const { funnel, proofRoots } = useScaleEvidence();
   return (
     <>
       <ViewHeader
@@ -232,6 +265,7 @@ function RecoveryFunnel() {
 }
 
 function EvidenceMesh() {
+  const { meshNodes, proofRoots } = useScaleEvidence();
   return (
     <>
       <ViewHeader
@@ -290,6 +324,7 @@ function EvidenceMesh() {
 }
 
 function Chaos() {
+  const { chaosChecks, proofRoots } = useScaleEvidence();
   return (
     <>
       <ViewHeader
@@ -335,6 +370,7 @@ function Chaos() {
 }
 
 function Exceptions() {
+  const { exceptions } = useScaleEvidence();
   return (
     <>
       <ViewHeader
@@ -398,4 +434,8 @@ function ProofHash({ label, value }: { label: string; value: string }) {
 function formatRupees(value: number): string {
   const sign = value < 0 ? "−" : "";
   return `${sign}₹${Math.abs(value).toLocaleString("en-IN")}`;
+}
+
+function shortRevision(value: string): string {
+  return value === "local-development" ? value : value.slice(0, 12);
 }

@@ -2,7 +2,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import JudgePage from "./page";
-import { proofRoots } from "./proof-data";
+import { createScaleEvidenceReport } from "./scale-evidence-report";
+
+const report = createScaleEvidenceReport();
 
 afterEach(cleanup);
 
@@ -21,7 +23,12 @@ describe("judge evidence room", () => {
     expect(
       screen.queryByRole("button", { name: /execute|approve|capture/i }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(proofRoots.tournament)).toBeInTheDocument();
+    expect(screen.getByText(report.proofRoots.tournament)).toBeInTheDocument();
+    expect(screen.getByText(report.reportSha256)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Inspect raw JSON/i })).toHaveAttribute(
+      "href",
+      "/api/evidence/scale",
+    );
   });
 
   it("moves through funnel, evidence, chaos, and exception proofs", () => {
@@ -38,7 +45,7 @@ describe("judge evidence room", () => {
     fireEvent.click(screen.getByRole("button", { name: /^04 Chaos$/i }));
     expect(screen.getByText("Crash after mutation")).toBeInTheDocument();
     expect(screen.getAllByText("Passed")).toHaveLength(9);
-    expect(screen.getByText(proofRoots.fullPipeline)).toBeInTheDocument();
+    expect(screen.getByText(report.proofRoots.fullPipeline)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Exceptions/i }));
     expect(screen.getByText("Invalid structured response")).toBeInTheDocument();

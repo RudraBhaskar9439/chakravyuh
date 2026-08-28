@@ -128,7 +128,7 @@ export function LiveProofRoom({ paymentId }: { paymentId?: string }) {
         <nav aria-label="Proof navigation">
           <a href="/payments/authorize">Run a transaction</a>
           <a href="/judge">Scale evidence</a>
-          <a href="/">Operations</a>
+          <a href="/trace">Money Trace</a>
         </nav>
         <div className="proofLiveBadge">
           <span /> Read-only · Razorpay Test Mode

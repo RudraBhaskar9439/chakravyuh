@@ -1,5 +1,5 @@
-import { OperatorDashboard } from "./operator-dashboard";
+import { JudgeWorkspace } from "./judge-workspace";
 
 export default function Home() {
-  return <OperatorDashboard />;
+  return <JudgeWorkspace />;
 }

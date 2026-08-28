@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import Home from "./page";
+import { OperatorDashboard as Home } from "./operator-dashboard";
 
 const incidentSummary = {
   incident_id: "11111111-1111-4111-8111-111111111111",

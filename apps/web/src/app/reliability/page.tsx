@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { JudgeDashboard } from "../judge/judge-dashboard";
+import { createScaleEvidenceReport } from "../judge/scale-evidence-report";
 
 export const metadata: Metadata = {
   title: "Reliability · Chakravyuh",
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function ReliabilityPage() {
-  return <JudgeDashboard />;
+  return <JudgeDashboard report={createScaleEvidenceReport()} />;
 }
