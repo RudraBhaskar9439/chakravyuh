@@ -9,6 +9,7 @@ const apiBase = "/api/demo";
 const checkoutScript = "https://checkout.razorpay.com/v1/checkout.js";
 const livePollIntervalMs = 10_000;
 const hiddenPollIntervalMs = 30_000;
+const activeVerificationStorageKey = "chakravyuh:active-verification:v1";
 
 type PreparedCheckout = {
   public_key_id: string;
@@ -79,6 +80,11 @@ export function TestCheckout() {
   const [trackingError, setTrackingError] = useState<string | null>(null);
   const [checkingLiveState, setCheckingLiveState] = useState(false);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    const restored = restoreActiveVerification();
+    if (restored) setVerification(restored);
+  }, []);
 
   useEffect(() => {
     if (window.Razorpay) {
@@ -196,9 +202,6 @@ export function TestCheckout() {
     }
     setBusy(true);
     setError(null);
-    setVerification(null);
-    setLiveIncident(null);
-    setLiveActions([]);
     setTrackingError(null);
     try {
       const next = await fetchJson<PreparedCheckout>("/v1/demo/checkout/orders", {
@@ -231,6 +234,9 @@ export function TestCheckout() {
         method: "POST",
         body: proof,
       });
+      persistActiveVerification(verified);
+      setLiveIncident(null);
+      setLiveActions([]);
       setVerification(verified);
     } catch (failure) {
       setError(message(failure));
@@ -285,7 +291,11 @@ export function TestCheckout() {
           <p>The order is created server-side with manual capture. No real money moves.</p>
           <form onSubmit={begin}>
             <button disabled={busy || !scriptReady} type="submit">
-              {busy ? "Waiting for authorization…" : "Open Razorpay Checkout"}
+              {busy
+                ? "Waiting for authorization…"
+                : verification
+                  ? "Start another ₹10 payment"
+                  : "Open Razorpay Checkout"}
             </button>
           </form>
           <small>
@@ -300,7 +310,7 @@ export function TestCheckout() {
           <h2>Verified authorization</h2>
           {verification ? (
             <div className="proofResult" role="status">
-              <strong>Ready for recovery</strong>
+              <strong>Active transaction</strong>
               <dl>
                 <div>
                   <dt>Payment</dt>
@@ -688,4 +698,43 @@ function formatInr(amountSubunits: number): string {
 
 function formatConfidence(value: number | undefined): string {
   return value === undefined ? "pending" : `${Math.round(value * 100)}%`;
+}
+
+function persistActiveVerification(verification: Verification): void {
+  try {
+    window.sessionStorage.setItem(activeVerificationStorageKey, JSON.stringify(verification));
+  } catch {
+    // The live journey still works when browser storage is unavailable.
+  }
+}
+
+function restoreActiveVerification(): Verification | null {
+  try {
+    const serialized = window.sessionStorage.getItem(activeVerificationStorageKey);
+    if (!serialized) return null;
+    const candidate = JSON.parse(serialized) as unknown;
+    if (isVerification(candidate)) return candidate;
+    window.sessionStorage.removeItem(activeVerificationStorageKey);
+  } catch {
+    window.sessionStorage.removeItem(activeVerificationStorageKey);
+  }
+  return null;
+}
+
+function isVerification(candidate: unknown): candidate is Verification {
+  if (!candidate || typeof candidate !== "object") return false;
+  const value = candidate as Partial<Verification>;
+  const payment = value.payment as Partial<Verification["payment"]> | undefined;
+  return (
+    typeof value.verification_id === "string" &&
+    typeof value.verification_hash === "string" &&
+    typeof payment?.payment_id === "string" &&
+    payment.payment_id.startsWith("pay_") &&
+    typeof payment.order_id === "string" &&
+    payment.order_id.startsWith("order_") &&
+    typeof payment.status === "string" &&
+    typeof payment.amount_subunits === "number" &&
+    typeof payment.currency === "string" &&
+    typeof payment.captured === "boolean"
+  );
 }

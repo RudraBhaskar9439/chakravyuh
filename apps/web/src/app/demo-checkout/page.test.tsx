@@ -19,6 +19,7 @@ const prepared = {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  window.sessionStorage.clear();
   delete window.Razorpay;
   document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')?.remove();
 });
@@ -93,7 +94,7 @@ describe("Test Checkout", () => {
       razorpay_signature: "b".repeat(64),
     });
 
-    expect(await screen.findByText("Ready for recovery")).toBeInTheDocument();
+    expect(await screen.findByText("Active transaction")).toBeInTheDocument();
     expect(screen.getAllByText("authorized")).toHaveLength(2);
     expect(screen.getAllByText("₹10.00")).toHaveLength(2);
     expect(screen.getByText(/do not capture/i)).toBeInTheDocument();
@@ -188,6 +189,41 @@ describe("Test Checkout", () => {
     expect(screen.getByText("Payment stopped before capture")).toBeInTheDocument();
     expect(screen.getByText("Break located")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Prepare bounded recovery" })).toBeEnabled();
+  });
+
+  it("restores the active transaction after leaving and returning to Run Payment", async () => {
+    window.sessionStorage.setItem(
+      "chakravyuh:active-verification:v1",
+      JSON.stringify({
+        verification_id: "22222222-2222-4222-8222-222222222222",
+        verification_hash: "a".repeat(64),
+        payment: {
+          payment_id: "pay_persisted",
+          order_id: "order_persisted",
+          status: "authorized",
+          amount_subunits: 1000,
+          currency: "INR",
+          captured: false,
+        },
+      }),
+    );
+    window.Razorpay = class {
+      open() {}
+    } as never;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/v1/operator/incidents?limit=100")) {
+        return jsonResponse({ items: [], next_cursor: null });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<DemoCheckoutPage />);
+
+    expect(await screen.findByText("Active transaction")).toBeInTheDocument();
+    expect(screen.getAllByText("pay_persisted").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Start another ₹10 payment" })).toBeEnabled();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
   });
 
   it("waits for signed webhooks before claiming recovery", async () => {
