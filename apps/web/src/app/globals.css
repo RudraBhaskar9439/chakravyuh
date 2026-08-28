@@ -53,6 +53,185 @@ a {
   color: inherit;
 }
 
+.productNavShell {
+  position: sticky;
+  z-index: 1000;
+  top: 0;
+  width: 100%;
+  border-bottom: 1px solid var(--border);
+  background: rgb(8 8 6 / 94%);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 28%);
+  backdrop-filter: blur(18px);
+}
+.productNavInner {
+  display: grid;
+  grid-template-columns: minmax(285px, 1fr) auto minmax(110px, 1fr);
+  gap: 24px;
+  align-items: center;
+  width: min(1560px, calc(100% - 32px));
+  min-height: 64px;
+  margin: 0 auto;
+}
+.productNavContext,
+.productNavBrand,
+.productNavInner nav,
+.productNavMode {
+  display: flex;
+  align-items: center;
+}
+.productNavContext {
+  min-width: 0;
+  gap: 12px;
+}
+.productNavContext > button {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 0.7rem;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+.productNavContext > button:hover {
+  border-color: var(--gold-soft);
+  color: var(--text);
+  background: rgb(230 170 76 / 6%);
+}
+.productNavBrand {
+  gap: 8px;
+  text-decoration: none;
+}
+.productNavBrand > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--gold-soft);
+  color: var(--gold);
+  font-family: Georgia, serif;
+  font-size: 0.9rem;
+}
+.productNavBrand strong {
+  font-size: 0.75rem;
+  letter-spacing: -0.02em;
+}
+.productNavDivider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+}
+.productNavContext p {
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.productNavInner nav {
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgb(17 16 13 / 75%);
+}
+.productNavInner nav a {
+  min-height: 34px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.67rem;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color 160ms ease,
+    background 160ms ease;
+}
+.productNavShell a:hover {
+  color: var(--text);
+}
+.productNavInner nav a.active {
+  color: #100d07;
+  background: var(--gold);
+  box-shadow: 0 4px 14px rgb(230 170 76 / 18%);
+}
+.productNavMode {
+  justify-self: end;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+.productNavMode span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--healthy);
+  box-shadow: 0 0 12px rgb(98 208 155 / 70%);
+}
+
+@media (width <= 980px) {
+  .productNavInner {
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    min-height: 60px;
+  }
+  .productNavInner nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+    overflow-x: auto;
+    margin-bottom: 8px;
+  }
+  .productNavMode {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+@media (width <= 620px) {
+  .productNavInner {
+    width: calc(100% - 18px);
+  }
+  .productNavContext {
+    gap: 8px;
+  }
+  .productNavContext > button {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0;
+  }
+  .productNavContext > button span {
+    font-size: 1rem;
+  }
+  .productNavBrand strong,
+  .productNavDivider,
+  .productNavContext p,
+  .productNavMode {
+    display: none;
+  }
+  .productNavInner {
+    grid-template-columns: 1fr;
+  }
+  .productNavInner nav {
+    grid-column: 1;
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .productNavInner nav a {
+    flex: 1 0 auto;
+    text-align: center;
+  }
+}
+
 .accessShell {
   width: min(1480px, calc(100% - 48px));
   min-height: 100vh;

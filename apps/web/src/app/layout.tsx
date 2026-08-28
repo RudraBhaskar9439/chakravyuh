@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import { ProductNavigation } from "./product-navigation";
 
 export const metadata: Metadata = {
   title: "Chakravyuh · Payment Recovery Control",
@@ -15,7 +16,10 @@ type RootLayoutProps = Readonly<{
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ProductNavigation />
+        {children}
+      </body>
     </html>
   );
 }
