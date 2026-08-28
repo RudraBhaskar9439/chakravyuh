@@ -88,6 +88,22 @@ class FakeControlPlane:
             request_id=parameters["request_id"],
         )
 
+    async def proof(self, **parameters: Any) -> Any:
+        from chakravyuh.domain.test_checkout import create_test_checkout_provider_proof
+
+        self.calls.append(("proof", parameters))
+        verification = await self.verify(
+            principal_id=parameters["principal_id"],
+            request_id=parameters["request_id"],
+        )
+        return create_test_checkout_provider_proof(
+            verification=verification,
+            provider_state=verification.payment.model_copy(
+                update={"status": PaymentStatus.CAPTURED, "captured": True}
+            ),
+            checked_at=datetime.now(UTC),
+        )
+
 
 def _settings(*, allowed: bool = True) -> Settings:
     return Settings(
@@ -166,6 +182,33 @@ async def test_reconcile_forwards_scoped_operator_identity() -> None:
             "payment_id": "pay_123",
             "principal_id": "maker",
             "request_id": "reconcile-api-request",
+        },
+    )
+
+
+async def test_provider_proof_requeries_razorpay_without_exposing_secrets() -> None:
+    control = FakeControlPlane()
+    async with _client(control) as client:
+        response = await client.get(
+            "/v1/demo/checkout/verifications/pay_123/proof",
+            headers={"X-Request-ID": "proof-api-request"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    body = response.json()
+    assert body["mode"] == "razorpay_test"
+    assert body["original_authorization"]["status"] == "authorized"
+    assert body["current_provider_state"]["status"] == "captured"
+    assert body["current_provider_state"]["captured"] is True
+    assert len(body["provider_proof_hash"]) == 64
+    assert "signature" not in response.text
+    assert control.calls[0] == (
+        "proof",
+        {
+            "payment_id": "pay_123",
+            "principal_id": "maker",
+            "request_id": "proof-api-request",
         },
     )
 

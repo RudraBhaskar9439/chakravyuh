@@ -70,6 +70,33 @@ class TestCheckoutVerification(BaseModel):
         return self
 
 
+class TestCheckoutProviderProof(BaseModel):
+    """Tamper-evident, read-only re-verification of a Checkout payment at Razorpay."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    verification: TestCheckoutVerification
+    provider_state: ProviderPaymentState
+    checked_at: AwareDatetime = Field(default_factory=lambda: datetime.now(UTC))
+    proof_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def identity_amount_and_hash_are_valid(self) -> TestCheckoutProviderProof:
+        original = self.verification.payment
+        current = self.provider_state
+        if (
+            current.payment_id != original.payment_id
+            or current.order_id != original.order_id
+            or current.amount != original.amount
+        ):
+            msg = "provider proof does not match the verified Checkout identity and amount"
+            raise ValueError(msg)
+        if _provider_proof_hash(self) != self.proof_hash:
+            msg = "provider proof hash does not match its canonical content"
+            raise ValueError(msg)
+        return self
+
+
 class PreparedTestCheckout(BaseModel):
     """Browser-safe order parameters; the public key is intentionally not secret."""
 
@@ -129,12 +156,33 @@ def create_test_checkout_verification(
     )
 
 
+def create_test_checkout_provider_proof(
+    *,
+    verification: TestCheckoutVerification,
+    provider_state: ProviderPaymentState,
+    checked_at: datetime,
+) -> TestCheckoutProviderProof:
+    draft = TestCheckoutProviderProof.model_construct(
+        verification=verification,
+        provider_state=provider_state,
+        checked_at=checked_at,
+        proof_hash="0" * 64,
+    )
+    return TestCheckoutProviderProof.model_validate(
+        {**draft.model_dump(), "proof_hash": _provider_proof_hash(draft)}
+    )
+
+
 def _order_hash(order: TestCheckoutOrder) -> str:
     return _hash(order.model_dump(mode="json", exclude={"order_hash"}))
 
 
 def _verification_hash(verification: TestCheckoutVerification) -> str:
     return _hash(verification.model_dump(mode="json", exclude={"verification_hash"}))
+
+
+def _provider_proof_hash(proof: TestCheckoutProviderProof) -> str:
+    return _hash(proof.model_dump(mode="json", exclude={"proof_hash"}))
 
 
 def _hash(value: object) -> str:

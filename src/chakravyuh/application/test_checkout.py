@@ -16,8 +16,10 @@ from chakravyuh.domain.errors import TestCheckoutError, TestCheckoutErrorCode
 from chakravyuh.domain.money import Money
 from chakravyuh.domain.test_checkout import (
     PreparedTestCheckout,
+    TestCheckoutProviderProof,
     TestCheckoutVerification,
     create_test_checkout_order,
+    create_test_checkout_provider_proof,
     create_test_checkout_verification,
 )
 from chakravyuh.domain.webhooks import RawWebhookEvent
@@ -149,6 +151,29 @@ class RazorpayTestCheckoutControlPlane:
             raise TestCheckoutError(TestCheckoutErrorCode.PAYMENT_NOT_AUTHORIZED)
         await self._record_authoritative_authorization(order.merchant_id, verification)
         return verification
+
+    async def proof(
+        self,
+        *,
+        payment_id: str,
+        principal_id: str,
+        request_id: str,
+    ) -> TestCheckoutProviderProof:
+        """Re-query Razorpay without mutating it and bind the response to Checkout proof."""
+        del principal_id, request_id
+        self._require_enabled()
+        verification = await self._repository.get_verification(payment_id)
+        if verification is None:
+            raise TestCheckoutError(TestCheckoutErrorCode.VERIFICATION_NOT_FOUND)
+        current = await self._gateway.fetch_payment(payment_id)
+        original = verification.payment
+        if current.order_id != original.order_id or current.amount != original.amount:
+            raise TestCheckoutError(TestCheckoutErrorCode.PAYMENT_MISMATCH)
+        return create_test_checkout_provider_proof(
+            verification=verification,
+            provider_state=current,
+            checked_at=datetime.now(UTC),
+        )
 
     async def _record_authoritative_authorization(
         self,

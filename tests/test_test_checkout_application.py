@@ -215,6 +215,34 @@ async def test_verification_records_idempotent_authoritative_api_fallback() -> N
     }
 
 
+async def test_provider_proof_binds_live_state_to_original_checkout_verification() -> None:
+    repository = MemoryCheckoutRepository()
+    gateway = FakeGateway()
+    service = _service(repository, gateway)
+    await service.prepare(principal_id="maker", request_id="prepare-request")
+    verification = await service.verify(
+        order_id="order_123",
+        payment_id="pay_123",
+        signature=_signature(gateway),
+        principal_id="maker",
+        request_id="verify-request",
+    )
+    gateway.payment = gateway.payment.model_copy(
+        update={"status": PaymentStatus.CAPTURED, "captured": True}
+    )
+
+    proof = await service.proof(
+        payment_id="pay_123",
+        principal_id="judge-reader",
+        request_id="proof-request",
+    )
+
+    assert proof.verification == verification
+    assert proof.provider_state.status is PaymentStatus.CAPTURED
+    assert proof.provider_state.captured is True
+    assert proof.proof_hash != "0" * 64
+
+
 async def test_reconciliation_requires_prior_verification() -> None:
     service = _service(MemoryCheckoutRepository(), FakeGateway())
 

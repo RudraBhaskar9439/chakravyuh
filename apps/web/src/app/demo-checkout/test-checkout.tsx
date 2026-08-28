@@ -597,6 +597,12 @@ function LiveRecovery({
                 . One mutation was recorded and the provider confirmation closed the incident.
               </p>
               {action.latest_result ? <code>{action.latest_result.result_hash}</code> : null}
+              <a
+                className="liveProofLink"
+                href={`/recoveries/verified?payment_id=${verification.payment.payment_id}`}
+              >
+                Open the judge-verifiable proof room →
+              </a>
             </div>
           </div>
         ) : null}

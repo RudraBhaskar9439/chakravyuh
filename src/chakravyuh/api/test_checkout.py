@@ -15,7 +15,11 @@ from chakravyuh.domain.errors import (
     TestCheckoutError,
     TestCheckoutErrorCode,
 )
-from chakravyuh.domain.test_checkout import PreparedTestCheckout, TestCheckoutVerification
+from chakravyuh.domain.test_checkout import (
+    PreparedTestCheckout,
+    TestCheckoutProviderProof,
+    TestCheckoutVerification,
+)
 
 router = APIRouter(prefix="/v1/demo/checkout", tags=["test-checkout"])
 OperatorDependency = Annotated[OperatorPrincipal, Depends(require_operator)]
@@ -68,6 +72,30 @@ class CheckoutVerificationResponse(BaseModel):
     verification_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     verified_at: AwareDatetime
     payment: CheckoutPaymentProof
+
+
+class ProviderPaymentSnapshot(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    payment_id: str = Field(pattern=r"^pay_[A-Za-z0-9]+$", max_length=255)
+    order_id: str = Field(pattern=r"^order_[A-Za-z0-9]+$", max_length=255)
+    status: str = Field(min_length=1, max_length=64)
+    amount_subunits: int = Field(gt=0)
+    currency: Literal["INR"]
+    captured: bool
+
+
+class CheckoutProviderProofResponse(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    mode: Literal["razorpay_test"] = "razorpay_test"
+    verification_id: UUID
+    verification_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    verified_at: AwareDatetime
+    original_authorization: CheckoutPaymentProof
+    current_provider_state: ProviderPaymentSnapshot
+    provider_checked_at: AwareDatetime
+    provider_proof_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 @router.post("/orders", status_code=status.HTTP_201_CREATED)
@@ -134,6 +162,30 @@ async def reconcile_test_checkout(
         raise _http_error(failure) from failure
 
 
+@router.get("/verifications/{payment_id}/proof")
+async def get_test_checkout_provider_proof(
+    payment_id: Annotated[
+        str,
+        Path(pattern=r"^pay_[A-Za-z0-9]+$", max_length=255),
+    ],
+    request: Request,
+    response: Response,
+    principal: OperatorDependency,
+) -> CheckoutProviderProofResponse:
+    """Re-query the allowlisted Razorpay payment and return a secret-free proof."""
+    require_scope(principal, OperatorScope.TEST_CHECKOUT)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        proof = await _control_plane(request).proof(
+            payment_id=payment_id,
+            principal_id=principal.principal_id,
+            request_id=request.state.request_id,
+        )
+        return _public_provider_proof(proof)
+    except (TestCheckoutError, RazorpayActionError) as failure:
+        raise _http_error(failure) from failure
+
+
 def _control_plane(request: Request) -> TestCheckoutControlPlane:
     return cast("TestCheckoutControlPlane", request.app.state.test_checkout_control_plane)
 
@@ -171,6 +223,28 @@ def _public_verification(
             currency=payment.amount.currency,
             captured=payment.captured,
         ),
+    )
+
+
+def _public_provider_proof(proof: TestCheckoutProviderProof) -> CheckoutProviderProofResponse:
+    verification = _public_verification(proof.verification)
+    provider = proof.provider_state
+    assert provider.order_id is not None
+    return CheckoutProviderProofResponse(
+        verification_id=verification.verification_id,
+        verification_hash=verification.verification_hash,
+        verified_at=verification.verified_at,
+        original_authorization=verification.payment,
+        current_provider_state=ProviderPaymentSnapshot(
+            payment_id=provider.payment_id,
+            order_id=provider.order_id,
+            status=provider.status.value,
+            amount_subunits=provider.amount.amount_subunits,
+            currency=provider.amount.currency,
+            captured=provider.captured,
+        ),
+        provider_checked_at=proof.checked_at,
+        provider_proof_hash=proof.proof_hash,
     )
 
 

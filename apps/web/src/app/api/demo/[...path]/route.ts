@@ -18,6 +18,11 @@ const routePolicies: RoutePolicy[] = [
     pattern: /^v1\/demo\/checkout\/verifications\/pay_[A-Za-z0-9]+\/reconcile$/,
     role: "maker",
   },
+  {
+    method: "GET",
+    pattern: /^v1\/demo\/checkout\/verifications\/pay_[A-Za-z0-9]+\/proof$/,
+    role: "maker",
+  },
   { method: "GET", pattern: /^v1\/operator\/incidents$/, role: "maker" },
   {
     method: "GET",

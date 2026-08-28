@@ -42,6 +42,7 @@ if TYPE_CHECKING:
         PreparedTestCheckout,
         ProviderManualCaptureOrder,
         TestCheckoutOrder,
+        TestCheckoutProviderProof,
         TestCheckoutVerification,
     )
 
@@ -375,6 +376,14 @@ class TestCheckoutControlPlane(Protocol):
         principal_id: str,
         request_id: str,
     ) -> TestCheckoutVerification: ...
+
+    async def proof(
+        self,
+        *,
+        payment_id: str,
+        principal_id: str,
+        request_id: str,
+    ) -> TestCheckoutProviderProof: ...
 
 
 class ActionControlPlane(Protocol):
