@@ -763,6 +763,282 @@ a {
   font-size: 0.68rem;
   line-height: 1.5;
 }
+.liveMoneyMesh {
+  border-bottom: 1px solid var(--border);
+  background: rgb(7 7 5 / 92%);
+}
+.liveMoneyMeshHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 48px;
+  align-items: end;
+  padding: 54px;
+}
+.liveMoneyMeshHeader h3 {
+  max-width: 760px;
+  margin: 10px 0 0;
+  font-size: clamp(2.2rem, 5vw, 4.8rem);
+  letter-spacing: -0.065em;
+  line-height: 0.96;
+}
+.liveMoneyMeshHeader > div:first-child > p:last-child {
+  max-width: 720px;
+  margin: 22px 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+.meshVerdict {
+  min-width: 220px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-bright);
+  background: var(--surface);
+}
+.meshVerdict span,
+.meshVerdict strong {
+  display: block;
+}
+.meshVerdict span {
+  color: var(--danger);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.meshVerdict strong {
+  margin-top: 10px;
+  font-size: 0.75rem;
+}
+.meshVerdict.restored {
+  border-color: rgb(98 208 155 / 40%);
+}
+.meshVerdict.restored span {
+  color: var(--healthy);
+}
+.liveMeshViewport {
+  margin: 0 32px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 48% 60%, rgb(230 170 76 / 7%), transparent 34%),
+    linear-gradient(rgb(230 170 76 / 2%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(230 170 76 / 2%) 1px, transparent 1px), #090806;
+  background-size:
+    auto,
+    38px 38px,
+    38px 38px,
+    auto;
+}
+.liveMeshViewport svg {
+  display: block;
+  width: 100%;
+  min-width: 920px;
+  height: auto;
+}
+.liveMeshLaneLabel {
+  fill: #756d61;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+}
+.liveMeshEdge {
+  fill: none;
+  stroke: #28241e;
+  stroke-linecap: round;
+  stroke-width: 2;
+  transition: stroke 500ms ease;
+}
+.liveMeshEdge.active {
+  stroke: #8b6731;
+  stroke-dasharray: 8 8;
+  animation: liveMeshFlow 1s linear infinite;
+}
+.liveMoneyMesh.recovered .liveMeshEdge.active {
+  stroke: var(--healthy);
+}
+.liveMeshEdge.broken {
+  stroke: var(--danger);
+  stroke-dasharray: 7 12;
+}
+.liveMeshNode circle:first-child {
+  fill: #12100c;
+  stroke: #423b31;
+  stroke-width: 2;
+  transition:
+    stroke 400ms ease,
+    filter 400ms ease;
+}
+.liveMeshNode .meshNodeCore {
+  fill: #665e52;
+}
+.liveMeshNode.provider circle:first-child,
+.liveMeshNode.invariant circle:first-child {
+  stroke: var(--gold);
+}
+.liveMeshNode.provider .meshNodeCore,
+.liveMeshNode.invariant .meshNodeCore {
+  fill: var(--gold);
+}
+.liveMeshNode.entity circle:first-child {
+  stroke: var(--blue);
+}
+.liveMeshNode.entity .meshNodeCore {
+  fill: var(--blue);
+}
+.liveMeshNode.model circle:first-child {
+  stroke: var(--violet);
+}
+.liveMeshNode.model .meshNodeCore {
+  fill: var(--violet);
+}
+.liveMeshNode.policy circle:first-child {
+  stroke: #d5b979;
+}
+.liveMeshNode.policy .meshNodeCore {
+  fill: #d5b979;
+}
+.liveMeshNode.fault circle:first-child {
+  stroke: var(--danger);
+  filter: drop-shadow(0 0 10px rgb(242 118 111 / 42%));
+}
+.liveMeshNode.fault .meshNodeCore {
+  fill: var(--danger);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: meshFaultBeat 1.3s ease-in-out infinite;
+}
+.liveMeshNode.healthy circle:first-child {
+  stroke: var(--healthy);
+  filter: drop-shadow(0 0 10px rgb(98 208 155 / 30%));
+}
+.liveMeshNode.healthy .meshNodeCore {
+  fill: var(--healthy);
+}
+.meshNodeLabel {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+}
+.meshNodeDetail {
+  fill: #7f776b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+}
+.meshFaultMarker circle:first-child {
+  fill: rgb(242 118 111 / 5%);
+  stroke: rgb(242 118 111 / 38%);
+}
+.meshFaultMarker .meshFaultPulse {
+  fill: rgb(242 118 111 / 14%);
+  stroke: var(--danger);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: meshFaultBeat 1.2s ease-in-out infinite;
+}
+.meshFaultMarker path {
+  stroke: var(--danger);
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+.meshFaultMarker text {
+  fill: var(--danger);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+}
+.meshMovingPacket {
+  fill: var(--gold);
+}
+.meshMovingPacket.recovered {
+  fill: var(--healthy);
+}
+.liveMeshFinding {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 50px;
+  margin: 0 32px;
+  padding: 34px 22px 38px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.liveMeshFinding > div > span {
+  color: var(--danger);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+}
+.liveMoneyMesh.recovered .liveMeshFinding > div > span {
+  color: var(--healthy);
+}
+.liveMeshFinding h4 {
+  margin: 12px 0 0;
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+.liveMeshFinding p {
+  max-width: 700px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.liveMeshFinding dl {
+  margin: 0;
+}
+.liveMeshFinding dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.liveMeshFinding dt {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+.liveMeshFinding dd {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.63rem;
+  text-align: right;
+}
+.liveEvidenceFacts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 28px 32px 42px;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.liveEvidenceFacts article {
+  min-width: 0;
+  padding: 18px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgb(17 16 13 / 48%);
+}
+.liveEvidenceFacts span,
+.liveEvidenceFacts strong {
+  display: block;
+}
+.liveEvidenceFacts span {
+  color: var(--gold);
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.liveEvidenceFacts strong {
+  overflow: hidden;
+  margin-top: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.liveEvidenceFacts p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.64rem;
+  line-height: 1.5;
+}
 .liveDecisionCard {
   min-height: 370px;
   padding: 48px 54px 58px;
@@ -889,6 +1165,24 @@ a {
   }
 }
 
+@keyframes liveMeshFlow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+@keyframes meshFaultBeat {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
 @media (max-width: 760px) {
   .checkoutShell {
     width: min(100% - 24px, 1180px);
@@ -940,6 +1234,26 @@ a {
   .liveStageRail li {
     flex: 0 0 190px;
   }
+  .liveMoneyMeshHeader {
+    grid-template-columns: 1fr;
+    padding: 42px 22px;
+  }
+  .meshVerdict {
+    min-width: 0;
+  }
+  .liveMeshViewport,
+  .liveMeshFinding {
+    margin-right: 12px;
+    margin-left: 12px;
+  }
+  .liveMeshFinding {
+    grid-template-columns: 1fr;
+  }
+  .liveEvidenceFacts {
+    grid-template-columns: 1fr 1fr;
+    margin-right: 12px;
+    margin-left: 12px;
+  }
   .liveDecisionCard {
     min-height: 440px;
     padding: 38px 22px 48px;
@@ -952,6 +1266,15 @@ a {
   }
   .liveSuccess {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liveMeshEdge.active,
+  .liveMeshNode.fault .meshNodeCore,
+  .meshFaultMarker .meshFaultPulse,
+  .liveStatus > span {
+    animation: none;
   }
 }
 

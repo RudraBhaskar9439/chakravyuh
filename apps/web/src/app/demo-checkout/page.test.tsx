@@ -94,11 +94,16 @@ describe("Test Checkout", () => {
     });
 
     expect(await screen.findByText("Ready for recovery")).toBeInTheDocument();
-    expect(screen.getByText("authorized")).toBeInTheDocument();
+    expect(screen.getAllByText("authorized")).toHaveLength(2);
     expect(screen.getAllByText("₹10.00")).toHaveLength(2);
     expect(screen.getByText(/do not capture/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Follow this payment." })).toBeInTheDocument();
     expect(screen.getByText(/Every stage below is read from the payment/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "See exactly where the money stopped." }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("STOPPED HERE")).toBeInTheDocument();
+    expect(screen.getByText("Watching the capture boundary")).toBeInTheDocument();
     expect(screen.getByText("Waiting for deterministic detection")).toBeInTheDocument();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     const verificationCall = fetchMock.mock.calls.find(([input]) =>
@@ -177,9 +182,11 @@ describe("Test Checkout", () => {
     });
 
     expect(
-      await screen.findByText("Capture was not completed for the verified authorization."),
-    ).toBeInTheDocument();
+      await screen.findAllByText("Capture was not completed for the verified authorization."),
+    ).toHaveLength(2);
     expect(screen.getByText(/Confidence\s+100%/i)).toBeInTheDocument();
+    expect(screen.getByText("Payment stopped before capture")).toBeInTheDocument();
+    expect(screen.getByText("Break located")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Prepare bounded recovery" })).toBeEnabled();
   });
 

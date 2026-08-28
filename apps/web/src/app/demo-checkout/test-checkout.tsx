@@ -3,6 +3,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
 import type { ActionView, IncidentDetail, IncidentPage } from "../operator-types";
+import { LiveMoneyMesh } from "./live-money-mesh";
 
 const apiBase = "/api/demo";
 const checkoutScript = "https://checkout.razorpay.com/v1/checkout.js";
@@ -462,6 +463,14 @@ function LiveRecovery({
           </li>
         ))}
       </ol>
+
+      <LiveMoneyMesh
+        action={action}
+        activeStage={activeStage}
+        incident={incident}
+        payment={verification.payment}
+        recovered={recovered}
+      />
 
       <article className="liveDecisionCard" aria-live="polite">
         <span className="stepNumber">CURRENT</span>
