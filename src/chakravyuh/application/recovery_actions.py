@@ -15,6 +15,7 @@ from chakravyuh.domain.actions import (
     ActionExecutionClaim,
     ActionExecutionResult,
     ActionProposal,
+    ActionProposalSeed,
     ActionView,
     ProviderPaymentState,
     action_risk,
@@ -76,6 +77,21 @@ class RecoveryActionControlPlane:
         )
         if seed is None:
             raise ActionControlError(ActionControlErrorCode.NOT_FOUND)
+        history = await self._repository.list_for_incident(
+            incident_id,
+            principal_id=principal_id,
+            request_id=request_id,
+        )
+        latest_current = next(
+            (
+                view
+                for view in history
+                if not view.stale and _proposal_matches_seed(view.proposal, seed)
+            ),
+            None,
+        )
+        if latest_current is not None and not latest_current.expired:
+            return latest_current
         now = self._clock()
         if now.utcoffset() is None:
             raise ValueError("action control clock must return a timezone-aware value")
@@ -94,7 +110,12 @@ class RecoveryActionControlPlane:
             rationale=seed.rationale,
             evidence_ids=seed.evidence_ids,
             confidence=seed.confidence,
-            idempotency_key=canonical_idempotency_key(seed),
+            idempotency_key=canonical_idempotency_key(
+                seed,
+                renewal_of=(
+                    None if latest_current is None else latest_current.proposal.proposal_id
+                ),
+            ),
             proposed_by=principal_id,
             request_id=request_id,
             proposed_at=now,
@@ -297,6 +318,18 @@ class RecoveryActionControlPlane:
             current,
             completed_at=self._clock(),
         )
+
+
+def _proposal_matches_seed(proposal: ActionProposal, seed: ActionProposalSeed) -> bool:
+    return bool(
+        proposal.incident_id == seed.incident_id
+        and proposal.source_revision_id == seed.source_revision_id
+        and proposal.diagnosis_id == seed.diagnosis_id
+        and proposal.merchant_id == seed.merchant_id
+        and proposal.incident_type == seed.incident_type
+        and proposal.action_type == seed.action_type
+        and proposal.target == seed.target
+    )
 
 
 def _capture_state_mismatch(

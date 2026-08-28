@@ -405,6 +405,7 @@ function LiveRecovery({
   const rejected = action?.approvals.some((approval) => approval.decision === "rejected") ?? false;
   const succeeded = action?.latest_result?.outcome === "succeeded";
   const recovered = incident?.incident.status === "resolved";
+  const renewalRequired = action?.expired || action?.stale;
   const activeStage = recovered
     ? 4
     : action
@@ -503,7 +504,24 @@ function LiveRecovery({
             </button>
           </>
         ) : null}
-        {activeStage === 3 && action && !approved && !rejected ? (
+        {activeStage === 3 && action && renewalRequired && incident ? (
+          <>
+            <h3>Recovery proposal expired safely</h3>
+            <p>
+              The approval window closed without moving money. Generate a fresh proposal from the
+              current diagnosis before asking the independent checker again.
+            </p>
+            <button
+              className="livePrimaryAction"
+              disabled={actionBusy !== null}
+              onClick={() => onPropose(incident.incident.incident_id)}
+              type="button"
+            >
+              {actionBusy === "propose" ? "Refreshing…" : "Generate fresh recovery proposal"}
+            </button>
+          </>
+        ) : null}
+        {activeStage === 3 && action && !renewalRequired && !approved && !rejected ? (
           <>
             <h3>Independent check required</h3>
             <p>
@@ -534,7 +552,7 @@ function LiveRecovery({
             </div>
           </>
         ) : null}
-        {activeStage === 3 && action && approved && !succeeded ? (
+        {activeStage === 3 && action && !renewalRequired && approved && !succeeded ? (
           <>
             <h3>Approved and ready for exact execution</h3>
             <p>
@@ -561,7 +579,7 @@ function LiveRecovery({
             </div>
           </>
         ) : null}
-        {activeStage === 3 && action && succeeded && !recovered ? (
+        {activeStage === 3 && action && !renewalRequired && succeeded && !recovered ? (
           <>
             <h3>Capture accepted. Awaiting provider confirmation.</h3>
             <p>
@@ -570,7 +588,7 @@ function LiveRecovery({
             </p>
           </>
         ) : null}
-        {activeStage === 3 && rejected ? (
+        {activeStage === 3 && !renewalRequired && rejected ? (
           <>
             <h3>Recovery rejected safely</h3>
             <p>

@@ -225,6 +225,33 @@ async def test_proposal_is_server_derived_and_idempotency_is_stable() -> None:
     assert first.proposal.idempotency_key == second.proposal.idempotency_key
 
 
+async def test_expired_proposal_renews_without_weakening_retry_idempotency() -> None:
+    repository = _Repository(_seed())
+    control = _control(repository, _Gateway(_state(PaymentStatus.AUTHORIZED, captured=False)))
+    first = await control.propose(
+        repository.seed.incident_id,
+        principal_id="maker",
+        request_id="request-1",
+    )
+    repository.view = first.model_copy(update={"expired": True})
+
+    renewed = await control.propose(
+        repository.seed.incident_id,
+        principal_id="maker",
+        request_id="request-2",
+    )
+    retry = await control.propose(
+        repository.seed.incident_id,
+        principal_id="maker",
+        request_id="request-3",
+    )
+
+    assert renewed.proposal.proposal_id != first.proposal.proposal_id
+    assert renewed.proposal.idempotency_key != first.proposal.idempotency_key
+    assert retry.proposal.proposal_id == renewed.proposal.proposal_id
+    assert retry.proposal.idempotency_key == renewed.proposal.idempotency_key
+
+
 async def test_read_only_fetch_never_carries_or_moves_money() -> None:
     repository = _Repository(_seed(ActionType.FETCH_AUTHORITATIVE_STATE))
     gateway = _Gateway(_state(PaymentStatus.AUTHORIZED, captured=False))

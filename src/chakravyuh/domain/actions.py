@@ -233,7 +233,11 @@ def build_result_hash(result: ActionExecutionResult) -> str:
     return _result_hash(result)
 
 
-def canonical_idempotency_key(seed: ActionProposalSeed) -> str:
+def canonical_idempotency_key(
+    seed: ActionProposalSeed,
+    *,
+    renewal_of: UUID | None = None,
+) -> str:
     return _hash(
         {
             "action_type": seed.action_type.value,
@@ -242,6 +246,7 @@ def canonical_idempotency_key(seed: ActionProposalSeed) -> str:
             "incident_id": str(seed.incident_id),
             "source_revision_id": str(seed.source_revision_id),
             "target": seed.target.model_dump(mode="json"),
+            "renewal_of": None if renewal_of is None else str(renewal_of),
         }
     )
 
