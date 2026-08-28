@@ -60,8 +60,6 @@ services:
         sync: false
       - key: CHAKRAVYUH_RAZORPAY_MERCHANT_ID
         sync: false
-      - key: CHAKRAVYUH_RAZORPAY_ACCOUNT_ID
-        sync: false
       - key: CHAKRAVYUH_RAZORPAY_WEBHOOK_SECRET
         sync: false
       - key: CHAKRAVYUH_OPENROUTER_API_KEY
