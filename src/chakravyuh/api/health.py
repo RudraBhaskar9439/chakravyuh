@@ -29,6 +29,16 @@ class HealthResponse(BaseModel):
     checks: dict[str, Literal["ok", "error"]]
 
 
+class DemoReadinessResponse(BaseModel):
+    """Secret-free capability readiness for the public Test Mode judge flow."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["ok", "unavailable"]
+    environment: str
+    checks: dict[str, Literal["ok", "error"]]
+
+
 def _response(
     request: Request,
     *,
@@ -69,6 +79,31 @@ async def readiness(request: Request, response: Response) -> HealthResponse:
             checks={"configuration": "ok", "postgres": "error"},
         )
     return _response(request, checks={"configuration": "ok", "postgres": "ok"})
+
+
+@router.get("/demo")
+async def demo_readiness(request: Request, response: Response) -> DemoReadinessResponse:
+    """Report judge-demo capabilities without exposing credentials or provider identifiers."""
+    settings = request.app.state.settings
+    diagnosis_configured = (
+        settings.diagnosis_primary_provider == "openrouter"
+        and settings.openrouter_api_key is not None
+    ) or (settings.diagnosis_primary_provider == "gemini" and settings.gemini_api_key is not None)
+    checks: dict[str, Literal["ok", "error"]] = {
+        "test_checkout": "ok" if settings.test_checkout_enabled else "error",
+        "test_mode_provider": ("ok" if settings.razorpay_test_credentials_configured else "error"),
+        "bounded_actions": "ok" if settings.razorpay_test_actions_configured else "error",
+        "diagnosis_provider": "ok" if diagnosis_configured else "error",
+        "signed_webhook": "ok" if settings.webhook_secrets else "error",
+    }
+    available = all(value == "ok" for value in checks.values())
+    if not available:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return DemoReadinessResponse(
+        status="ok" if available else "unavailable",
+        environment=settings.environment,
+        checks=checks,
+    )
 
 
 @router.get("/graph")

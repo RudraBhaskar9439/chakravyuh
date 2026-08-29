@@ -612,6 +612,16 @@ function ActionCard({
               : humanize(action.latest_result.error_code ?? "no provider receipt")}
           </small>
           <code>{action.latest_result.result_hash.slice(0, 16)}</code>
+          {action.latest_result.provider_state &&
+          "short_url" in action.latest_result.provider_state ? (
+            <a
+              href={action.latest_result.provider_state.short_url}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Open provider-hosted recovery checkout →
+            </a>
+          ) : null}
         </div>
       ) : null}
       <p className="proposalMeta">
@@ -644,17 +654,27 @@ async function fetchJson<T>(
   token: string,
   options: { signal?: AbortSignal; method?: "GET" | "POST"; body?: object } = {},
 ): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, {
-    cache: "no-store",
-    credentials: "omit",
-    method: options.method ?? "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-    signal: options.signal,
-  });
+  const request = () =>
+    fetch(`${apiBase}${path}`, {
+      cache: "no-store",
+      credentials: "omit",
+      method: options.method ?? "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: options.signal,
+    });
+  let response = await request();
+  if ((options.method ?? "GET") === "GET" && response.status === 429) {
+    const seconds = Number(response.headers.get("Retry-After"));
+    const delay = Number.isFinite(seconds) ? seconds * 1_000 : 1_000;
+    await new Promise((resolve) =>
+      window.setTimeout(resolve, Math.min(Math.max(delay, 250), 5_000)),
+    );
+    response = await request();
+  }
   if (!response.ok) {
     if (response.status === 401) throw new Error("Operator token was rejected.");
     if (response.status === 503) throw new Error("Operator API is not configured.");

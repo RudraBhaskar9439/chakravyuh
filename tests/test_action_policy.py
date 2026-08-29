@@ -103,6 +103,19 @@ def test_bounded_authoritative_fetch_is_allowed_without_money_fields() -> None:
     assert _policy().evaluate(proposal).outcome is PolicyOutcome.ALLOW
 
 
+def test_bounded_failed_payment_link_requires_independent_approval() -> None:
+    proposal = _proposal(
+        incident_type=IncidentType.FAILED_WITHOUT_RECOVERY,
+        action_type=ActionType.CREATE_PAYMENT_LINK,
+        risk=ActionRisk.REVERSIBLE,
+    )
+
+    decision = _policy().evaluate(proposal)
+
+    assert decision.outcome is PolicyOutcome.REQUIRE_APPROVAL
+    assert decision.reasons == ()
+
+
 @pytest.mark.parametrize(
     ("proposal_updates", "policy_updates", "reason"),
     [
@@ -129,7 +142,7 @@ def test_bounded_authoritative_fetch_is_allowed_without_money_fields() -> None:
         (
             {"action_type": ActionType.CREATE_PAYMENT_LINK, "risk": ActionRisk.REVERSIBLE},
             {},
-            "action_adapter_not_implemented",
+            "payment_link_incident_not_allowlisted",
         ),
     ],
 )

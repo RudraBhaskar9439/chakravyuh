@@ -1125,6 +1125,91 @@ a {
   color: #746e63;
   font-size: 0.7rem;
 }
+.systemReadiness {
+  margin-bottom: 28px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.systemReadiness > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--border);
+}
+.systemReadiness h2 {
+  margin: 5px 0 0;
+  font-size: 1.35rem;
+}
+.systemReadiness button {
+  padding: 10px 15px;
+  border: 1px solid var(--gold-border);
+  color: var(--cream);
+  background: transparent;
+  cursor: pointer;
+}
+.systemReadiness button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.readinessGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.readinessGrid article {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 92px;
+  padding: 20px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.readinessGrid article:nth-child(4n) {
+  border-right: 0;
+}
+.readinessGrid article > span {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--danger) 60%, transparent);
+}
+.readinessGrid article.ready > span {
+  background: var(--healthy);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--healthy) 60%, transparent);
+}
+.readinessGrid strong,
+.readinessGrid small {
+  display: block;
+}
+.readinessGrid strong {
+  font-size: 0.84rem;
+}
+.readinessGrid small {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.readinessUnavailable {
+  margin: 0;
+  padding: 24px 28px;
+  color: var(--danger);
+}
+@media (width <= 900px) {
+  .readinessGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .readinessGrid article:nth-child(4n) {
+    border-right: 1px solid var(--border);
+  }
+  .readinessGrid article:nth-child(2n) {
+    border-right: 0;
+  }
+}
 .proofCard {
   background: linear-gradient(145deg, rgb(24 22 16 / 88%), rgb(12 11 8 / 82%));
 }
@@ -2340,6 +2425,27 @@ a {
   margin-top: 30px;
   color: var(--gold);
   text-decoration: none;
+}
+.proofLoadingSteps {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 620px);
+  margin: 34px auto 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  list-style: none;
+  text-transform: uppercase;
+}
+.proofLoadingSteps li {
+  padding: 13px 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.proofLoadingSteps li:nth-child(1) {
+  color: var(--cream);
+  border-color: var(--gold-border);
 }
 .proofStatePulse {
   width: 12px;

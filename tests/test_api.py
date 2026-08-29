@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import patch
 
 from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 
 from chakravyuh import __version__
 from chakravyuh.api.main import create_app, run
@@ -111,6 +112,34 @@ async def test_readiness_fails_closed_when_postgres_is_unavailable(
     assert response.status_code == 503
     assert response.json()["status"] == "unavailable"
     assert response.json()["checks"] == {"configuration": "ok", "postgres": "error"}
+
+
+async def test_demo_readiness_reports_capabilities_without_secrets(test_settings: Settings) -> None:
+    configured = test_settings.model_copy(
+        update={
+            "test_checkout_enabled": True,
+            "razorpay_actions_enabled": True,
+            "razorpay_key_id": "rzp_test_contract",
+            "razorpay_key_secret": SecretStr("razorpay-secret"),
+            "razorpay_merchant_id": "merchant-test",
+            "razorpay_webhook_secret": SecretStr("webhook-secret-long"),
+            "diagnosis_primary_provider": "openrouter",
+            "openrouter_api_key": SecretStr("openrouter-secret"),
+        }
+    )
+    transport = ASGITransport(app=create_app(configured))
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/health/demo")
+
+    assert response.status_code == 200
+    assert response.json()["checks"] == {
+        "test_checkout": "ok",
+        "test_mode_provider": "ok",
+        "bounded_actions": "ok",
+        "diagnosis_provider": "ok",
+        "signed_webhook": "ok",
+    }
+    assert "secret" not in response.text.lower()
 
 
 async def test_graph_health_reports_lag_without_identifiers(test_settings: Settings) -> None:

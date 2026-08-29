@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createDemoSession, evolveDemoSession, writeDemoSession } from "../session-state";
 import { GET, POST } from "./route";
 
 const apiBase = "https://api.example.test";
@@ -21,7 +22,11 @@ describe("demo gateway", () => {
         `https://demo.example.test/api/demo/v1/operator/actions/${proposalId}/decisions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json", Origin: "https://demo.example.test" },
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: sessionCookie({ proposalIds: [proposalId] }),
+            Origin: "https://demo.example.test",
+          },
           body: JSON.stringify({ decision: "approved" }),
         },
       ),
@@ -71,6 +76,51 @@ describe("demo gateway", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("requires an isolated session for every public mutation", async () => {
+    configureGateway();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const response = await POST(
+      new Request("https://demo.example.test/api/demo/v1/demo/checkout/orders", {
+        method: "POST",
+        headers: { Origin: "https://demo.example.test" },
+      }),
+      context("v1", "demo", "checkout", "orders"),
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      detail: { code: "demo_session_required" },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("binds a created order and verified payment to the signed session", async () => {
+    configureGateway();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json(
+          { order: { order_id: "order_owned" }, public_key_id: "rzp_test" },
+          { status: 201 },
+        ),
+      );
+    const response = await POST(
+      new Request("https://demo.example.test/api/demo/v1/demo/checkout/orders", {
+        method: "POST",
+        headers: {
+          Cookie: sessionCookie(),
+          Origin: "https://demo.example.test",
+        },
+      }),
+      context("v1", "demo", "checkout", "orders"),
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get("Set-Cookie")).toContain("HttpOnly");
+    expect(response.headers.get("Set-Cookie")).toContain("SameSite=Strict");
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("fails closed when a scoped credential is missing", async () => {
     vi.stubEnv("CHAKRAVYUH_API_BASE_URL", apiBase);
     const proposalId = "44444444-4444-4444-8444-444444444444";
@@ -93,6 +143,22 @@ function configureGateway() {
   vi.stubEnv("CHAKRAVYUH_DEMO_MAKER_TOKEN", "maker-secret");
   vi.stubEnv("CHAKRAVYUH_DEMO_CHECKER_TOKEN", "checker-secret");
   vi.stubEnv("CHAKRAVYUH_DEMO_EXECUTOR_TOKEN", "executor-secret");
+}
+
+function sessionCookie(
+  additions: Partial<{
+    orderIds: string[];
+    paymentIds: string[];
+    incidentIds: string[];
+    proposalIds: string[];
+  }> = {},
+) {
+  const session = Object.keys(additions).length
+    ? evolveDemoSession(createDemoSession(), additions)
+    : createDemoSession();
+  const headers = new Headers();
+  writeDemoSession(headers, session, "maker-secret");
+  return headers.get("Set-Cookie")?.split(";")[0] ?? "";
 }
 
 function context(...path: string[]) {

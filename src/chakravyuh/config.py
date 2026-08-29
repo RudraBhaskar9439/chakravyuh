@@ -32,8 +32,7 @@ class Settings(BaseSettings):
 
     postgres_dsn: str = Field(
         default=(
-            "postgresql+asyncpg://"
-            "chakravyuh:local-development-only@localhost:5432/chakravyuh"
+            "postgresql+asyncpg://chakravyuh:local-development-only@localhost:5432/chakravyuh"
         ),
         validation_alias=AliasChoices("CHAKRAVYUH_POSTGRES_DSN", "DATABASE_URL"),
     )
@@ -112,6 +111,8 @@ class Settings(BaseSettings):
     action_execution_lease_seconds: int = Field(default=30, ge=5, le=300)
     action_max_capture_subunits: int = Field(default=1_000_000, ge=1, le=100_000_000)
     action_minimum_capture_confidence: float = Field(default=0.9, ge=0, le=1)
+    action_max_payment_link_subunits: int = Field(default=100_000, ge=1, le=10_000_000)
+    action_minimum_payment_link_confidence: float = Field(default=0.9, ge=0, le=1)
     razorpay_action_timeout_seconds: float = Field(default=10, gt=0, le=30)
 
     test_checkout_enabled: bool = False

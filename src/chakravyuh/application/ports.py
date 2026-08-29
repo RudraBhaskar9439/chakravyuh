@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         ActionExecutionResult,
         ActionProposalSeed,
         ActionView,
+        ProviderPaymentLinkState,
         ProviderPaymentState,
     )
     from chakravyuh.domain.diagnoses import DiagnosisReceipt, DiagnosisWorkClaim
@@ -312,6 +313,14 @@ class RazorpayPaymentGateway(Protocol):
         payment_id: str,
         amount: Money,
     ) -> ProviderPaymentState: ...
+
+    async def create_payment_link(
+        self,
+        *,
+        amount: Money,
+        reference_id: str,
+        description: str,
+    ) -> ProviderPaymentLinkState: ...
 
     async def close(self) -> None: ...
 

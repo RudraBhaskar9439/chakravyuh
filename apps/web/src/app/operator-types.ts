@@ -148,6 +148,17 @@ export type ProviderPaymentState = {
   order_id: string | null;
 };
 
+export type ProviderPaymentLinkState = {
+  payment_link_id: string;
+  status: string;
+  amount: Money;
+  amount_paid: Money;
+  short_url: string;
+  reference_id: string;
+};
+
+export type ProviderActionState = ProviderPaymentState | ProviderPaymentLinkState;
+
 export type ActionProposal = {
   proposal_id: string;
   incident_id: string;
@@ -203,7 +214,7 @@ export type ActionView = {
     proposal_id: string;
     outcome: "succeeded" | "retryable" | "blocked" | "uncertain";
     error_code: string | null;
-    provider_state: ProviderPaymentState | null;
+    provider_state: ProviderActionState | null;
     already_applied: boolean;
     completed_at: string;
     result_hash: string;

@@ -100,6 +100,47 @@ async def test_adapter_captures_exact_amount_and_validates_terminal_state() -> N
     assert json.loads(requests[0].content) == {"amount": 10_000, "currency": "INR"}
 
 
+async def test_adapter_creates_bounded_payment_link_without_customer_notification() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "id": "plink_123",
+                "entity": "payment_link",
+                "amount": 10_000,
+                "amount_paid": 0,
+                "currency": "INR",
+                "status": "created",
+                "short_url": "https://rzp.io/i/test123",
+                "reference_id": "chkr_123",
+                "customer": {"email": "must-not-cross-boundary@example.test"},
+            },
+        )
+
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://api.razorpay.com",
+    )
+    gateway = RazorpayTestModePaymentGateway(_settings(), client=client)
+    state = await gateway.create_payment_link(
+        amount=Money(amount_subunits=10_000, currency="INR"),
+        reference_id="chkr_123",
+        description="Recovery for a failed Test Mode payment",
+    )
+    await client.aclose()
+
+    assert state.payment_link_id == "plink_123"
+    assert state.short_url == "https://rzp.io/i/test123"
+    payload = json.loads(requests[0].content)
+    assert requests[0].url.path == "/v1/payment_links"
+    assert payload["notify"] == {"sms": False, "email": False}
+    assert payload["accept_partial"] is False
+    assert "customer" not in state.model_dump()
+
+
 async def test_adapter_creates_manual_order_and_verifies_checkout_signature() -> None:
     requests: list[httpx.Request] = []
 

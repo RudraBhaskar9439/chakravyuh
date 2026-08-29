@@ -139,6 +139,10 @@ def create_app(
                 merchant_id=resolved_settings.razorpay_merchant_id,
                 maximum_capture_subunits=resolved_settings.action_max_capture_subunits,
                 minimum_capture_confidence=(resolved_settings.action_minimum_capture_confidence),
+                maximum_payment_link_subunits=(resolved_settings.action_max_payment_link_subunits),
+                minimum_payment_link_confidence=(
+                    resolved_settings.action_minimum_payment_link_confidence
+                ),
             )
         ),
         resolved_payment_gateway,

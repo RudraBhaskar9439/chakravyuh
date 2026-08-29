@@ -2,8 +2,10 @@
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
+import { type DemoSessionInfo, ensureDemoSession } from "../demo-session";
 import type { ActionView, IncidentDetail, IncidentPage } from "../operator-types";
 import { LiveMoneyMesh } from "./live-money-mesh";
+import { SystemReadiness } from "./system-readiness";
 
 const apiBase = "/api/demo";
 const checkoutScript = "https://checkout.razorpay.com/v1/checkout.js";
@@ -80,10 +82,26 @@ export function TestCheckout() {
   const [trackingError, setTrackingError] = useState<string | null>(null);
   const [checkingLiveState, setCheckingLiveState] = useState(false);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [demoSession, setDemoSession] = useState<DemoSessionInfo | null>(null);
+  const [systemReady, setSystemReady] = useState(false);
 
   useEffect(() => {
     const restored = restoreActiveVerification();
     if (restored) setVerification(restored);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void ensureDemoSession()
+      .then((session) => {
+        if (!cancelled) setDemoSession(session);
+      })
+      .catch((failure) => {
+        if (!cancelled) setError(message(failure));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -284,13 +302,15 @@ export function TestCheckout() {
         </p>
       </section>
 
+      <SystemReadiness onReadyChange={setSystemReady} />
+
       <section className="checkoutGrid">
         <article className="checkoutCard">
           <span className="stepNumber">01</span>
           <h2>Authorize ₹10</h2>
           <p>The order is created server-side with manual capture. No real money moves.</p>
           <form onSubmit={begin}>
-            <button disabled={busy || !scriptReady} type="submit">
+            <button disabled={busy || !scriptReady || !demoSession || !systemReady} type="submit">
               {busy
                 ? "Waiting for authorization…"
                 : verification
@@ -299,9 +319,11 @@ export function TestCheckout() {
             </button>
           </form>
           <small>
-            {scriptReady
-              ? "Checkout securely loaded. Demo authority is scoped server-side."
-              : "Loading Razorpay Checkout…"}
+            {!demoSession
+              ? "Establishing an isolated judge session…"
+              : scriptReady
+                ? `Isolated session ${demoSession.session_id.slice(0, 8)} · authority expires automatically.`
+                : "Loading Razorpay Checkout…"}
           </small>
         </article>
 

@@ -13,7 +13,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from chakravyuh.application.ports import RazorpayPaymentGateway
-from chakravyuh.domain.actions import ProviderPaymentState
+from chakravyuh.domain.actions import ProviderPaymentLinkState, ProviderPaymentState
 from chakravyuh.domain.enums import EventSource, PaymentStatus
 from chakravyuh.domain.errors import ActionControlErrorCode, RazorpayActionError
 from chakravyuh.domain.money import Money
@@ -170,6 +170,19 @@ class ArenaTwinGateway:
 
     async def capture_payment(self, payment_id: str, amount: Money) -> ProviderPaymentState:
         return await self.__twin.capture_payment(payment_id, amount)
+
+    async def create_payment_link(
+        self,
+        *,
+        amount: Money,
+        reference_id: str,
+        description: str,
+    ) -> ProviderPaymentLinkState:
+        del amount, reference_id, description
+        raise RazorpayActionError(
+            ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+            retryable=False,
+        )
 
     async def close(self) -> None:
         await self.__twin.close()

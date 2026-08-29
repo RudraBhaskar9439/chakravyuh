@@ -1,21 +1,22 @@
 # Chakravyuh
 
-Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or contradictory state transitions, assembles an evidence path, and proposes a bounded recovery action.
+Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or
+contradictory state transitions, assembles a bounded evidence path, and recovers money only through
+deterministic policy and independently approved actions.
 
-The project is implemented in twelve auditable phases. Phase 10 hardens the complete evidence and
-action mesh with scoped operator authority, fail-closed throttling, deterministic correctness and
-chaos proofs, and production deployment manifests. Phase 11 adds a separately gated Razorpay Test
-Checkout that can create the exact authorized-but-uncaptured payment used in the recovery proof. AI
-remains non-executable: deterministic policy, immutable maker-checker approval, exact-amount
-preflight, and Test-Mode-only Razorpay adapters control every outbound operation.
+The deployed judge workspace is available at
+[`https://chakravyuh-web.vercel.app`](https://chakravyuh-web.vercel.app). Start at
+[`/payments/authorize`](https://chakravyuh-web.vercel.app/payments/authorize) to create a real ₹10
+Razorpay Test Mode authorization and follow that exact payment through detection, grounded AI
+diagnosis, maker-checker governance, exact execution, and webhook-confirmed resolution. Inspect a
+completed provider-backed recovery at
+[`/recoveries/verified`](https://chakravyuh-web.vercel.app/recoveries/verified), resolve any known
+identifier through [`/trace`](https://chakravyuh-web.vercel.app/trace), and challenge the sealed
+batch measurements at [`/judge`](https://chakravyuh-web.vercel.app/judge).
 
-The judge-facing [`/recovery-story`](http://localhost:3000/recovery-story) route presents one
-completed Razorpay Test Mode recovery as a simple, read-only visual replay. It exposes the exact
-evidence, model receipt, safety boundaries, and tamper-evident hashes without tokens, role switching,
-or an action API. The full operator console remains available separately for engineering inspection.
-The [`/demo-checkout`](http://localhost:3000/demo-checkout) route is the live counterpart: after a
-new Razorpay Test Mode authorization it polls that exact payment through deterministic detection,
-bounded AI diagnosis, maker-checker governance, exact execution, and webhook-confirmed resolution.
+The public judge journey never asks for an operator token. Scoped Test Mode authority remains on the
+server. AI remains non-executable: deterministic policy, immutable maker-checker approval,
+exact-amount preflight, and Test-Mode-only Razorpay adapters control every outbound operation.
 
 Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
 
@@ -248,18 +249,19 @@ safety and failure contract.
 
 ## Real Razorpay Test Checkout proof
 
-Phase 11 can create one fixed ₹10 Razorpay Test Mode order with per-order manual capture, launch the
+The verified checkout can create one fixed ₹10 Razorpay Test Mode order with per-order manual capture, launch the
 official hosted Checkout, and verify its signed success response against authoritative provider
 state. The capability has its own `test-checkout:operate` scope and kill switch, stores neither the
 Checkout signature nor raw provider bodies, and writes immutable order and verification hashes.
 
-After applying migrations and issuing an operator token with the Test Checkout scope, enable the
-capability only in an isolated local or staging environment:
+After applying migrations, configure the separately scoped server-side demo principals and enable
+the capability only in an isolated local or staging environment:
 
     CHAKRAVYUH_TEST_CHECKOUT_ENABLED=true
 
-Open `http://localhost:3000/demo-checkout`, paste the scoped token, and authorize the displayed ₹10
-Test Mode order using Razorpay's documented test credentials. Do not manually capture the payment.
+Open `http://localhost:3000/payments/authorize` and authorize the displayed ₹10 Test Mode order using
+Razorpay's documented test credentials. Do not manually capture the payment. The browser never
+receives an operator credential.
 The screen proves the exact provider order, authorized payment, amount, uncaptured state, and
 verification hash. The public HTTPS webhook and final provider-backed incident-to-recovery run have
 also been completed and are recorded without provider secrets or customer data in the external
@@ -271,7 +273,7 @@ boundary, [Phase 11 checklist](docs/review/phase-11-checklist.md) for the passed
 
 ## Recovery Arena
 
-Phase 12 measures batch recovery rather than extrapolating from one successful payment. Its locked
+The Recovery Arena measures batch recovery rather than extrapolating from one successful payment. Its locked
 v1 contract compares no intervention, retry all, and Chakravyuh over a 10,005-case held-out
 portfolio. It fixes an exact INR cost model, limits live model usage to 100 calls and $1, bounds the
 signed-ingress probe at 100,000 deliveries with concurrency 50, and credits synthetic revenue only
@@ -306,8 +308,9 @@ retry all falls to negative ₹197,220 after 3,545 incorrect actions. These are 
 synthetic INR measurements, not merchant revenue claims.
 
 The held-out manifest exposes its seed range and generator version but contains no oracle outcome or
-recoverability label. Only `authorized_not_captured` is recoverable in v1 and only exact capture is
-executable; every other incident must stop, deny, or escalate. See
+recoverability label. The arena benchmark deliberately scores only exact capture in its locked v1
+contract. The production control plane also supports a bounded, non-notifying Test Mode payment
+link for `failed_without_recovery`; every other incident must stop, deny, or escalate. See
 [Phase 12 architecture](docs/architecture/phase-12-recovery-arena.md) and
 [ADR 0014](docs/adr/0014-held-out-counterfactual-recovery-arena.md). The separate live-AI sample
 completed 100 calls for a conservatively accounted $0.127755, with 99 accepted provider responses,

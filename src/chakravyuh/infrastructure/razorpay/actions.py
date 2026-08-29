@@ -11,7 +11,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from chakravyuh.config import Settings
-from chakravyuh.domain.actions import ProviderPaymentState
+from chakravyuh.domain.actions import ProviderPaymentLinkState, ProviderPaymentState
 from chakravyuh.domain.enums import PaymentStatus
 from chakravyuh.domain.errors import (
     ActionControlErrorCode,
@@ -23,7 +23,9 @@ from chakravyuh.domain.test_checkout import ProviderManualCaptureOrder
 _API_BASE_URL = "https://api.razorpay.com"
 _PAYMENT_ID = re.compile(r"^pay_[A-Za-z0-9]+$")
 _ORDER_ID = re.compile(r"^order_[A-Za-z0-9]+$")
+_PAYMENT_LINK_ID = re.compile(r"^plink_[A-Za-z0-9]+$")
 _RECEIPT = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
+_REFERENCE_ID = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 _MAX_RESPONSE_BYTES = 65_536
 
 
@@ -39,6 +41,19 @@ class DisabledRazorpayPaymentGateway:
 
     async def capture_payment(self, payment_id: str, amount: Money) -> ProviderPaymentState:
         del payment_id, amount
+        raise RazorpayActionError(
+            ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+            retryable=False,
+        )
+
+    async def create_payment_link(
+        self,
+        *,
+        amount: Money,
+        reference_id: str,
+        description: str,
+    ) -> ProviderPaymentLinkState:
+        del amount, reference_id, description
         raise RazorpayActionError(
             ActionControlErrorCode.PROVIDER_UNAVAILABLE,
             retryable=False,
@@ -92,6 +107,19 @@ class _OrderResponse(BaseModel):
     receipt: str = Field(min_length=1, max_length=40)
     status: str
     created_at: int = Field(ge=0)
+
+
+class _PaymentLinkResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(pattern=r"^plink_[A-Za-z0-9]+$", max_length=255)
+    entity: str
+    amount: int = Field(gt=0)
+    amount_paid: int = Field(ge=0)
+    currency: str = Field(min_length=3, max_length=3)
+    status: str = Field(pattern=r"^(created|partially_paid|paid|cancelled|expired)$")
+    short_url: str = Field(pattern=r"^https://", max_length=2_048)
+    reference_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,40}$")
 
 
 class _ProviderErrorDetails(BaseModel):
@@ -246,6 +274,66 @@ class RazorpayTestModePaymentGateway:
                 retryable=False,
             )
         return state
+
+    async def create_payment_link(
+        self,
+        *,
+        amount: Money,
+        reference_id: str,
+        description: str,
+    ) -> ProviderPaymentLinkState:
+        if (
+            amount.currency != "INR"
+            or amount.amount_subunits <= 0
+            or _REFERENCE_ID.fullmatch(reference_id) is None
+            or not 1 <= len(description) <= 255
+        ):
+            raise RazorpayActionError(
+                ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
+                retryable=False,
+            )
+        response = await self._request(
+            "POST",
+            "/v1/payment_links",
+            json={
+                "amount": amount.amount_subunits,
+                "currency": amount.currency,
+                "accept_partial": False,
+                "reference_id": reference_id,
+                "description": description,
+                "notify": {"sms": False, "email": False},
+                "reminder_enable": False,
+                "notes": {"source": "chakravyuh-buildathon"},
+            },
+        )
+        try:
+            parsed = _PaymentLinkResponse.model_validate(response)
+        except ValidationError as failure:
+            raise RazorpayActionError(
+                ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
+                retryable=False,
+            ) from failure
+        if (
+            _PAYMENT_LINK_ID.fullmatch(parsed.id) is None
+            or parsed.entity != "payment_link"
+            or parsed.status != "created"
+            or parsed.amount != amount.amount_subunits
+            or parsed.amount_paid != 0
+            or parsed.currency.upper() != amount.currency
+            or parsed.reference_id != reference_id
+        ):
+            raise RazorpayActionError(
+                ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
+                retryable=False,
+            )
+        return ProviderPaymentLinkState(
+            payment_link_id=parsed.id,
+            status=parsed.status,
+            amount=amount,
+            amount_paid=Money(amount_subunits=parsed.amount_paid, currency=parsed.currency),
+            short_url=parsed.short_url,
+            reference_id=parsed.reference_id,
+        )
 
     async def close(self) -> None:
         if self._owns_client:

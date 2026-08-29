@@ -1,4 +1,4 @@
-"""Versioned deterministic policy for the deliberately narrow Phase 9 action surface."""
+"""Versioned deterministic policy for the deliberately narrow recovery surface."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from chakravyuh.domain.enums import (
 )
 
 POLICY_VERSION = "recovery-policy-v1"
+PAYMENT_LINK_POLICY_VERSION = "recovery-policy-v2"
 
 
 class RecoveryPolicyConfig(BaseModel):
@@ -30,10 +31,12 @@ class RecoveryPolicyConfig(BaseModel):
     maximum_capture_subunits: int = Field(default=1_000_000, ge=1)
     minimum_capture_confidence: float = Field(default=0.9, ge=0, le=1)
     allowed_capture_currencies: frozenset[str] = frozenset({"INR"})
+    maximum_payment_link_subunits: int = Field(default=100_000, ge=1)
+    minimum_payment_link_confidence: float = Field(default=0.9, ge=0, le=1)
 
 
 class DeterministicRecoveryPolicy:
-    """Deny by default; allow reads and require a checker for one exact Test Mode mutation."""
+    """Deny by default and require a checker for each bounded Test Mode mutation."""
 
     version = POLICY_VERSION
 
@@ -63,18 +66,26 @@ class DeterministicRecoveryPolicy:
         elif proposal.action_type is ActionType.CAPTURE_PAYMENT:
             self._validate_capture(proposal, reasons)
             safe_outcome = PolicyOutcome.REQUIRE_APPROVAL
+        elif proposal.action_type is ActionType.CREATE_PAYMENT_LINK:
+            self._validate_payment_link(proposal, reasons)
+            safe_outcome = PolicyOutcome.REQUIRE_APPROVAL
         else:
             reasons.append("action_adapter_not_implemented")
             safe_outcome = PolicyOutcome.DENY
 
         outcome = PolicyOutcome.DENY if reasons else safe_outcome
+        policy_version = (
+            PAYMENT_LINK_POLICY_VERSION
+            if proposal.action_type is ActionType.CREATE_PAYMENT_LINK
+            else self.version
+        )
         return PolicyDecision(
             decision_id=self._uuid_factory(),
             proposal_id=proposal.proposal_id,
             outcome=outcome,
-            policy_version=self.version,
+            policy_version=policy_version,
             reasons=tuple(sorted(set(reasons))),
-            input_hash=self._input_hash(proposal),
+            input_hash=self._input_hash(proposal, policy_version),
             decided_at=proposal.proposed_at,
         )
 
@@ -105,16 +116,37 @@ class DeterministicRecoveryPolicy:
         if proposal.confidence < self._config.minimum_capture_confidence:
             reasons.append("capture_confidence_below_threshold")
 
-    def _input_hash(self, proposal: ActionProposal) -> str:
+    def _validate_payment_link(self, proposal: ActionProposal, reasons: list[str]) -> None:
+        if proposal.incident_type is not IncidentType.FAILED_WITHOUT_RECOVERY:
+            reasons.append("payment_link_incident_not_allowlisted")
+        if proposal.risk is not ActionRisk.REVERSIBLE:
+            reasons.append("payment_link_risk_mismatch")
+        if proposal.target.entity_type is not EntityType.PAYMENT:
+            reasons.append("payment_target_required")
+        if proposal.amount is None or proposal.amount.amount_subunits <= 0:
+            reasons.append("positive_payment_link_amount_required")
+        elif proposal.amount.amount_subunits > self._config.maximum_payment_link_subunits:
+            reasons.append("payment_link_amount_exceeds_limit")
+        if proposal.amount is not None and proposal.amount.currency != "INR":
+            reasons.append("payment_link_currency_not_allowlisted")
+        if proposal.confidence < self._config.minimum_payment_link_confidence:
+            reasons.append("payment_link_confidence_below_threshold")
+
+    def _input_hash(self, proposal: ActionProposal, policy_version: str) -> str:
         document = {
             "actions_enabled": self._config.actions_enabled,
             "allowed_capture_currencies": sorted(self._config.allowed_capture_currencies),
             "maximum_capture_subunits": self._config.maximum_capture_subunits,
             "merchant_id": self._config.merchant_id,
             "minimum_capture_confidence": self._config.minimum_capture_confidence,
-            "policy_version": self.version,
+            "policy_version": policy_version,
             "proposal_hash": proposal.proposal_hash,
             "test_credentials": self._config.test_credentials,
         }
+        if proposal.action_type is ActionType.CREATE_PAYMENT_LINK:
+            document["maximum_payment_link_subunits"] = self._config.maximum_payment_link_subunits
+            document["minimum_payment_link_confidence"] = (
+                self._config.minimum_payment_link_confidence
+            )
         canonical = json.dumps(document, separators=(",", ":"), sort_keys=True).encode()
         return hashlib.sha256(canonical).hexdigest()

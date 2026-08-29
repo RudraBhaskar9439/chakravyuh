@@ -204,10 +204,22 @@ function formatMoney(value: IncidentSummary["amount_at_risk"]): string {
 }
 
 async function fetchJson<T>(path: string, demo = true): Promise<T> {
-  const response = await fetch(demo ? `/api/demo${path}` : path, {
+  const url = demo ? `/api/demo${path}` : path;
+  let response = await fetch(url, {
     headers: { "X-Request-ID": crypto.randomUUID() },
     cache: "no-store",
   });
+  if (response.status === 429) {
+    const seconds = Number(response.headers.get("Retry-After"));
+    const delay = Number.isFinite(seconds) ? seconds * 1_000 : 1_000;
+    await new Promise((resolve) =>
+      window.setTimeout(resolve, Math.min(Math.max(delay, 250), 5_000)),
+    );
+    response = await fetch(url, {
+      headers: { "X-Request-ID": crypto.randomUUID() },
+      cache: "no-store",
+    });
+  }
   if (!response.ok) throw new Error(`Lookup failed with status ${response.status}.`);
   return (await response.json()) as T;
 }

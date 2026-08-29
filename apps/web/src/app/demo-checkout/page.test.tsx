@@ -25,10 +25,15 @@ afterEach(() => {
 });
 
 describe("Test Checkout", () => {
-  it("explains the bounded Test Mode flow before authorization", () => {
+  it("explains the bounded Test Mode flow before authorization", async () => {
     window.Razorpay = class {
       open() {}
     } as never;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).endsWith("/api/readiness")
+        ? jsonResponse(systemReadiness)
+        : jsonResponse(judgeSession),
+    );
     render(<DemoCheckoutPage />);
 
     expect(
@@ -36,6 +41,7 @@ describe("Test Checkout", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/fixed ₹10 Razorpay Test Mode payment/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Operator access token")).not.toBeInTheDocument();
+    expect(await screen.findByText(/Isolated session judge-se/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Razorpay Checkout" })).toBeEnabled();
   });
 
@@ -59,6 +65,8 @@ describe("Test Checkout", () => {
     } as never;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
+      if (url.endsWith("/api/demo/session")) return jsonResponse(judgeSession);
+      if (url.endsWith("/api/readiness")) return jsonResponse(systemReadiness);
       if (url.endsWith("/v1/demo/checkout/orders")) return jsonResponse(prepared, 201);
       if (url.endsWith("/v1/demo/checkout/verifications")) {
         return jsonResponse({
@@ -81,6 +89,7 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
+    await screen.findByText(/Isolated session judge-se/i);
     fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
     await waitFor(() => expect(opened).toBe(true));
     expect(checkoutOptions).toMatchObject({
@@ -106,7 +115,7 @@ describe("Test Checkout", () => {
     expect(screen.getByText("STOPPED HERE")).toBeInTheDocument();
     expect(screen.getByText("Watching the capture boundary")).toBeInTheDocument();
     expect(screen.getByText("Waiting for deterministic detection")).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
     const verificationCall = fetchMock.mock.calls.find(([input]) =>
       String(input).endsWith("/v1/demo/checkout/verifications"),
     );
@@ -125,6 +134,8 @@ describe("Test Checkout", () => {
     } as never;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
+      if (url.endsWith("/api/demo/session")) return jsonResponse(judgeSession);
+      if (url.endsWith("/api/readiness")) return jsonResponse(systemReadiness);
       if (url.endsWith("/v1/demo/checkout/orders")) return jsonResponse(prepared, 201);
       if (url.endsWith("/v1/demo/checkout/verifications")) {
         return jsonResponse({
@@ -174,6 +185,7 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
+    await screen.findByText(/Isolated session judge-se/i);
     fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
     await waitFor(() => expect(handler).toBeDefined());
     handler?.({
@@ -212,6 +224,8 @@ describe("Test Checkout", () => {
     } as never;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
+      if (url.endsWith("/api/demo/session")) return jsonResponse(judgeSession);
+      if (url.endsWith("/api/readiness")) return jsonResponse(systemReadiness);
       if (url.includes("/v1/operator/incidents?limit=100")) {
         return jsonResponse({ items: [], next_cursor: null });
       }
@@ -221,9 +235,10 @@ describe("Test Checkout", () => {
     render(<DemoCheckoutPage />);
 
     expect(await screen.findByText("Active transaction")).toBeInTheDocument();
+    expect(await screen.findByText(/Isolated session judge-se/i)).toBeInTheDocument();
     expect(screen.getAllByText("pay_persisted").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Start another ₹10 payment" })).toBeEnabled();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   });
 
   it("waits for signed webhooks before claiming recovery", async () => {
@@ -236,6 +251,8 @@ describe("Test Checkout", () => {
     } as never;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
+      if (url.endsWith("/api/demo/session")) return jsonResponse(judgeSession);
+      if (url.endsWith("/api/readiness")) return jsonResponse(systemReadiness);
       if (url.endsWith("/v1/demo/checkout/orders")) return jsonResponse(prepared, 201);
       if (url.endsWith("/v1/demo/checkout/verifications")) {
         return jsonResponse({
@@ -300,6 +317,7 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
+    await screen.findByText(/Isolated session judge-se/i);
     fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
     await waitFor(() => expect(handler).toBeDefined());
     handler?.({
@@ -325,6 +343,11 @@ describe("Test Checkout", () => {
   });
 
   it("fails closed when the hosted script loads without its Checkout constructor", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).endsWith("/api/readiness")
+        ? jsonResponse(systemReadiness)
+        : jsonResponse(judgeSession),
+    );
     render(<DemoCheckoutPage />);
     const script = document.querySelector(
       'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
@@ -340,6 +363,18 @@ describe("Test Checkout", () => {
     expect(screen.getByRole("button", { name: "Open Razorpay Checkout" })).toBeDisabled();
   });
 });
+
+const judgeSession = {
+  session_id: "judge-session-1234",
+  expires_at: "2026-08-25T09:00:00Z",
+  remaining_mutations: 24,
+};
+
+const systemReadiness = {
+  status: "ready",
+  checked_at: "2026-08-25T08:30:00Z",
+  checks: [{ id: "api", label: "Recovery API", status: "ready", detail: "Serving requests" }],
+};
 
 function jsonResponse(value: object, status = 200): Response {
   return new Response(JSON.stringify(value), {

@@ -188,7 +188,7 @@ function ProofRecordView({
         <div>
           <p className="eyebrow">Live provider evidence · not a simulation</p>
           <h1>
-            Don’t trust the demo.
+            Don’t trust a screenshot.
             <br />
             <span>Ask Razorpay again.</span>
           </h1>
@@ -533,6 +533,11 @@ function ProofLoading() {
       <p className="eyebrow">Building proof from live systems</p>
       <h1>Querying the ledger and Razorpay.</h1>
       <p>No cached story is rendered while provider evidence is unavailable.</p>
+      <ol className="proofLoadingSteps" aria-label="Proof verification progress">
+        <li>Locate the provider-confirmed incident</li>
+        <li>Verify the append-only action receipt</li>
+        <li>Re-query Razorpay for the current payment state</li>
+      </ol>
     </section>
   );
 }
@@ -549,10 +554,17 @@ function ProofFailure({ error }: { error: string }) {
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, {
+  let response = await fetch(`${apiBase}${path}`, {
     headers: { "X-Request-ID": crypto.randomUUID() },
     cache: "no-store",
   });
+  if (response.status === 429) {
+    await waitForRetry(response.headers.get("Retry-After"));
+    response = await fetch(`${apiBase}${path}`, {
+      headers: { "X-Request-ID": crypto.randomUUID() },
+      cache: "no-store",
+    });
+  }
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as {
       detail?: { code?: string } | string;
@@ -561,6 +573,12 @@ async function fetchJson<T>(path: string): Promise<T> {
     throw new Error(code ? humanize(code) : `Proof request failed with status ${response.status}.`);
   }
   return (await response.json()) as T;
+}
+
+async function waitForRetry(value: string | null): Promise<void> {
+  const seconds = Number(value);
+  const delay = Number.isFinite(seconds) ? seconds * 1_000 : 1_000;
+  await new Promise((resolve) => window.setTimeout(resolve, Math.min(Math.max(delay, 250), 5_000)));
 }
 
 function formatDate(value: string): string {

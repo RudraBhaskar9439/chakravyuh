@@ -22,7 +22,7 @@ export function JudgeDashboard({ report }: { report: ScaleEvidenceReport }) {
             </span>
             <span>
               <strong>Chakravyuh</strong>
-              <small>Reliability · signed measurements</small>
+              <small>Reliability · sealed measurements</small>
             </span>
           </a>
           <div className="judgeBoundary">
@@ -81,7 +81,7 @@ export function JudgeDashboard({ report }: { report: ScaleEvidenceReport }) {
           <dl>
             <div>
               <dt>Evidence run</dt>
-              <dd>{new Date(report.evidenceRunAt).toLocaleDateString("en-IN")}</dd>
+              <dd>{formatEvidenceDate(report.evidenceRunAt)}</dd>
             </div>
             <div>
               <dt>Deployment revision</dt>
@@ -434,6 +434,13 @@ function ProofHash({ label, value }: { label: string; value: string }) {
 function formatRupees(value: number): string {
   const sign = value < 0 ? "−" : "";
   return `${sign}₹${Math.abs(value).toLocaleString("en-IN")}`;
+}
+
+function formatEvidenceDate(value: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(value));
 }
 
 function shortRevision(value: string): string {

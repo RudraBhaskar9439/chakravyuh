@@ -19,7 +19,7 @@ from chakravyuh.domain.action_policy import (
     DeterministicRecoveryPolicy,
     RecoveryPolicyConfig,
 )
-from chakravyuh.domain.actions import ProviderPaymentState
+from chakravyuh.domain.actions import ProviderPaymentLinkState, ProviderPaymentState
 from chakravyuh.domain.diagnoses import (
     DiagnosisDecision,
     DiagnosisReceipt,
@@ -194,6 +194,15 @@ class _CaptureGateway:
         self.capture_count += 1
         self.captured = True
         return self._state()
+
+    async def create_payment_link(
+        self,
+        *,
+        amount: Money,
+        reference_id: str,
+        description: str,
+    ) -> ProviderPaymentLinkState:
+        raise AssertionError((amount, reference_id, description))
 
     async def close(self) -> None:
         return None

@@ -14,6 +14,7 @@ from chakravyuh.domain.actions import (
     ActionProposalSeed,
     ActionView,
     PolicyDecision,
+    ProviderPaymentLinkState,
     ProviderPaymentState,
 )
 from chakravyuh.domain.enums import (
@@ -37,13 +38,17 @@ from chakravyuh.simulation.razorpay_twin import (
 )
 
 
-def _seed(action_type: ActionType = ActionType.CAPTURE_PAYMENT) -> ActionProposalSeed:
+def _seed(
+    action_type: ActionType = ActionType.CAPTURE_PAYMENT,
+    *,
+    incident_type: IncidentType = IncidentType.AUTHORIZED_NOT_CAPTURED,
+) -> ActionProposalSeed:
     return ActionProposalSeed(
         incident_id=uuid4(),
         source_revision_id=uuid4(),
         diagnosis_id=uuid4(),
         merchant_id="merchant-test",
-        incident_type=IncidentType.AUTHORIZED_NOT_CAPTURED,
+        incident_type=incident_type,
         incident_status=IncidentStatus.DETECTED,
         target=EntityReference(entity_type=EntityType.PAYMENT, entity_id="pay_123"),
         amount_at_risk=Money(amount_subunits=10_000, currency="INR"),
@@ -138,6 +143,7 @@ class _Gateway:
         )
         self.fetch_calls = 0
         self.capture_calls = 0
+        self.payment_link_calls = 0
 
     async def fetch_payment(self, payment_id: str) -> ProviderPaymentState:
         assert payment_id == "pay_123"
@@ -154,6 +160,26 @@ class _Gateway:
         if isinstance(self.capture_result, RazorpayActionError):
             raise self.capture_result
         return self.capture_result
+
+    async def create_payment_link(
+        self,
+        *,
+        amount: Money,
+        reference_id: str,
+        description: str,
+    ) -> ProviderPaymentLinkState:
+        assert amount == Money(amount_subunits=10_000, currency="INR")
+        assert reference_id.startswith("chkr_") and len(reference_id) == 40
+        assert description == "Recovery for a failed Test Mode payment"
+        self.payment_link_calls += 1
+        return ProviderPaymentLinkState(
+            payment_link_id="plink_123",
+            status="created",
+            amount=amount,
+            amount_paid=Money(amount_subunits=0, currency="INR"),
+            short_url="https://rzp.io/i/test123",
+            reference_id=reference_id,
+        )
 
     async def close(self) -> None:
         return None
@@ -285,6 +311,51 @@ async def test_capture_checkpoints_mutation_and_returns_exact_provider_receipt()
     assert view.execution_status is ActionExecutionStatus.SUCCEEDED
     assert view.latest_result is not None
     assert not view.latest_result.already_applied
+
+
+async def test_failed_payment_creates_one_exact_provider_recovery_link() -> None:
+    repository = _Repository(
+        _seed(
+            ActionType.CREATE_PAYMENT_LINK,
+            incident_type=IncidentType.FAILED_WITHOUT_RECOVERY,
+        )
+    )
+    gateway = _Gateway(_state(PaymentStatus.FAILED, captured=False))
+    control, proposal = await _propose_and_claim(repository, gateway)
+
+    view = await control.execute(
+        proposal.proposal_id,
+        principal_id="checker",
+        request_id="execute-payment-link",
+    )
+
+    assert proposal.amount == repository.seed.amount_at_risk
+    assert proposal.risk is ActionRisk.REVERSIBLE
+    assert repository.mutation_starts == 1
+    assert gateway.payment_link_calls == 1
+    assert view.execution_status is ActionExecutionStatus.SUCCEEDED
+    assert view.latest_result is not None
+    assert isinstance(view.latest_result.provider_state, ProviderPaymentLinkState)
+
+
+async def test_payment_link_refuses_to_mutate_when_provider_payment_is_not_failed() -> None:
+    repository = _Repository(
+        _seed(
+            ActionType.CREATE_PAYMENT_LINK,
+            incident_type=IncidentType.FAILED_WITHOUT_RECOVERY,
+        )
+    )
+    gateway = _Gateway(_state(PaymentStatus.AUTHORIZED, captured=False))
+    control, proposal = await _propose_and_claim(repository, gateway)
+
+    view = await control.execute(
+        proposal.proposal_id,
+        principal_id="checker",
+        request_id="execute-payment-link-blocked",
+    )
+
+    assert gateway.payment_link_calls == repository.mutation_starts == 0
+    assert view.execution_status is ActionExecutionStatus.BLOCKED
 
 
 async def test_already_captured_preflight_is_idempotent_without_post() -> None:

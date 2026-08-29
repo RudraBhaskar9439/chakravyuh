@@ -128,6 +128,22 @@ class ProviderPaymentState(BaseModel):
     order_id: str | None = Field(default=None, max_length=255)
 
 
+class ProviderPaymentLinkState(BaseModel):
+    """Allowlisted recovery-link receipt returned by Razorpay Test Mode."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    payment_link_id: str = Field(pattern=r"^plink_[A-Za-z0-9]+$", max_length=255)
+    status: str = Field(pattern=r"^(created|partially_paid|paid|cancelled|expired)$")
+    amount: Money
+    amount_paid: Money
+    short_url: str = Field(pattern=r"^https://", max_length=2_048)
+    reference_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,40}$")
+
+
+ProviderActionState = ProviderPaymentState | ProviderPaymentLinkState
+
+
 class ActionExecutionResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -135,7 +151,7 @@ class ActionExecutionResult(BaseModel):
     proposal_id: UUID
     outcome: ActionExecutionOutcome
     error_code: str | None = Field(default=None, max_length=64)
-    provider_state: ProviderPaymentState | None = None
+    provider_state: ProviderActionState | None = None
     already_applied: bool = False
     completed_at: AwareDatetime = Field(default_factory=lambda: datetime.now(UTC))
     result_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
