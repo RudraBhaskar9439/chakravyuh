@@ -6,12 +6,13 @@ export type ScaleEvidenceReport = ReturnType<typeof createScaleEvidenceReport>;
 
 const evidence = {
   reportVersion: "chakravyuh-scale-evidence-v1",
-  evidenceRunAt: "2026-08-25T00:00:00+05:30",
+  evidenceRunAt: "2026-08-30T00:00:00+05:30",
   claimsBoundary:
     "Reproducible Test Mode and synthetic measurements; not a production SLA or merchant revenue claim.",
   proofRoots: {
     portfolio: "00a7a5e66c1dc203a06548adaf186db5931ada9d9d1eb3a47ed8b733b2d27112",
-    tournament: "b4086ba1516fbbe2b590b112ca4e43aa3ea291e1cfdeb103cf37b72edc712812",
+    tournament: "a8d43e61a391fcce4426888c3428df5686e33426eb188cd6f86c60ad602151e6",
+    sealedPack: "f1eb7fd4ca6263ca9212bd3897340bc6fefabcb06a23a09c6d2a58c3e2e1cd6f",
     liveAi: "7b91feec4b8ba77baf03c6f21f5a0f14462b977aa090fbf5705fdabc70e7c0d8",
     signedIngress: "abd03fab3f2869db03875515dcc541f8b440b9041090f415edef488d920abd48",
     fullPipeline: "d390a1625bd2de6fbdab6b45315b6563c2f527a303d97214ebc26b08bfe52915",

@@ -1,26 +1,26 @@
 {
   "artifacts": {
     "cases.jsonl": {
-      "sha256": "160d5efe56d21edc20be6a57a8e65ba5bfecd375250ca9258bb42792664f2c69",
+      "sha256": "6aa4d56f428ec1e5feea8f050bb04c471c8b3a70172472338c363dba3607a3ff",
       "size_bytes": 29628207
     },
     "index.html": {
-      "sha256": "90884b9dbcfdfd05aff2ac48201ad44edc3c014baecb57ec8ac4830b3db2e227",
+      "sha256": "ed1bd7e296fd404334f113a839f2a806d162f42091db5512b5b86d62d6054bff",
       "size_bytes": 1624
     },
     "strategy-summary.csv": {
-      "sha256": "fe9cbd436a0677d9d3e369b14733f96018276c286975c649dc8dbd1ff77f2692",
+      "sha256": "358140b51e1a4996122df2030d029971d096d9d2c0fcd713dd8c99d4ffffeab6",
       "size_bytes": 495
     }
   },
   "baseline_report_sha256": "d58a681121480d489a3e30eb4b1ca86a37cb864ef2a94ede23dc35abcf32c2c9",
   "case_count": 10005,
-  "cases_root_sha256": "afa6cfd2ef0fa84633f36be7cfbc0b9d0b6834a30a8f24c78763b053e4fed2a5",
-  "code_revision": "e52178e43c9de457f403b12fe1a714373385675a",
+  "cases_root_sha256": "9e2516f2dd28fbfe8d7dd9cf44c5434701b67a8ed4e490087ff04e874acbd62f",
+  "code_revision": "95e27f09b69c869f4da60376967f6159b5a5f36f",
   "contract_sha256": "b99775ca382196d5077b01caf0a675ee56f3b173f6be7ccf607edd458e87d1a3",
   "portfolio_manifest_sha256": "00a7a5e66c1dc203a06548adaf186db5931ada9d9d1eb3a47ed8b733b2d27112",
   "proof_pack_version": "recovery-arena-proof-pack-v1",
-  "proof_root_sha256": "8ddaeee4d689d91810a89ed0c1d53cfb3b93ab630171ef6a3e02ee3da240bc53",
+  "proof_root_sha256": "f1eb7fd4ca6263ca9212bd3897340bc6fefabcb06a23a09c6d2a58c3e2e1cd6f",
   "strategies": [
     {
       "action_attempt_count": 0,
@@ -127,10 +127,10 @@
       "provider_confirmed_count": 402,
       "provider_operation_count": 949,
       "recovery_efficiency": 0.9451355086833724,
-      "results_root_sha256": "c6ed181f90b61951f96ca70f1ed6616606367c8b32ebff459cd4ae53b61651dc",
+      "results_root_sha256": "a2fa448349d57c184fe74626f1ed2944bdef23ee3308a11bebbcfb8ede5572cf",
       "strategy": "chakravyuh"
     }
   ],
   "tournament_passed": true,
-  "tournament_report_sha256": "b4086ba1516fbbe2b590b112ca4e43aa3ea291e1cfdeb103cf37b72edc712812"
+  "tournament_report_sha256": "a8d43e61a391fcce4426888c3428df5686e33426eb188cd6f86c60ad602151e6"
 }

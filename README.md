@@ -336,12 +336,12 @@ Build the final machine- and human-readable proof pack against an exact full Git
 verify both that revision and the printed root:
 
     uv run chakravyuh-recovery-proof-pack build \
-      --output-dir proof/phase-12 \
-      --code-revision e52178e43c9de457f403b12fe1a714373385675a
+      --output-dir /tmp/chakravyuh-phase-12-verification \
+      --code-revision 95e27f09b69c869f4da60376967f6159b5a5f36f
     uv run chakravyuh-recovery-proof-pack verify \
       --input-dir proof/phase-12 \
-      --expected-code-revision e52178e43c9de457f403b12fe1a714373385675a \
-      --expected-proof-root 8ddaeee4d689d91810a89ed0c1d53cfb3b93ab630171ef6a3e02ee3da240bc53
+      --expected-code-revision 95e27f09b69c869f4da60376967f6159b5a5f36f \
+      --expected-proof-root f1eb7fd4ca6263ca9212bd3897340bc6fefabcb06a23a09c6d2a58c3e2e1cd6f
 
 Generation refuses to overwrite an existing directory. The verifier checks the outer checksum
 file, typed manifest, every canonical JSONL record and embedded result hash, the per-case Merkle
