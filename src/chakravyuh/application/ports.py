@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from chakravyuh.domain.test_checkout import (
         PreparedTestCheckout,
         ProviderManualCaptureOrder,
+        TestCheckoutFailureEvidence,
         TestCheckoutOrder,
         TestCheckoutProviderProof,
         TestCheckoutVerification,
@@ -320,7 +321,14 @@ class RazorpayPaymentGateway(Protocol):
         amount: Money,
         reference_id: str,
         description: str,
+        expire_by: datetime,
     ) -> ProviderPaymentLinkState: ...
+
+    async def fetch_payment_link(
+        self,
+        *,
+        reference_id: str,
+    ) -> ProviderPaymentLinkState | None: ...
 
     async def close(self) -> None: ...
 
@@ -385,6 +393,15 @@ class TestCheckoutControlPlane(Protocol):
         principal_id: str,
         request_id: str,
     ) -> TestCheckoutVerification: ...
+
+    async def verify_failure(
+        self,
+        *,
+        order_id: str,
+        payment_id: str,
+        principal_id: str,
+        request_id: str,
+    ) -> TestCheckoutFailureEvidence: ...
 
     async def proof(
         self,

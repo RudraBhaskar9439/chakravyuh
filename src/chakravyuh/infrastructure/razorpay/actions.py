@@ -52,8 +52,20 @@ class DisabledRazorpayPaymentGateway:
         amount: Money,
         reference_id: str,
         description: str,
+        expire_by: datetime,
     ) -> ProviderPaymentLinkState:
-        del amount, reference_id, description
+        del amount, reference_id, description, expire_by
+        raise RazorpayActionError(
+            ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+            retryable=False,
+        )
+
+    async def fetch_payment_link(
+        self,
+        *,
+        reference_id: str,
+    ) -> ProviderPaymentLinkState | None:
+        del reference_id
         raise RazorpayActionError(
             ActionControlErrorCode.PROVIDER_UNAVAILABLE,
             retryable=False,
@@ -120,6 +132,12 @@ class _PaymentLinkResponse(BaseModel):
     status: str = Field(pattern=r"^(created|partially_paid|paid|cancelled|expired)$")
     short_url: str = Field(pattern=r"^https://", max_length=2_048)
     reference_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,40}$")
+
+
+class _PaymentLinksResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    payment_links: list[_PaymentLinkResponse] = Field(default_factory=list, max_length=10)
 
 
 class _ProviderErrorDetails(BaseModel):
@@ -281,12 +299,15 @@ class RazorpayTestModePaymentGateway:
         amount: Money,
         reference_id: str,
         description: str,
+        expire_by: datetime,
     ) -> ProviderPaymentLinkState:
         if (
             amount.currency != "INR"
             or amount.amount_subunits <= 0
             or _REFERENCE_ID.fullmatch(reference_id) is None
             or not 1 <= len(description) <= 255
+            or expire_by.utcoffset() is None
+            or expire_by <= datetime.now(UTC)
         ):
             raise RazorpayActionError(
                 ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
@@ -301,18 +322,13 @@ class RazorpayTestModePaymentGateway:
                 "accept_partial": False,
                 "reference_id": reference_id,
                 "description": description,
+                "expire_by": int(expire_by.timestamp()),
                 "notify": {"sms": False, "email": False},
                 "reminder_enable": False,
                 "notes": {"source": "chakravyuh-buildathon"},
             },
         )
-        try:
-            parsed = _PaymentLinkResponse.model_validate(response)
-        except ValidationError as failure:
-            raise RazorpayActionError(
-                ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
-                retryable=False,
-            ) from failure
+        parsed = _parse_payment_link(response)
         if (
             _PAYMENT_LINK_ID.fullmatch(parsed.id) is None
             or parsed.entity != "payment_link"
@@ -326,14 +342,39 @@ class RazorpayTestModePaymentGateway:
                 ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
                 retryable=False,
             )
-        return ProviderPaymentLinkState(
-            payment_link_id=parsed.id,
-            status=parsed.status,
-            amount=amount,
-            amount_paid=Money(amount_subunits=parsed.amount_paid, currency=parsed.currency),
-            short_url=parsed.short_url,
-            reference_id=parsed.reference_id,
+        return _provider_payment_link_state(parsed)
+
+    async def fetch_payment_link(
+        self,
+        *,
+        reference_id: str,
+    ) -> ProviderPaymentLinkState | None:
+        if _REFERENCE_ID.fullmatch(reference_id) is None:
+            raise RazorpayActionError(
+                ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
+                retryable=False,
+            )
+        response = await self._request(
+            "GET",
+            "/v1/payment_links/",
+            params={"reference_id": reference_id},
         )
+        try:
+            parsed = _PaymentLinksResponse.model_validate(response)
+        except ValidationError as failure:
+            raise RazorpayActionError(
+                ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
+                retryable=False,
+            ) from failure
+        matches = [link for link in parsed.payment_links if link.reference_id == reference_id]
+        if not matches:
+            return None
+        if len(matches) != 1:
+            raise RazorpayActionError(
+                ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
+                retryable=False,
+            )
+        return _provider_payment_link_state(matches[0])
 
     async def close(self) -> None:
         if self._owns_client:
@@ -425,4 +466,25 @@ def _provider_state(payload: Any, *, expected_payment_id: str) -> ProviderPaymen
         amount=Money(amount_subunits=parsed.amount, currency=parsed.currency),
         captured=parsed.captured,
         order_id=parsed.order_id,
+    )
+
+
+def _parse_payment_link(payload: Any) -> _PaymentLinkResponse:
+    try:
+        return _PaymentLinkResponse.model_validate(payload)
+    except ValidationError as failure:
+        raise RazorpayActionError(
+            ActionControlErrorCode.PROVIDER_INVALID_RESPONSE,
+            retryable=False,
+        ) from failure
+
+
+def _provider_payment_link_state(parsed: _PaymentLinkResponse) -> ProviderPaymentLinkState:
+    return ProviderPaymentLinkState(
+        payment_link_id=parsed.id,
+        status=parsed.status,
+        amount=Money(amount_subunits=parsed.amount, currency=parsed.currency),
+        amount_paid=Money(amount_subunits=parsed.amount_paid, currency=parsed.currency),
+        short_url=parsed.short_url,
+        reference_id=parsed.reference_id,
     )

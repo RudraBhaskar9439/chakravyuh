@@ -204,17 +204,25 @@ class DeterministicPaymentInvariantEvaluator:
         deadlines: list[AwareDatetime],
     ) -> list[InvariantFinding]:
         payments = list(_entities_of_type(state, EntityType.PAYMENT))
-        captured_times = [
+        recovery_times = [
             payment.last_occurred_at
             for payment in payments
             if payment.effective_payment_status in _CAPTURED_STATUSES
         ]
+        recovery_times.extend(
+            link.last_occurred_at
+            for link in _entities_of_type(state, EntityType.PAYMENT_LINK)
+            if link.provider_status == "paid"
+            and link.amount is not None
+            and link.amount_paid_subunits is not None
+            and link.amount_paid_subunits >= link.amount.amount_subunits
+        )
         grace = timedelta(seconds=self.policy.failed_recovery_grace_seconds)
         results: list[InvariantFinding] = []
         for payment in payments:
             if payment.effective_payment_status is not PaymentStatus.FAILED:
                 continue
-            if any(captured_at > payment.last_occurred_at for captured_at in captured_times):
+            if any(recovered_at > payment.last_occurred_at for recovered_at in recovery_times):
                 continue
             deadline = payment.last_occurred_at + grace
             if as_of < deadline:
@@ -231,7 +239,8 @@ class DeterministicPaymentInvariantEvaluator:
                         _evidence(
                             "failed-payment",
                             payment,
-                            "Failed payment has no later captured payment in this journey.",
+                            "Failed payment has no later provider-confirmed recovery "
+                            "in this journey.",
                         ),
                     ),
                 )

@@ -48,9 +48,7 @@ def test_settings_accept_render_database_url(monkeypatch: pytest.MonkeyPatch) ->
 
     settings = Settings(_env_file=None)
 
-    assert settings.postgres_dsn == (
-        "postgresql+asyncpg://user:secret@render.example/chakravyuh"
-    )
+    assert settings.postgres_dsn == ("postgresql+asyncpg://user:secret@render.example/chakravyuh")
 
 
 def test_wildcard_cors_is_rejected() -> None:

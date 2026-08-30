@@ -16,6 +16,7 @@ from chakravyuh.domain.money import Money
 from chakravyuh.domain.test_checkout import (
     PreparedTestCheckout,
     ProviderManualCaptureOrder,
+    create_test_checkout_failure_evidence,
     create_test_checkout_order,
     create_test_checkout_verification,
 )
@@ -86,6 +87,24 @@ class FakeControlPlane:
         return await self.verify(
             principal_id=parameters["principal_id"],
             request_id=parameters["request_id"],
+        )
+
+    async def verify_failure(self, **parameters: Any) -> Any:
+        self.calls.append(("verify_failure", parameters))
+        if self.failure is not None:
+            raise self.failure
+        return create_test_checkout_failure_evidence(
+            checkout_id=self.prepared.order.checkout_id,
+            payment=ProviderPaymentState(
+                payment_id=parameters["payment_id"],
+                status=PaymentStatus.FAILED,
+                amount=Money(amount_subunits=1_000, currency="INR"),
+                captured=False,
+                order_id=parameters["order_id"],
+            ),
+            verified_by=parameters["principal_id"],
+            request_id=parameters["request_id"],
+            verified_at=datetime.now(UTC),
         )
 
     async def proof(self, **parameters: Any) -> Any:
@@ -182,6 +201,32 @@ async def test_reconcile_forwards_scoped_operator_identity() -> None:
             "payment_id": "pay_123",
             "principal_id": "maker",
             "request_id": "reconcile-api-request",
+        },
+    )
+
+
+async def test_failed_payment_is_authoritatively_verified_before_browser_ownership() -> None:
+    control = FakeControlPlane()
+    async with _client(control) as client:
+        response = await client.post(
+            "/v1/demo/checkout/failures",
+            headers={"X-Request-ID": "failure-api-request"},
+            json={
+                "razorpay_order_id": "order_123",
+                "razorpay_payment_id": "pay_123",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["payment"]["status"] == "failed"
+    assert len(response.json()["evidence_hash"]) == 64
+    assert control.calls[0] == (
+        "verify_failure",
+        {
+            "order_id": "order_123",
+            "payment_id": "pay_123",
+            "principal_id": "maker",
+            "request_id": "failure-api-request",
         },
     )
 

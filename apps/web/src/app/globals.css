@@ -152,7 +152,7 @@ a {
 }
 .workspaceProofs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   border-top: 1px solid var(--border);
   border-left: 1px solid var(--border);
 }

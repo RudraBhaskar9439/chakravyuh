@@ -6,14 +6,17 @@ export function JudgeWorkspace() {
           <p className="eyebrow">Razorpay Test Mode · verifiable recovery</p>
           <h1>Watch one broken payment repair itself.</h1>
           <p>
-            Create a real provider-backed Test Mode authorization, follow its evidence graph through
-            detection and controlled recovery, then independently ask Razorpay for the final state.
+            Choose a real provider-backed Test Mode failure or authorization, follow its evidence
+            graph through detection and controlled recovery, then independently verify the final
+            state.
           </p>
           <div className="workspaceActions">
             <a className="workspacePrimary" href="/payments/authorize">
-              Start verified recovery <span aria-hidden="true">→</span>
+              Recover an uncaptured payment <span aria-hidden="true">→</span>
             </a>
-            <a href="/trace">Find an existing transaction</a>
+            <a className="workspaceSecondary" href="/payments/recover-failure">
+              Recover a failed payment
+            </a>
           </div>
         </div>
         <aside aria-label="Judge journey">
@@ -23,7 +26,7 @@ export function JudgeWorkspace() {
               <span>01</span>
               <div>
                 <strong>Break</strong>
-                <small>Authorize ₹10 and deliberately leave it uncaptured.</small>
+                <small>Fail ₹10 or deliberately leave an authorization uncaptured.</small>
               </div>
             </li>
             <li>
@@ -52,6 +55,11 @@ export function JudgeWorkspace() {
       </section>
 
       <section className="workspaceProofs" aria-label="Product evidence">
+        <a href="/payments/recover-failure">
+          <span>Revenue recovery</span>
+          <strong>Fail, diagnose and recover a payment</strong>
+          <p>A real Test Mode failure becomes one expiring provider-hosted recovery path.</p>
+        </a>
         <a href="/recoveries/verified">
           <span>Provider proof</span>
           <strong>Inspect a completed recovery</strong>

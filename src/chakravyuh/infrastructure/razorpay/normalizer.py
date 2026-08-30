@@ -14,6 +14,22 @@ from chakravyuh.domain.webhooks import RawWebhookEvent
 
 NORMALIZER_VERSION: Final = "razorpay-provider-v2"
 
+_SAFE_ENTITY_FIELDS: Final = frozenset(
+    {
+        "id",
+        "status",
+        "amount",
+        "currency",
+        "captured",
+        "order_id",
+        "payment_id",
+        "reference_id",
+        "amount_paid",
+        "amount_due",
+        "amount_refunded",
+    }
+)
+
 _PRIMARY_ENTITY_TYPES: Final[dict[str, EntityType]] = {
     "order": EntityType.RAZORPAY_ORDER,
     "payment": EntityType.PAYMENT,
@@ -52,6 +68,15 @@ class RazorpayWebhookNormalizer(WebhookNormalizer):
         if not isinstance(entity_id, str) or not entity_id.strip() or len(entity_id) > 255:
             raise NormalizationError(NormalizationErrorCode.MISSING_ENTITY_ID)
 
+        correlation_id = _correlation_id(entity, provider_payload, entity_id)
+        payload = _safe_payload(entity)
+        if (
+            entity_type is EntityType.PAYMENT_LINK
+            and "order_id" not in payload
+            and correlation_id.startswith("order_")
+        ):
+            payload["order_id"] = correlation_id
+
         return NormalizedEvent(
             event_id=uuid5(NAMESPACE_URL, f"chakravyuh:normalized:{event.event_id}"),
             merchant_id=event.merchant_id,
@@ -61,8 +86,8 @@ class RazorpayWebhookNormalizer(WebhookNormalizer):
             subject=EntityReference(entity_type=entity_type, entity_id=entity_id),
             occurred_at=event.occurred_at,
             observed_at=event.observed_at,
-            correlation_id=_correlation_id(entity, provider_payload, entity_id),
-            payload=dict(entity),
+            correlation_id=correlation_id,
+            payload=payload,
         )
 
 
@@ -70,6 +95,11 @@ def _mapping(value: JsonValue | None) -> Mapping[str, JsonValue]:
     if isinstance(value, dict):
         return value
     return {}
+
+
+def _safe_payload(entity: Mapping[str, JsonValue]) -> dict[str, JsonValue]:
+    """Keep only money-journey fields; customer PII never crosses normalization."""
+    return {key: value for key, value in entity.items() if key in _SAFE_ENTITY_FIELDS}
 
 
 def _correlation_id(

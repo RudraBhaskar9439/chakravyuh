@@ -22,6 +22,7 @@ type RoutePolicy = {
 const routePolicies: RoutePolicy[] = [
   { method: "POST", pattern: /^v1\/demo\/checkout\/orders$/, role: "maker" },
   { method: "POST", pattern: /^v1\/demo\/checkout\/verifications$/, role: "maker" },
+  { method: "POST", pattern: /^v1\/demo\/checkout\/failures$/, role: "maker" },
   {
     method: "POST",
     pattern: /^v1\/demo\/checkout\/verifications\/pay_[A-Za-z0-9]+\/reconcile$/,
@@ -175,6 +176,10 @@ async function validateOwnership(
     const orderId = parseJsonString(body, "razorpay_order_id");
     return orderId && session.orderIds.includes(orderId) ? null : "demo_order_not_owned";
   }
+  if (path === "v1/demo/checkout/failures") {
+    const orderId = parseJsonString(body, "razorpay_order_id");
+    return orderId && session.orderIds.includes(orderId) ? null : "demo_order_not_owned";
+  }
   const payment = path.match(/verifications\/(pay_[A-Za-z0-9]+)\/reconcile$/)?.[1];
   if (payment) return session.paymentIds.includes(payment) ? null : "demo_payment_not_owned";
   const incident = path.match(/incidents\/([0-9a-f-]{36})\/actions\/proposals$/i)?.[1];
@@ -218,6 +223,9 @@ function extractOwnedIds(
       return { orderIds: [payload.order.order_id] };
     }
     if (path === "v1/demo/checkout/verifications" && payload.payment?.payment_id) {
+      return { paymentIds: [payload.payment.payment_id] };
+    }
+    if (path === "v1/demo/checkout/failures" && payload.payment?.payment_id) {
       return { paymentIds: [payload.payment.payment_id] };
     }
     if (payload.proposal?.proposal_id) {

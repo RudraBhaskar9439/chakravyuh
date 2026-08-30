@@ -147,13 +147,13 @@ async def test_locked_held_out_tournament_has_stable_safety_and_value_commitment
     _, retry_all, chakravyuh = report.strategies
 
     assert report.report_sha256 == (
-        "b4086ba1516fbbe2b590b112ca4e43aa3ea291e1cfdeb103cf37b72edc712812"
+        "a8d43e61a391fcce4426888c3428df5686e33426eb188cd6f86c60ad602151e6"
     )
     assert report.chakravyuh_control_audit_roots_sha256 == (
-        "14011ba6fdbd8ae141479e08f529eaa4b0d0efcf8761da188528a53d27f8203b"
+        "2e6f973d05a4124aff35fb7beaf4ed8d49201ecb9317cb0c7d631c9a5d66296a"
     )
     assert chakravyuh.results_root_sha256 == (
-        "c6ed181f90b61951f96ca70f1ed6616606367c8b32ebff459cd4ae53b61651dc"
+        "a2fa448349d57c184fe74626f1ed2944bdef23ee3308a11bebbcfb8ede5572cf"
     )
     assert chakravyuh.detection_true_positive_count == 4_002
     assert chakravyuh.detection_false_positive_count == 0

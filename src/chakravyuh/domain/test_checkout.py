@@ -70,6 +70,30 @@ class TestCheckoutVerification(BaseModel):
         return self
 
 
+class TestCheckoutFailureEvidence(BaseModel):
+    """Tamper-evident proof that a recorded Test Checkout order produced a failed payment."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    evidence_id: UUID = Field(default_factory=uuid4)
+    checkout_id: UUID
+    payment: ProviderPaymentState
+    verified_by: str = Field(min_length=1, max_length=64)
+    request_id: str = Field(min_length=1, max_length=255)
+    verified_at: AwareDatetime = Field(default_factory=lambda: datetime.now(UTC))
+    evidence_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def failure_and_hash_are_valid(self) -> TestCheckoutFailureEvidence:
+        if self.payment.status.value != "failed" or self.payment.captured:
+            msg = "failure evidence requires an uncaptured failed payment"
+            raise ValueError(msg)
+        if _failure_evidence_hash(self) != self.evidence_hash:
+            msg = "test checkout failure evidence hash does not match its canonical content"
+            raise ValueError(msg)
+        return self
+
+
 class TestCheckoutProviderProof(BaseModel):
     """Tamper-evident, read-only re-verification of a Checkout payment at Razorpay."""
 
@@ -173,6 +197,29 @@ def create_test_checkout_provider_proof(
     )
 
 
+def create_test_checkout_failure_evidence(
+    *,
+    checkout_id: UUID,
+    payment: ProviderPaymentState,
+    verified_by: str,
+    request_id: str,
+    verified_at: datetime,
+    evidence_id: UUID | None = None,
+) -> TestCheckoutFailureEvidence:
+    draft = TestCheckoutFailureEvidence.model_construct(
+        evidence_id=evidence_id or uuid4(),
+        checkout_id=checkout_id,
+        payment=payment,
+        verified_by=verified_by,
+        request_id=request_id,
+        verified_at=verified_at,
+        evidence_hash="0" * 64,
+    )
+    return TestCheckoutFailureEvidence.model_validate(
+        {**draft.model_dump(), "evidence_hash": _failure_evidence_hash(draft)}
+    )
+
+
 def _order_hash(order: TestCheckoutOrder) -> str:
     return _hash(order.model_dump(mode="json", exclude={"order_hash"}))
 
@@ -183,6 +230,10 @@ def _verification_hash(verification: TestCheckoutVerification) -> str:
 
 def _provider_proof_hash(proof: TestCheckoutProviderProof) -> str:
     return _hash(proof.model_dump(mode="json", exclude={"proof_hash"}))
+
+
+def _failure_evidence_hash(evidence: TestCheckoutFailureEvidence) -> str:
+    return _hash(evidence.model_dump(mode="json", exclude={"evidence_hash"}))
 
 
 def _hash(value: object) -> str:

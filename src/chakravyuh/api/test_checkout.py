@@ -17,6 +17,7 @@ from chakravyuh.domain.errors import (
 )
 from chakravyuh.domain.test_checkout import (
     PreparedTestCheckout,
+    TestCheckoutFailureEvidence,
     TestCheckoutProviderProof,
     TestCheckoutVerification,
 )
@@ -72,6 +73,33 @@ class CheckoutVerificationResponse(BaseModel):
     verification_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     verified_at: AwareDatetime
     payment: CheckoutPaymentProof
+
+
+class CheckoutFailureRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    razorpay_order_id: str = Field(pattern=r"^order_[A-Za-z0-9]+$", max_length=255)
+    razorpay_payment_id: str = Field(pattern=r"^pay_[A-Za-z0-9]+$", max_length=255)
+
+
+class CheckoutFailedPaymentProof(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    payment_id: str = Field(pattern=r"^pay_[A-Za-z0-9]+$", max_length=255)
+    order_id: str = Field(pattern=r"^order_[A-Za-z0-9]+$", max_length=255)
+    status: Literal["failed"]
+    amount_subunits: int = Field(gt=0)
+    currency: Literal["INR"]
+    captured: Literal[False]
+
+
+class CheckoutFailureResponse(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    evidence_id: UUID
+    evidence_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    verified_at: AwareDatetime
+    payment: CheckoutFailedPaymentProof
 
 
 class ProviderPaymentSnapshot(BaseModel):
@@ -162,6 +190,28 @@ async def reconcile_test_checkout(
         raise _http_error(failure) from failure
 
 
+@router.post("/failures")
+async def verify_failed_test_checkout(
+    body: CheckoutFailureRequest,
+    request: Request,
+    response: Response,
+    principal: OperatorDependency,
+) -> CheckoutFailureResponse:
+    """Confirm the browser-observed failure with Razorpay and ingest durable evidence."""
+    require_scope(principal, OperatorScope.TEST_CHECKOUT)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        evidence = await _control_plane(request).verify_failure(
+            order_id=body.razorpay_order_id,
+            payment_id=body.razorpay_payment_id,
+            principal_id=principal.principal_id,
+            request_id=request.state.request_id,
+        )
+        return _public_failure(evidence)
+    except (TestCheckoutError, RazorpayActionError) as failure:
+        raise _http_error(failure) from failure
+
+
 @router.get("/verifications/{payment_id}/proof")
 async def get_test_checkout_provider_proof(
     payment_id: Annotated[
@@ -222,6 +272,24 @@ def _public_verification(
             amount_subunits=payment.amount.amount_subunits,
             currency=payment.amount.currency,
             captured=payment.captured,
+        ),
+    )
+
+
+def _public_failure(evidence: TestCheckoutFailureEvidence) -> CheckoutFailureResponse:
+    payment = evidence.payment
+    assert payment.order_id is not None
+    return CheckoutFailureResponse(
+        evidence_id=evidence.evidence_id,
+        evidence_hash=evidence.evidence_hash,
+        verified_at=evidence.verified_at,
+        payment=CheckoutFailedPaymentProof(
+            payment_id=payment.payment_id,
+            order_id=payment.order_id,
+            status="failed",
+            amount_subunits=payment.amount.amount_subunits,
+            currency=payment.amount.currency,
+            captured=False,
         ),
     )
 

@@ -39,8 +39,8 @@ from chakravyuh.simulation.recovery_portfolio import (
     generate_held_out_recovery_portfolio,
 )
 
-EXPECTED_SAMPLE_MANIFEST = "7ac31b4b8ca9a5512153bc3bdf7f5e9cc787e7271ddc766d69f0b189f5fe7954"
-EXPECTED_RUN_CONTRACT = "05980420795a73c1abec611960d20f8591ad4f05fb263fca26a5a8c8fd083391"
+EXPECTED_SAMPLE_MANIFEST = "9c750a55660919fe1cacbebaadf153fdfe2c2a1916a2b83314f7afa48820ec53"
+EXPECTED_RUN_CONTRACT = "de89c634065a448dfdd5ccce88e5eccc991f2ef64ec69adb225bc998d4008f8d"
 
 
 @pytest.fixture(scope="module")

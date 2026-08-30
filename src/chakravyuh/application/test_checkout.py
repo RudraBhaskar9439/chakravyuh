@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from uuid import NAMESPACE_URL, uuid4, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from chakravyuh.application.ports import (
     RazorpayTestCheckoutGateway,
     TestCheckoutRepository,
     WebhookEventStore,
 )
+from chakravyuh.domain.actions import ProviderPaymentState
 from chakravyuh.domain.enums import EventSource, PaymentStatus
 from chakravyuh.domain.errors import TestCheckoutError, TestCheckoutErrorCode
 from chakravyuh.domain.money import Money
 from chakravyuh.domain.test_checkout import (
     PreparedTestCheckout,
+    TestCheckoutFailureEvidence,
     TestCheckoutProviderProof,
     TestCheckoutVerification,
+    create_test_checkout_failure_evidence,
     create_test_checkout_order,
     create_test_checkout_provider_proof,
     create_test_checkout_verification,
@@ -152,6 +155,43 @@ class RazorpayTestCheckoutControlPlane:
         await self._record_authoritative_authorization(order.merchant_id, verification)
         return verification
 
+    async def verify_failure(
+        self,
+        *,
+        order_id: str,
+        payment_id: str,
+        principal_id: str,
+        request_id: str,
+    ) -> TestCheckoutFailureEvidence:
+        """Verify a browser-observed failure against Razorpay before opening the journey."""
+        self._require_enabled()
+        order = await self._repository.get_order(order_id)
+        if order is None:
+            raise TestCheckoutError(TestCheckoutErrorCode.ORDER_NOT_FOUND)
+        verified_at = datetime.now(UTC)
+        if order.expires_at <= verified_at:
+            raise TestCheckoutError(TestCheckoutErrorCode.ORDER_EXPIRED)
+        payment = await self._gateway.fetch_payment(payment_id)
+        if payment.order_id != order_id or payment.amount != order.provider_order.amount:
+            raise TestCheckoutError(TestCheckoutErrorCode.PAYMENT_MISMATCH)
+        if payment.status is not PaymentStatus.FAILED or payment.captured:
+            raise TestCheckoutError(TestCheckoutErrorCode.PAYMENT_MISMATCH)
+        evidence = create_test_checkout_failure_evidence(
+            checkout_id=order.checkout_id,
+            payment=payment,
+            verified_by=principal_id,
+            request_id=request_id,
+            verified_at=verified_at,
+        )
+        await self._record_authoritative_payment(
+            order.merchant_id,
+            payment,
+            event_type="payment.failed",
+            recorded_at=verified_at,
+            evidence_id=evidence.evidence_id,
+        )
+        return evidence
+
     async def proof(
         self,
         *,
@@ -182,7 +222,25 @@ class RazorpayTestCheckoutControlPlane:
     ) -> None:
         if self._event_store is None:
             return
-        payment = verification.payment
+        await self._record_authoritative_payment(
+            merchant_id,
+            verification.payment,
+            event_type="payment.authorized",
+            recorded_at=verification.verified_at,
+            evidence_id=verification.verification_id,
+        )
+
+    async def _record_authoritative_payment(
+        self,
+        merchant_id: str,
+        payment: ProviderPaymentState,
+        *,
+        event_type: str,
+        recorded_at: datetime,
+        evidence_id: UUID,
+    ) -> None:
+        if self._event_store is None:
+            return
         assert payment.order_id is not None
         entity = {
             "id": payment.payment_id,
@@ -195,8 +253,8 @@ class RazorpayTestCheckoutControlPlane:
         }
         payload = {
             "entity": "event",
-            "event": "payment.authorized",
-            "created_at": int(verification.verified_at.timestamp()),
+            "event": event_type,
+            "created_at": int(recorded_at.timestamp()),
             "contains": ["payment"],
             "payload": {"payment": {"entity": entity}},
         }
@@ -209,14 +267,14 @@ class RazorpayTestCheckoutControlPlane:
         event = RawWebhookEvent(
             event_id=uuid5(
                 NAMESPACE_URL,
-                f"chakravyuh:razorpay-api:{merchant_id}:{payment.payment_id}:authorized",
+                f"chakravyuh:razorpay-api:{merchant_id}:{payment.payment_id}:{event_type}",
             ),
             merchant_id=merchant_id,
             source=EventSource.RAZORPAY_API,
-            source_event_id=f"checkout-verification:{payment.payment_id}:authorized",
-            event_type="payment.authorized",
-            occurred_at=verification.verified_at,
-            observed_at=verification.verified_at,
+            source_event_id=f"checkout-evidence:{evidence_id}:{event_type}",
+            event_type=event_type,
+            occurred_at=recorded_at,
+            observed_at=recorded_at,
             payload=payload,
             raw_body=raw_body,
         )

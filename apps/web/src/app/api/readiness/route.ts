@@ -43,25 +43,27 @@ export async function GET() {
     ),
     check(
       "provider",
-      "Razorpay Test Mode",
+      "Razorpay credentials",
       capability("test_checkout") && capability("test_mode_provider"),
       capability("test_checkout") && capability("test_mode_provider")
-        ? "Checkout and provider configured"
-        : "Provider capability unavailable",
+        ? "Test checkout credentials configured"
+        : "Test credentials are not configured",
     ),
     check(
       "ai",
-      "Grounded AI diagnosis",
+      "AI diagnosis route",
       capability("diagnosis_provider"),
       capability("diagnosis_provider")
-        ? "Bounded provider ready"
-        : "Diagnosis provider unavailable",
+        ? "Bounded provider configured"
+        : "Diagnosis provider is not configured",
     ),
     check(
       "webhook",
-      "Signed webhook ingress",
+      "Webhook verifier",
       capability("signed_webhook"),
-      capability("signed_webhook") ? "Verification secret configured" : "Ingress unavailable",
+      capability("signed_webhook")
+        ? "Signature-verification secret configured"
+        : "Verification secret is not configured",
     ),
     check(
       "session",
@@ -105,9 +107,9 @@ function unconfiguredChecks(): Check[] {
     check("api", "Recovery API", false, "API gateway is not configured"),
     check("ledger", "PostgreSQL ledger", false, "Readiness unavailable"),
     check("graph", "Evidence graph", false, "Readiness unavailable"),
-    check("provider", "Razorpay Test Mode", false, "Readiness unavailable"),
-    check("ai", "Grounded AI diagnosis", false, "Readiness unavailable"),
-    check("webhook", "Signed webhook ingress", false, "Readiness unavailable"),
+    check("provider", "Razorpay credentials", false, "Configuration unavailable"),
+    check("ai", "AI diagnosis route", false, "Configuration unavailable"),
+    check("webhook", "Webhook verifier", false, "Configuration unavailable"),
     check("session", "Isolated judge authority", false, "Readiness unavailable"),
   ];
 }

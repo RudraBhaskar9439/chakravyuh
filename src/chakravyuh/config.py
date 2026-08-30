@@ -109,6 +109,7 @@ class Settings(BaseSettings):
     razorpay_actions_enabled: bool = False
     action_proposal_ttl_seconds: int = Field(default=900, ge=60, le=3_600)
     action_execution_lease_seconds: int = Field(default=30, ge=5, le=300)
+    action_recovery_link_ttl_seconds: int = Field(default=86_400, ge=900, le=604_800)
     action_max_capture_subunits: int = Field(default=1_000_000, ge=1, le=100_000_000)
     action_minimum_capture_confidence: float = Field(default=0.9, ge=0, le=1)
     action_max_payment_link_subunits: int = Field(default=100_000, ge=1, le=10_000_000)

@@ -121,6 +121,39 @@ describe("demo gateway", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it("accepts a failed payment only for an order owned by the signed session", async () => {
+    configureGateway();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json(
+        {
+          evidence_id: "55555555-5555-4555-8555-555555555555",
+          evidence_hash: "a".repeat(64),
+          payment: { payment_id: "pay_failed", status: "failed" },
+        },
+        { status: 200 },
+      ),
+    );
+    const response = await POST(
+      new Request("https://demo.example.test/api/demo/v1/demo/checkout/failures", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: sessionCookie({ orderIds: ["order_owned"] }),
+          Origin: "https://demo.example.test",
+        },
+        body: JSON.stringify({
+          razorpay_order_id: "order_owned",
+          razorpay_payment_id: "pay_failed",
+        }),
+      }),
+      context("v1", "demo", "checkout", "failures"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Set-Cookie")).toContain("HttpOnly");
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("fails closed when a scoped credential is missing", async () => {
     vi.stubEnv("CHAKRAVYUH_API_BASE_URL", apiBase);
     const proposalId = "44444444-4444-4444-8444-444444444444";

@@ -52,11 +52,14 @@ class RecoveryActionControlPlane:
         execution_lease_seconds: int,
         clock: Callable[[], datetime] | None = None,
         uuid_factory: Callable[[], UUID] | None = None,
+        recovery_link_ttl_seconds: int = 86_400,
     ) -> None:
         if not 60 <= proposal_ttl_seconds <= 3_600:
             raise ValueError("proposal TTL is outside supported bounds")
         if not 5 <= execution_lease_seconds <= 300:
             raise ValueError("execution lease is outside supported bounds")
+        if not 900 <= recovery_link_ttl_seconds <= 604_800:
+            raise ValueError("recovery link TTL is outside supported bounds")
         self._repository = repository
         self._policy = policy
         self._gateway = gateway
@@ -64,6 +67,7 @@ class RecoveryActionControlPlane:
         self._execution_lease_seconds = execution_lease_seconds
         self._clock = clock or _utc_now
         self._uuid_factory = uuid_factory or uuid4
+        self._recovery_link_ttl_seconds = recovery_link_ttl_seconds
 
     async def propose(
         self,
@@ -328,22 +332,28 @@ class RecoveryActionControlPlane:
             )
 
         await self._repository.mark_mutation_started(claim)
+        reference_id = _payment_link_reference(proposal, current)
         try:
             created = await self._gateway.create_payment_link(
                 amount=proposal.amount,
-                reference_id=_payment_link_reference(proposal),
+                reference_id=reference_id,
                 description="Recovery for a failed Test Mode payment",
+                expire_by=self._clock() + timedelta(seconds=self._recovery_link_ttl_seconds),
             )
         except RazorpayActionError as failure:
-            return _failure_result(
-                claim,
-                ActionExecutionOutcome.UNCERTAIN
-                if failure.retryable
-                else ActionExecutionOutcome.BLOCKED,
-                failure.code,
-                completed_at=self._clock(),
-            )
-        mismatch = _payment_link_receipt_mismatch(proposal, created)
+            if not failure.retryable:
+                return _failure_result(
+                    claim,
+                    ActionExecutionOutcome.BLOCKED,
+                    failure.code,
+                    completed_at=self._clock(),
+                )
+            return await self._reconcile_payment_link(claim, reference_id=reference_id)
+        mismatch = _payment_link_receipt_mismatch(
+            proposal,
+            created,
+            reference_id=reference_id,
+        )
         if mismatch is not None:
             return _failure_result(
                 claim,
@@ -362,11 +372,27 @@ class RecoveryActionControlPlane:
     async def _reconcile(self, claim: ActionExecutionClaim) -> ActionExecutionResult:
         proposal = claim.proposal
         if proposal.action_type is ActionType.CREATE_PAYMENT_LINK:
-            return _failure_result(
+            try:
+                current = await self._gateway.fetch_payment(proposal.target.entity_id)
+            except RazorpayActionError:
+                return _failure_result(
+                    claim,
+                    ActionExecutionOutcome.UNCERTAIN,
+                    ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+                    completed_at=self._clock(),
+                )
+            mismatch = _payment_link_state_mismatch(proposal, current)
+            if mismatch is not None:
+                return _failure_result(
+                    claim,
+                    ActionExecutionOutcome.BLOCKED,
+                    mismatch,
+                    current,
+                    completed_at=self._clock(),
+                )
+            return await self._reconcile_payment_link(
                 claim,
-                ActionExecutionOutcome.UNCERTAIN,
-                ActionControlErrorCode.PROVIDER_UNAVAILABLE,
-                completed_at=self._clock(),
+                reference_id=_payment_link_reference(proposal, current),
             )
         try:
             current = await self._gateway.fetch_payment(proposal.target.entity_id)
@@ -401,6 +427,48 @@ class RecoveryActionControlPlane:
             completed_at=self._clock(),
         )
 
+    async def _reconcile_payment_link(
+        self,
+        claim: ActionExecutionClaim,
+        *,
+        reference_id: str,
+    ) -> ActionExecutionResult:
+        try:
+            current = await self._gateway.fetch_payment_link(reference_id=reference_id)
+        except RazorpayActionError:
+            return _failure_result(
+                claim,
+                ActionExecutionOutcome.UNCERTAIN,
+                ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+                completed_at=self._clock(),
+            )
+        if current is None:
+            return _failure_result(
+                claim,
+                ActionExecutionOutcome.UNCERTAIN,
+                ActionControlErrorCode.AUTHORITATIVE_STATE_CHANGED,
+                completed_at=self._clock(),
+            )
+        mismatch = _payment_link_receipt_mismatch(
+            claim.proposal,
+            current,
+            reference_id=reference_id,
+        )
+        if mismatch is not None:
+            return _failure_result(
+                claim,
+                ActionExecutionOutcome.BLOCKED,
+                mismatch,
+                current,
+                completed_at=self._clock(),
+            )
+        return _success_result(
+            claim,
+            current,
+            already_applied=True,
+            completed_at=self._clock(),
+        )
+
 
 def _proposal_matches_seed(proposal: ActionProposal, seed: ActionProposalSeed) -> bool:
     return bool(
@@ -432,22 +500,31 @@ def _payment_link_state_mismatch(
     return _capture_state_mismatch(proposal, state)
 
 
-def _payment_link_reference(proposal: ActionProposal) -> str:
-    return f"chkr_{proposal.idempotency_key[:35]}"
+def _payment_link_reference(
+    proposal: ActionProposal,
+    payment: ProviderPaymentState,
+) -> str:
+    reference_id = payment.order_id or proposal.target.entity_id
+    return reference_id if len(reference_id) <= 40 else proposal.idempotency_key[:40]
 
 
 def _payment_link_receipt_mismatch(
     proposal: ActionProposal,
     state: ProviderPaymentLinkState,
+    *,
+    reference_id: str,
 ) -> ActionControlErrorCode | None:
     if proposal.amount is None or state.amount != proposal.amount:
         return ActionControlErrorCode.AUTHORITATIVE_STATE_CHANGED
+    if state.amount_paid.currency != state.amount.currency:
+        return ActionControlErrorCode.PROVIDER_INVALID_RESPONSE
+    expected_paid = 0 if state.status == "created" else state.amount.amount_subunits
     if (
-        state.amount_paid.amount_subunits != 0
-        or state.amount_paid.currency != state.amount.currency
+        state.status not in {"created", "paid"}
+        or state.amount_paid.amount_subunits != expected_paid
     ):
         return ActionControlErrorCode.PROVIDER_INVALID_RESPONSE
-    if state.status != "created" or state.reference_id != _payment_link_reference(proposal):
+    if state.reference_id != reference_id:
         return ActionControlErrorCode.PROVIDER_INVALID_RESPONSE
     return None
 

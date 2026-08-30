@@ -148,6 +148,7 @@ def create_app(
         resolved_payment_gateway,
         proposal_ttl_seconds=resolved_settings.action_proposal_ttl_seconds,
         execution_lease_seconds=resolved_settings.action_execution_lease_seconds,
+        recovery_link_ttl_seconds=resolved_settings.action_recovery_link_ttl_seconds,
     )
     resolved_test_checkout = test_checkout_control_plane or RazorpayTestCheckoutControlPlane(
         PostgresTestCheckoutRepository(resolved_database),

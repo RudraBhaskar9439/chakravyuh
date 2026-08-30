@@ -121,22 +121,24 @@ def _payment_link_event(
     *,
     link_id: str,
     minute: int,
+    status: str = "issued",
 ) -> NormalizedEvent:
     return NormalizedEvent(
         event_id=uuid5(NAMESPACE_URL, f"phase-6:{link_id}"),
         merchant_id=base.merchant_id,
         source=EventSource.SIMULATOR,
         source_event_id=f"sim-{link_id}",
-        event_type="payment_link.issued",
+        event_type=f"payment_link.{status}",
         subject=EntityReference(entity_type=EntityType.PAYMENT_LINK, entity_id=link_id),
         occurred_at=base.occurred_at + timedelta(minutes=minute),
         observed_at=base.observed_at + timedelta(minutes=minute),
         correlation_id=base.correlation_id,
         payload={
             "id": link_id,
-            "status": "issued",
+            "status": status,
             "order_id": base.correlation_id,
             "amount": 10_000,
+            "amount_paid": 10_000 if status == "paid" else 0,
             "currency": "INR",
         },
     )
@@ -180,6 +182,28 @@ def test_duplicate_active_recovery_links_have_one_stable_finding() -> None:
     ]
     assert first.findings[0].incident_key == second.findings[0].incident_key
     assert first.findings[0].finding_hash == second.findings[0].finding_hash
+
+
+def test_paid_recovery_link_closes_original_failed_payment_incident() -> None:
+    journey = generate_synthetic_journey(JourneyScenario.FAILED_THEN_RECOVERED, seed=606)
+    failed_only = journey.events[:2]
+    recovered = (
+        *failed_only,
+        _payment_link_event(
+            failed_only[0],
+            link_id="plink-recovered",
+            minute=35,
+            status="paid",
+        ),
+    )
+
+    _, result = _evaluate(
+        JourneyScenario.FAILED_THEN_RECOVERED,
+        after_minutes=60,
+        events=recovered,
+    )
+
+    assert result.findings == ()
 
 
 def test_policy_version_changes_with_reviewed_thresholds() -> None:

@@ -14,6 +14,12 @@ completed provider-backed recovery at
 identifier through [`/trace`](https://chakravyuh-web.vercel.app/trace), and challenge the sealed
 batch measurements at [`/judge`](https://chakravyuh-web.vercel.app/judge).
 
+The second provider-backed journey at
+[`/payments/recover-failure`](https://chakravyuh-web.vercel.app/payments/recover-failure) starts with
+a deliberate Razorpay Test Mode failure. Chakravyuh verifies it from Razorpay, opens a deterministic
+revenue-loss incident, creates one expiring recovery link through the governed action plane, and
+waits for a signed `payment_link.paid` event before crediting recovery.
+
 The public judge journey never asks for an operator token. Scoped Test Mode authority remains on the
 server. AI remains non-executable: deterministic policy, immutable maker-checker approval,
 exact-amount preflight, and Test-Mode-only Razorpay adapters control every outbound operation.

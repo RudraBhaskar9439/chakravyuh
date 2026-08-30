@@ -38,6 +38,10 @@ services:
         value: '3'
       - key: CHAKRAVYUH_INVARIANT_AUTHORIZED_CAPTURE_GRACE_SECONDS
         value: '1'
+      - key: CHAKRAVYUH_INVARIANT_FAILED_RECOVERY_GRACE_SECONDS
+        value: '1'
+      - key: CHAKRAVYUH_ACTION_RECOVERY_LINK_TTL_SECONDS
+        value: '86400'
       - key: CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED
         value: 'true'
       - key: CHAKRAVYUH_TEST_CHECKOUT_ENABLED

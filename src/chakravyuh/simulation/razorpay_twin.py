@@ -177,8 +177,20 @@ class ArenaTwinGateway:
         amount: Money,
         reference_id: str,
         description: str,
+        expire_by: datetime,
     ) -> ProviderPaymentLinkState:
-        del amount, reference_id, description
+        del amount, reference_id, description, expire_by
+        raise RazorpayActionError(
+            ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+            retryable=False,
+        )
+
+    async def fetch_payment_link(
+        self,
+        *,
+        reference_id: str,
+    ) -> ProviderPaymentLinkState | None:
+        del reference_id
         raise RazorpayActionError(
             ActionControlErrorCode.PROVIDER_UNAVAILABLE,
             retryable=False,

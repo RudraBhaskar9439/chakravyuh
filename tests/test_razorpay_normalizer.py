@@ -102,6 +102,30 @@ def test_normalizer_uses_related_order_for_payment_link_correlation() -> None:
     assert RazorpayWebhookNormalizer().normalize(raw).correlation_id == "order_1"
 
 
+def test_recovery_payment_link_reference_rejoins_original_order_and_drops_pii() -> None:
+    raw = _raw_event(
+        "payment_link.paid",
+        entity={
+            "id": "plink_1",
+            "reference_id": "order_original",
+            "status": "paid",
+            "amount": 10_000,
+            "amount_paid": 10_000,
+            "currency": "INR",
+            "customer": {"email": "must-not-be-stored@example.test"},
+            "notes": {"phone": "+919999999999"},
+        },
+        related={"order": {"entity": {"id": "order_new_for_link"}}},
+    )
+
+    normalized = RazorpayWebhookNormalizer().normalize(raw)
+
+    assert normalized.correlation_id == "order_original"
+    assert normalized.payload["order_id"] == "order_original"
+    assert "customer" not in normalized.payload
+    assert "notes" not in normalized.payload
+
+
 @pytest.mark.parametrize(
     ("raw", "code"),
     [

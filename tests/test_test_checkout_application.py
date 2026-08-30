@@ -199,7 +199,7 @@ async def test_verification_records_idempotent_authoritative_api_fallback() -> N
     event = next(iter(event_store.events.values()))
     assert event.source is EventSource.RAZORPAY_API
     assert event.event_type == "payment.authorized"
-    assert event.source_event_id == "checkout-verification:pay_123:authorized"
+    assert event.source_event_id.startswith("checkout-evidence:")
     assert event.payload["payload"] == {
         "payment": {
             "entity": {
@@ -213,6 +213,35 @@ async def test_verification_records_idempotent_authoritative_api_fallback() -> N
             }
         }
     }
+
+
+async def test_failed_checkout_is_reverified_and_ingested_without_trusting_browser_error() -> None:
+    repository = MemoryCheckoutRepository()
+    gateway = FakeGateway()
+    event_store = MemoryProviderEventStore()
+    service = _service(repository, gateway, event_store=event_store)
+    await service.prepare(principal_id="maker", request_id="prepare-request")
+    gateway.payment = gateway.payment.model_copy(update={"status": PaymentStatus.FAILED})
+
+    evidence = await service.verify_failure(
+        order_id="order_123",
+        payment_id="pay_123",
+        principal_id="maker",
+        request_id="failure-request",
+    )
+
+    assert evidence.payment.status is PaymentStatus.FAILED
+    assert evidence.evidence_hash != "0" * 64
+    event = next(iter(event_store.events.values()))
+    assert event.source is EventSource.RAZORPAY_API
+    assert event.event_type == "payment.failed"
+    payload = event.payload["payload"]
+    assert isinstance(payload, dict)
+    payment = payload["payment"]
+    assert isinstance(payment, dict)
+    entity = payment["entity"]
+    assert isinstance(entity, dict)
+    assert entity["status"] == "failed"
 
 
 async def test_provider_proof_binds_live_state_to_original_checkout_verification() -> None:

@@ -8,8 +8,13 @@ const destinations = [
   { href: "/", label: "Overview", matches: (path: string) => path === "/" },
   {
     href: "/payments/authorize",
-    label: "Run payment",
+    label: "Capture recovery",
     matches: (path: string) => path === "/payments/authorize" || path === "/demo-checkout",
+  },
+  {
+    href: "/payments/recover-failure",
+    label: "Revenue recovery",
+    matches: (path: string) => path === "/payments/recover-failure",
   },
   {
     href: "/recoveries/verified",
@@ -33,6 +38,7 @@ const pageNames: Record<string, string> = {
   "/demo-checkout": "Run payment",
   "/judge": "Scale evidence",
   "/payments/authorize": "Run payment",
+  "/payments/recover-failure": "Recover failed payment",
   "/operations": "Secure operations",
   "/recoveries/verified": "Live recovery proof",
   "/recovery-story": "Recovery story",
@@ -44,6 +50,7 @@ const fallbackRoutes: Record<string, string> = {
   "/demo-checkout": "/",
   "/judge": "/recoveries/verified",
   "/payments/authorize": "/",
+  "/payments/recover-failure": "/",
   "/recoveries/verified": "/payments/authorize",
   "/recovery-story": "/recoveries/verified",
   "/reliability": "/recoveries/verified",

@@ -13,6 +13,8 @@ const livePollIntervalMs = 10_000;
 const hiddenPollIntervalMs = 30_000;
 const activeVerificationStorageKey = "chakravyuh:active-verification:v1";
 
+type RecoveryScenario = "capture" | "failed";
+
 type PreparedCheckout = {
   public_key_id: string;
   display_name: string;
@@ -45,12 +47,27 @@ type Verification = {
   };
 };
 
-const liveStages = [
+type FailureEvidence = {
+  evidence_id: string;
+  evidence_hash: string;
+  verified_at: string;
+  payment: Verification["payment"];
+};
+
+const captureStages = [
   { label: "Authorized", detail: "Razorpay accepted the Test Mode payment." },
   { label: "Detected", detail: "The deterministic invariant opened an incident." },
   { label: "Diagnosed", detail: "AI explained the bounded evidence graph." },
   { label: "Governed", detail: "Policy and independent authority bounded the action." },
   { label: "Recovered", detail: "Razorpay confirmed capture and order payment." },
+] as const;
+
+const failedStages = [
+  { label: "Failed", detail: "Razorpay confirmed the Test Mode payment failure." },
+  { label: "Detected", detail: "The deterministic invariant found unrecovered revenue." },
+  { label: "Diagnosed", detail: "AI explained the bounded evidence graph." },
+  { label: "Governed", detail: "Policy approved one expiring recovery link." },
+  { label: "Recovered", detail: "Razorpay confirmed the recovery link was paid." },
 ] as const;
 
 type RazorpayOptions = {
@@ -65,13 +82,25 @@ type RazorpayOptions = {
   theme: { color: string };
 };
 
+type RazorpayFailure = {
+  error?: {
+    description?: string;
+    metadata?: { payment_id?: string; order_id?: string };
+  };
+};
+
+type RazorpayCheckout = {
+  open: () => void;
+  on: (event: "payment.failed", handler: (failure: RazorpayFailure) => void) => void;
+};
+
 declare global {
   interface Window {
-    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+    Razorpay?: new (options: RazorpayOptions) => RazorpayCheckout;
   }
 }
 
-export function TestCheckout() {
+export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScenario }) {
   const [scriptReady, setScriptReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [prepared, setPrepared] = useState<PreparedCheckout | null>(null);
@@ -86,9 +115,9 @@ export function TestCheckout() {
   const [systemReady, setSystemReady] = useState(false);
 
   useEffect(() => {
-    const restored = restoreActiveVerification();
+    const restored = restoreActiveVerification(scenario);
     if (restored) setVerification(restored);
-  }, []);
+  }, [scenario]);
 
   useEffect(() => {
     let cancelled = false;
@@ -165,12 +194,23 @@ export function TestCheckout() {
     }
   }, []);
 
-  const reconcileLiveState = useCallback(async (paymentId: string) => {
+  const reconcileLiveState = useCallback(async (payment: Verification["payment"]) => {
     setCheckingLiveState(true);
     try {
-      await fetchJson<Verification>(`/v1/demo/checkout/verifications/${paymentId}/reconcile`, {
-        method: "POST",
-      });
+      if (payment.status === "failed") {
+        await fetchJson<FailureEvidence>("/v1/demo/checkout/failures", {
+          method: "POST",
+          body: {
+            razorpay_order_id: payment.order_id,
+            razorpay_payment_id: payment.payment_id,
+          },
+        });
+      } else {
+        await fetchJson<Verification>(
+          `/v1/demo/checkout/verifications/${payment.payment_id}/reconcile`,
+          { method: "POST" },
+        );
+      }
       setTrackingError(null);
     } catch (failure) {
       setTrackingError(message(failure));
@@ -239,6 +279,9 @@ export function TestCheckout() {
         },
         theme: { color: "#e6aa4c" },
       });
+      if (typeof checkout.on === "function") {
+        checkout.on("payment.failed", (failure) => void verifyFailure(next, failure));
+      }
       checkout.open();
     } catch (failure) {
       setError(message(failure));
@@ -252,12 +295,48 @@ export function TestCheckout() {
         method: "POST",
         body: proof,
       });
-      persistActiveVerification(verified);
+      persistActiveVerification(verified, "capture");
       setLiveIncident(null);
       setLiveActions([]);
       setVerification(verified);
     } catch (failure) {
       setError(message(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyFailure(order: PreparedCheckout, failure: RazorpayFailure) {
+    const paymentId = failure.error?.metadata?.payment_id;
+    const orderId = failure.error?.metadata?.order_id ?? order.order.order_id;
+    if (!paymentId?.startsWith("pay_") || orderId !== order.order.order_id) {
+      setError(
+        failure.error?.description ??
+          "Razorpay reported a failure without a verifiable payment identity. Try again.",
+      );
+      setBusy(false);
+      return;
+    }
+    try {
+      const failed = await fetchJson<FailureEvidence>("/v1/demo/checkout/failures", {
+        method: "POST",
+        body: {
+          razorpay_order_id: orderId,
+          razorpay_payment_id: paymentId,
+        },
+      });
+      const tracked: Verification = {
+        verification_id: failed.evidence_id,
+        verification_hash: failed.evidence_hash,
+        payment: failed.payment,
+      };
+      persistActiveVerification(tracked, "failed");
+      setLiveIncident(null);
+      setLiveActions([]);
+      setVerification(tracked);
+      setError(null);
+    } catch (verificationFailure) {
+      setError(message(verificationFailure));
     } finally {
       setBusy(false);
     }
@@ -294,11 +373,20 @@ export function TestCheckout() {
         </div>
       </header>
       <section className="checkoutHero">
-        <p className="eyebrow">Live transaction · controlled recovery</p>
-        <h1>Follow a payment end to end.</h1>
+        <p className="eyebrow">
+          {scenario === "failed"
+            ? "Live failure · revenue recovery"
+            : "Live authorization · controlled recovery"}
+        </p>
+        <h1>
+          {scenario === "failed"
+            ? "Recover a payment that did not convert."
+            : "Follow a payment end to end."}
+        </h1>
         <p>
-          Authorize one fixed ₹10 Razorpay Test Mode payment, then watch that exact payment travel
-          through detection, AI diagnosis, independent approval and provider-confirmed recovery.
+          {scenario === "failed"
+            ? "Fail one fixed ₹10 Razorpay Test Mode payment, then watch Chakravyuh create an expiring provider-hosted recovery path and close the original incident only after payment confirmation."
+            : "Authorize one fixed ₹10 Razorpay Test Mode payment, then watch that exact payment travel through detection, AI diagnosis, independent approval and provider-confirmed recovery."}
         </p>
       </section>
 
@@ -307,15 +395,21 @@ export function TestCheckout() {
       <section className="checkoutGrid">
         <article className="checkoutCard">
           <span className="stepNumber">01</span>
-          <h2>Authorize ₹10</h2>
-          <p>The order is created server-side with manual capture. No real money moves.</p>
+          <h2>{scenario === "failed" ? "Attempt ₹10" : "Authorize ₹10"}</h2>
+          <p>
+            {scenario === "failed"
+              ? "Use Razorpay’s Test Mode failure option on the bank screen. The server independently verifies the failure."
+              : "The order is created server-side with manual capture. No real money moves."}
+          </p>
           <form onSubmit={begin}>
             <button disabled={busy || !scriptReady || !demoSession || !systemReady} type="submit">
               {busy
                 ? "Waiting for authorization…"
                 : verification
                   ? "Start another ₹10 payment"
-                  : "Open Razorpay Checkout"}
+                  : scenario === "failed"
+                    ? "Open Checkout and trigger failure"
+                    : "Open Razorpay Checkout"}
             </button>
           </form>
           <small>
@@ -329,7 +423,11 @@ export function TestCheckout() {
 
         <article className="checkoutCard proofCard">
           <span className="stepNumber">02</span>
-          <h2>Verified authorization</h2>
+          <h2>
+            {verification?.payment.status === "failed"
+              ? "Verified failure"
+              : "Verified authorization"}
+          </h2>
           {verification ? (
             <div className="proofResult" role="status">
               <strong>Active transaction</strong>
@@ -355,12 +453,16 @@ export function TestCheckout() {
                   <dd>{shortHash(verification.verification_hash)}</dd>
                 </div>
               </dl>
-              <p>Do not capture this payment in Razorpay. Its live recovery continues below.</p>
+              <p>
+                {verification.payment.status === "failed"
+                  ? "The browser report was checked against Razorpay. Revenue recovery continues below."
+                  : "Do not capture this payment in Razorpay. Its live recovery continues below."}
+              </p>
             </div>
           ) : (
             <p className="proofPlaceholder">
-              The exact payment ID, authorized state, amount, order link and tamper-evident proof
-              will appear here after Checkout succeeds.
+              The exact payment ID, provider state, amount, order link and tamper-evident proof will
+              appear here after Razorpay responds.
             </p>
           )}
           {prepared && !verification ? (
@@ -397,8 +499,9 @@ export function TestCheckout() {
             const captureAccepted = liveActions[0]?.latest_result?.outcome === "succeeded";
             void (captureAccepted
               ? loadLiveState(verification.payment.payment_id)
-              : reconcileLiveState(verification.payment.payment_id));
+              : reconcileLiveState(verification.payment));
           }}
+          scenario={verification.payment.status === "failed" ? "failed" : "capture"}
           trackingError={trackingError}
           verification={verification}
         />
@@ -418,6 +521,7 @@ function LiveRecovery({
   onPropose,
   onApprove,
   onExecute,
+  scenario,
 }: {
   verification: Verification;
   incident: IncidentDetail | null;
@@ -429,11 +533,17 @@ function LiveRecovery({
   onPropose: (incidentId: string) => void;
   onApprove: (proposalId: string) => void;
   onExecute: (proposalId: string) => void;
+  scenario: RecoveryScenario;
 }) {
+  const liveStages = scenario === "failed" ? failedStages : captureStages;
   const action = actions[0] ?? null;
   const approved = action?.approvals.some((approval) => approval.decision === "approved") ?? false;
   const rejected = action?.approvals.some((approval) => approval.decision === "rejected") ?? false;
   const succeeded = action?.latest_result?.outcome === "succeeded";
+  const paymentLink =
+    action?.latest_result?.provider_state && "short_url" in action.latest_result.provider_state
+      ? action.latest_result.provider_state
+      : null;
   const recovered = incident?.incident.status === "resolved";
   const renewalRequired = action?.expired || action?.stale;
   const activeStage = recovered
@@ -563,7 +673,7 @@ function LiveRecovery({
           <>
             <h3>Independent check required</h3>
             <p>
-              Capture exactly{" "}
+              {scenario === "failed" ? "Create one recovery link for " : "Capture exactly "}
               {action.proposal.amount
                 ? formatInr(action.proposal.amount.amount_subunits)
                 : "the verified amount"}
@@ -586,8 +696,9 @@ function LiveRecovery({
           <>
             <h3>Approved and ready for exact execution</h3>
             <p>
-              The executor can invoke only the policy-bound Test Mode capture. Duplicate execution
-              is prevented by the stored idempotency key and pre-mutation checkpoint.
+              {scenario === "failed"
+                ? "The executor can create only one amount-bound, expiring Razorpay Payment Link. A unique original-order reference prevents duplicate links after timeouts."
+                : "The executor can invoke only the policy-bound Test Mode capture. Duplicate execution is prevented by the stored idempotency key and pre-mutation checkpoint."}
             </p>
             <button
               className="livePrimaryAction"
@@ -595,17 +706,36 @@ function LiveRecovery({
               onClick={() => onExecute(action.proposal.proposal_id)}
               type="button"
             >
-              {actionBusy === "execute" ? "Executing…" : "Execute exact Test Mode capture"}
+              {actionBusy === "execute"
+                ? "Executing…"
+                : scenario === "failed"
+                  ? "Create bounded recovery link"
+                  : "Execute exact Test Mode capture"}
             </button>
           </>
         ) : null}
         {activeStage === 3 && action && !renewalRequired && succeeded && !recovered ? (
           <>
-            <h3>Capture accepted. Awaiting provider confirmation.</h3>
+            <h3>
+              {scenario === "failed"
+                ? "Recovery link created. Awaiting customer payment."
+                : "Capture accepted. Awaiting provider confirmation."}
+            </h3>
             <p>
-              Razorpay accepted the exact Test Mode capture. Chakravyuh will credit the recovery
-              only after the signed payment.captured and order.paid webhooks resolve this incident.
+              {scenario === "failed"
+                ? "The original incident remains open. Chakravyuh credits recovery only when Razorpay confirms that this exact link was paid."
+                : "Razorpay accepted the exact Test Mode capture. Chakravyuh will credit the recovery only after the signed payment.captured and order.paid webhooks resolve this incident."}
             </p>
+            {paymentLink ? (
+              <a
+                className="liveProofLink"
+                href={paymentLink.short_url}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Open Razorpay recovery link ↗
+              </a>
+            ) : null}
           </>
         ) : null}
         {activeStage === 3 && !renewalRequired && rejected ? (
@@ -620,20 +750,27 @@ function LiveRecovery({
           <div className="liveSuccess">
             <span>✓</span>
             <div>
-              <h3>Payment recovered</h3>
+              <h3>{scenario === "failed" ? "Lost revenue recovered" : "Payment recovered"}</h3>
               <p>
-                Razorpay captured{" "}
+                Razorpay confirmed{" "}
                 {action.latest_result?.provider_state?.amount
                   ? formatInr(action.latest_result.provider_state.amount.amount_subunits)
                   : "the exact verified amount"}
-                . One mutation was recorded and the provider confirmation closed the incident.
+                . One bounded mutation was recorded and provider confirmation closed the original
+                incident.
               </p>
               {action.latest_result ? <code>{action.latest_result.result_hash}</code> : null}
               <a
                 className="liveProofLink"
-                href={`/recoveries/verified?payment_id=${verification.payment.payment_id}`}
+                href={
+                  scenario === "failed"
+                    ? `/trace?q=${verification.payment.payment_id}`
+                    : `/recoveries/verified?payment_id=${verification.payment.payment_id}`
+                }
               >
-                Open the judge-verifiable proof room →
+                {scenario === "failed"
+                  ? "Inspect the complete money trace →"
+                  : "Open the judge-verifiable proof room →"}
               </a>
             </div>
           </div>
@@ -722,25 +859,32 @@ function formatConfidence(value: number | undefined): string {
   return value === undefined ? "pending" : `${Math.round(value * 100)}%`;
 }
 
-function persistActiveVerification(verification: Verification): void {
+function persistActiveVerification(verification: Verification, scenario: RecoveryScenario): void {
   try {
-    window.sessionStorage.setItem(activeVerificationStorageKey, JSON.stringify(verification));
+    window.sessionStorage.setItem(verificationStorageKey(scenario), JSON.stringify(verification));
   } catch {
     // The live journey still works when browser storage is unavailable.
   }
 }
 
-function restoreActiveVerification(): Verification | null {
+function restoreActiveVerification(scenario: RecoveryScenario): Verification | null {
+  const storageKey = verificationStorageKey(scenario);
   try {
-    const serialized = window.sessionStorage.getItem(activeVerificationStorageKey);
+    const serialized = window.sessionStorage.getItem(storageKey);
     if (!serialized) return null;
     const candidate = JSON.parse(serialized) as unknown;
     if (isVerification(candidate)) return candidate;
-    window.sessionStorage.removeItem(activeVerificationStorageKey);
+    window.sessionStorage.removeItem(storageKey);
   } catch {
-    window.sessionStorage.removeItem(activeVerificationStorageKey);
+    window.sessionStorage.removeItem(storageKey);
   }
   return null;
+}
+
+function verificationStorageKey(scenario: RecoveryScenario): string {
+  return scenario === "capture"
+    ? activeVerificationStorageKey
+    : `${activeVerificationStorageKey}:failed`;
 }
 
 function isVerification(candidate: unknown): candidate is Verification {

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
 import DemoCheckoutPage from "./page";
+import { TestCheckout } from "./test-checkout";
 
 const prepared = {
   public_key_id: "rzp_test_contract",
@@ -122,6 +122,65 @@ describe("Test Checkout", () => {
     const verificationRequest = verificationCall?.[1];
     expect(verificationRequest?.body).toContain("razorpay_signature");
     expect(verificationRequest?.headers).not.toHaveProperty("Authorization");
+  });
+
+  it("verifies a failed Razorpay payment before tracking revenue recovery", async () => {
+    let failedHandler:
+      | ((failure: { error: { metadata: { order_id: string; payment_id: string } } }) => void)
+      | undefined;
+    window.Razorpay = class {
+      open() {}
+      on(
+        _event: "payment.failed",
+        handler: (failure: {
+          error: { metadata: { order_id: string; payment_id: string } };
+        }) => void,
+      ) {
+        failedHandler = handler;
+      }
+    } as never;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/demo/session")) return jsonResponse(judgeSession);
+      if (url.endsWith("/api/readiness")) return jsonResponse(systemReadiness);
+      if (url.endsWith("/v1/demo/checkout/orders")) return jsonResponse(prepared, 201);
+      if (url.endsWith("/v1/demo/checkout/failures")) {
+        return jsonResponse({
+          evidence_id: "22222222-2222-4222-8222-222222222222",
+          evidence_hash: "c".repeat(64),
+          verified_at: "2026-08-25T08:00:00Z",
+          payment: {
+            payment_id: "pay_failed",
+            order_id: "order_123",
+            status: "failed",
+            amount_subunits: 1000,
+            currency: "INR",
+            captured: false,
+          },
+        });
+      }
+      if (url.includes("/v1/operator/incidents?limit=100")) {
+        return jsonResponse({ items: [], next_cursor: null });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<TestCheckout scenario="failed" />);
+
+    await screen.findByText(/Isolated session judge-se/i);
+    fireEvent.click(screen.getByRole("button", { name: "Open Checkout and trigger failure" }));
+    await waitFor(() => expect(failedHandler).toBeDefined());
+    failedHandler?.({
+      error: { metadata: { order_id: "order_123", payment_id: "pay_failed" } },
+    });
+
+    expect(await screen.findByRole("heading", { name: "Verified failure" })).toBeInTheDocument();
+    expect(screen.getAllByText("failed")).toHaveLength(2);
+    expect(screen.getByText(/checked against Razorpay/i)).toBeInTheDocument();
+    expect(screen.getByText("Waiting for deterministic detection")).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(([input]) => String(input).endsWith("/v1/demo/checkout/failures")),
+    ).toBe(true);
   });
 
   it("advances the exact payment into its live diagnosed incident", async () => {

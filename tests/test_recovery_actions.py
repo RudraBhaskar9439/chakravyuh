@@ -144,6 +144,9 @@ class _Gateway:
         self.fetch_calls = 0
         self.capture_calls = 0
         self.payment_link_calls = 0
+        self.payment_link_fetch_calls = 0
+        self.payment_link_fetch_result: ProviderPaymentLinkState | RazorpayActionError | None = None
+        self.payment_link_result: ProviderPaymentLinkState | RazorpayActionError | None = None
 
     async def fetch_payment(self, payment_id: str) -> ProviderPaymentState:
         assert payment_id == "pay_123"
@@ -167,12 +170,16 @@ class _Gateway:
         amount: Money,
         reference_id: str,
         description: str,
+        expire_by: datetime,
     ) -> ProviderPaymentLinkState:
         assert amount == Money(amount_subunits=10_000, currency="INR")
-        assert reference_id.startswith("chkr_") and len(reference_id) == 40
+        assert reference_id == "order_123"
         assert description == "Recovery for a failed Test Mode payment"
+        assert expire_by > datetime.now(UTC)
         self.payment_link_calls += 1
-        return ProviderPaymentLinkState(
+        if isinstance(self.payment_link_result, RazorpayActionError):
+            raise self.payment_link_result
+        return self.payment_link_result or ProviderPaymentLinkState(
             payment_link_id="plink_123",
             status="created",
             amount=amount,
@@ -180,6 +187,17 @@ class _Gateway:
             short_url="https://rzp.io/i/test123",
             reference_id=reference_id,
         )
+
+    async def fetch_payment_link(
+        self,
+        *,
+        reference_id: str,
+    ) -> ProviderPaymentLinkState | None:
+        assert reference_id == "order_123"
+        self.payment_link_fetch_calls += 1
+        if isinstance(self.payment_link_fetch_result, RazorpayActionError):
+            raise self.payment_link_fetch_result
+        return self.payment_link_fetch_result
 
     async def close(self) -> None:
         return None
@@ -336,6 +354,74 @@ async def test_failed_payment_creates_one_exact_provider_recovery_link() -> None
     assert view.execution_status is ActionExecutionStatus.SUCCEEDED
     assert view.latest_result is not None
     assert isinstance(view.latest_result.provider_state, ProviderPaymentLinkState)
+
+
+async def test_payment_link_timeout_reconciles_by_original_order_without_duplicate_post() -> None:
+    repository = _Repository(
+        _seed(
+            ActionType.CREATE_PAYMENT_LINK,
+            incident_type=IncidentType.FAILED_WITHOUT_RECOVERY,
+        )
+    )
+    gateway = _Gateway(_state(PaymentStatus.FAILED, captured=False))
+    gateway.payment_link_result = RazorpayActionError(
+        ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+        retryable=True,
+    )
+    gateway.payment_link_fetch_result = ProviderPaymentLinkState(
+        payment_link_id="plink_123",
+        status="created",
+        amount=Money(amount_subunits=10_000, currency="INR"),
+        amount_paid=Money(amount_subunits=0, currency="INR"),
+        short_url="https://rzp.io/i/test123",
+        reference_id="order_123",
+    )
+    control, proposal = await _propose_and_claim(repository, gateway)
+
+    view = await control.execute(
+        proposal.proposal_id,
+        principal_id="checker",
+        request_id="execute-payment-link-timeout",
+    )
+
+    assert gateway.payment_link_calls == 1
+    assert gateway.payment_link_fetch_calls == 1
+    assert view.execution_status is ActionExecutionStatus.SUCCEEDED
+    assert view.latest_result is not None and view.latest_result.already_applied
+
+
+async def test_payment_link_timeout_accepts_already_paid_provider_reconciliation() -> None:
+    repository = _Repository(
+        _seed(
+            ActionType.CREATE_PAYMENT_LINK,
+            incident_type=IncidentType.FAILED_WITHOUT_RECOVERY,
+        )
+    )
+    gateway = _Gateway(_state(PaymentStatus.FAILED, captured=False))
+    gateway.payment_link_result = RazorpayActionError(
+        ActionControlErrorCode.PROVIDER_UNAVAILABLE,
+        retryable=True,
+    )
+    gateway.payment_link_fetch_result = ProviderPaymentLinkState(
+        payment_link_id="plink_123",
+        status="paid",
+        amount=Money(amount_subunits=10_000, currency="INR"),
+        amount_paid=Money(amount_subunits=10_000, currency="INR"),
+        short_url="https://rzp.io/i/test123",
+        reference_id="order_123",
+    )
+    control, proposal = await _propose_and_claim(repository, gateway)
+
+    view = await control.execute(
+        proposal.proposal_id,
+        principal_id="checker",
+        request_id="execute-payment-link-paid-timeout",
+    )
+
+    assert gateway.payment_link_calls == 1
+    assert gateway.payment_link_fetch_calls == 1
+    assert view.execution_status is ActionExecutionStatus.SUCCEEDED
+    assert view.latest_result is not None and view.latest_result.already_applied
 
 
 async def test_payment_link_refuses_to_mutate_when_provider_payment_is_not_failed() -> None:

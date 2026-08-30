@@ -2,7 +2,7 @@
 
 ## The five-minute story
 
-1. Open `/demo-checkout` and authorize the fixed ₹10 Razorpay Test Mode order. Show its signed,
+1. Open `/payments/authorize` and authorize the fixed ₹10 Razorpay Test Mode order. Show its signed,
    authoritative `authorized` and `captured=false` proof without exposing a key secret.
 2. Show the resulting broken payment journey as a connected evidence mesh: merchant, journey,
    payment, order, immutable events, incident, and diagnosis.
@@ -14,6 +14,11 @@
    and an idempotent second execution with no second provider mutation.
 6. Run the proof command and point to exact false-positive/false-negative counts, chaos checks, policy
    denial checks, latency, throughput, and the stable SHA-256 proof.
+
+Then show the revenue-recovery variant at `/payments/recover-failure`: create a deliberate Razorpay
+Test Mode failure, verify that failed state from Razorpay, watch the deterministic incident appear,
+and execute the policy-bounded action. This action creates one expiring Razorpay Payment Link. A
+provider-confirmed `payment_link.paid` event—not a successful API response—closes the incident.
 
 The first step requires a reviewed isolated environment, Test Mode credentials, a scoped operator
 token, and `CHAKRAVYUH_TEST_CHECKOUT_ENABLED=true`. Keep the capability disabled everywhere else.
@@ -46,6 +51,8 @@ authorization. The remote-target flag is an acknowledgment, not authorization.
   model output never owns incident truth or provider access.
 - “What happens if capture times out?” The durable mutation checkpoint forces fetch-only
   reconciliation; capture is never blindly retried.
+- “What happens if Payment Link creation times out?” Chakravyuh looks up the deterministic provider
+  reference before doing anything else. It never issues a second blind create request.
 - “How do you know duplicate/out-of-order events are safe?” The proof compares state hashes, while
   database constraints and queue generations enforce the same design under concurrency.
 - “Are zero false negatives guaranteed?” No. The reported zero applies only to the labelled held-out

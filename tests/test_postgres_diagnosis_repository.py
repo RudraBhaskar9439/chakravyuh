@@ -201,8 +201,16 @@ class _CaptureGateway:
         amount: Money,
         reference_id: str,
         description: str,
+        expire_by: datetime,
     ) -> ProviderPaymentLinkState:
-        raise AssertionError((amount, reference_id, description))
+        raise AssertionError((amount, reference_id, description, expire_by))
+
+    async def fetch_payment_link(
+        self,
+        *,
+        reference_id: str,
+    ) -> ProviderPaymentLinkState | None:
+        raise AssertionError(reference_id)
 
     async def close(self) -> None:
         return None

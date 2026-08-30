@@ -3,6 +3,7 @@
 import base64
 import hmac
 import json
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -129,6 +130,7 @@ async def test_adapter_creates_bounded_payment_link_without_customer_notificatio
         amount=Money(amount_subunits=10_000, currency="INR"),
         reference_id="chkr_123",
         description="Recovery for a failed Test Mode payment",
+        expire_by=datetime.now(UTC) + timedelta(hours=24),
     )
     await client.aclose()
 
@@ -138,7 +140,45 @@ async def test_adapter_creates_bounded_payment_link_without_customer_notificatio
     assert requests[0].url.path == "/v1/payment_links"
     assert payload["notify"] == {"sms": False, "email": False}
     assert payload["accept_partial"] is False
+    assert payload["expire_by"] > int(datetime.now(UTC).timestamp())
     assert "customer" not in state.model_dump()
+
+
+async def test_adapter_reconciles_payment_link_by_unique_reference() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/v1/payment_links/"
+        assert request.url.params["reference_id"] == "order_123"
+        return httpx.Response(
+            200,
+            json={
+                "payment_links": [
+                    {
+                        "id": "plink_123",
+                        "entity": "payment_link",
+                        "amount": 10_000,
+                        "amount_paid": 0,
+                        "currency": "INR",
+                        "status": "created",
+                        "short_url": "https://rzp.io/i/test123",
+                        "reference_id": "order_123",
+                    }
+                ]
+            },
+        )
+
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://api.razorpay.com",
+    )
+    gateway = RazorpayTestModePaymentGateway(_settings(), client=client)
+
+    state = await gateway.fetch_payment_link(reference_id="order_123")
+
+    assert state is not None
+    assert state.payment_link_id == "plink_123"
+    assert state.reference_id == "order_123"
+    await client.aclose()
 
 
 async def test_adapter_creates_manual_order_and_verifies_checkout_signature() -> None:
