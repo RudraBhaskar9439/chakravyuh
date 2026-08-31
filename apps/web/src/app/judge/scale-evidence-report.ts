@@ -16,6 +16,7 @@ const evidence = {
     liveAi: "7b91feec4b8ba77baf03c6f21f5a0f14462b977aa090fbf5705fdabc70e7c0d8",
     signedIngress: "abd03fab3f2869db03875515dcc541f8b440b9041090f415edef488d920abd48",
     fullPipeline: "d390a1625bd2de6fbdab6b45315b6563c2f527a303d97214ebc26b08bfe52915",
+    paymentLinkRecovery: "0148f1d1e0dbf43e6732c2be1d7e9788351799e1dbac13c827ef0dc569fa2796",
   },
   strategies: [
     {
@@ -43,6 +44,39 @@ const evidence = {
       netRupees: 148140,
     },
   ],
+  paymentLinkStrategies: [
+    {
+      name: "No intervention",
+      actions: 0,
+      confirmedRecoveries: 0,
+      incorrectActions: 0,
+      recoveredRupees: 0,
+      netRupees: 0,
+    },
+    {
+      name: "Link every failure",
+      actions: 1334,
+      confirmedRecoveries: 203,
+      incorrectActions: 757,
+      recoveredRupees: 63210,
+      netRupees: -12490,
+    },
+    {
+      name: "Chakravyuh",
+      actions: 577,
+      confirmedRecoveries: 203,
+      incorrectActions: 0,
+      recoveredRupees: 63210,
+      netRupees: 51670,
+    },
+  ],
+  paymentLinkProof: {
+    eligibleActions: 577,
+    oracleRecoverable: 203,
+    confirmationDeliveries: 265,
+    uniqueConfirmations: 203,
+    faultScenarios: 8,
+  },
   funnel: [
     { label: "Held-out payment journeys", value: 10005, note: "Oracle hidden from strategies" },
     { label: "Deterministic incidents", value: 4002, note: "Precision / recall / F1 = 1.0" },

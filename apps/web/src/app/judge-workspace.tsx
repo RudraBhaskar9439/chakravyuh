@@ -11,8 +11,11 @@ export function JudgeWorkspace() {
             state.
           </p>
           <div className="workspaceActions">
-            <a className="workspacePrimary" href="/payments/authorize">
-              Recover an uncaptured payment <span aria-hidden="true">→</span>
+            <a className="workspacePrimary" href="/walkthrough">
+              Start the judge walkthrough <span aria-hidden="true">→</span>
+            </a>
+            <a className="workspaceSecondary" href="/payments/authorize">
+              Recover an uncaptured payment
             </a>
             <a className="workspaceSecondary" href="/payments/recover-failure">
               Recover a failed payment
@@ -55,6 +58,11 @@ export function JudgeWorkspace() {
       </section>
 
       <section className="workspaceProofs" aria-label="Product evidence">
+        <a href="/walkthrough">
+          <span>Guided walkthrough</span>
+          <strong>Understand the product in four minutes</strong>
+          <p>One linear route through provider failure, graph evidence, recovery and proof.</p>
+        </a>
         <a href="/payments/recover-failure">
           <span>Revenue recovery</span>
           <strong>Fail, diagnose and recover a payment</strong>

@@ -7,6 +7,11 @@ import { usePathname, useRouter } from "next/navigation";
 const destinations = [
   { href: "/", label: "Overview", matches: (path: string) => path === "/" },
   {
+    href: "/walkthrough",
+    label: "Guided tour",
+    matches: (path: string) => path === "/walkthrough",
+  },
+  {
     href: "/payments/authorize",
     label: "Capture recovery",
     matches: (path: string) => path === "/payments/authorize" || path === "/demo-checkout",
@@ -44,6 +49,7 @@ const pageNames: Record<string, string> = {
   "/recovery-story": "Recovery story",
   "/reliability": "Scale evidence",
   "/trace": "Money Trace",
+  "/walkthrough": "Guided walkthrough",
 };
 
 const fallbackRoutes: Record<string, string> = {
@@ -55,6 +61,7 @@ const fallbackRoutes: Record<string, string> = {
   "/recovery-story": "/recoveries/verified",
   "/reliability": "/recoveries/verified",
   "/trace": "/",
+  "/walkthrough": "/",
 };
 
 const returnKey = (destination: string) => `chakravyuh:return:${destination}`;

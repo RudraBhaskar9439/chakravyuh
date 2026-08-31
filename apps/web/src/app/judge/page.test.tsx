@@ -50,5 +50,10 @@ describe("judge evidence room", () => {
     fireEvent.click(screen.getByRole("button", { name: /Exceptions/i }));
     expect(screen.getByText("Invalid structured response")).toBeInTheDocument();
     expect(screen.getByText(/Safe abstention beats fabricated certainty/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Failed recovery/i }));
+    expect(screen.getByText("A link is not revenue. A paid webhook is.")).toBeInTheDocument();
+    expect(screen.getByText(report.proofRoots.paymentLinkRecovery)).toBeInTheDocument();
+    expect(screen.getByText(/265 → 203/)).toBeInTheDocument();
   });
 });

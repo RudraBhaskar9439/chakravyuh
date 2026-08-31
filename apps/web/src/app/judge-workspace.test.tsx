@@ -10,6 +10,10 @@ describe("judge workspace", () => {
     render(<JudgeWorkspace />);
 
     expect(screen.getByRole("heading", { name: /repair itself/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /judge walkthrough/i })[0]).toHaveAttribute(
+      "href",
+      "/walkthrough",
+    );
     expect(screen.getByRole("link", { name: /Recover an uncaptured payment/i })).toHaveAttribute(
       "href",
       "/payments/authorize",

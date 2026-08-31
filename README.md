@@ -350,6 +350,31 @@ with `make proof-pack-verify` and contains no credential, customer, or live-prov
 Exact artifact commitments and final release gates are recorded in
 [Phase 12H evidence](docs/review/phase-12h-evidence.md).
 
+### Failed-payment Recovery Arena v2
+
+The v1 capture proof remains immutable. A separate v2 benchmark now runs the provider-backed
+`failed_without_recovery -> create_payment_link -> payment_link.paid` path over the same 10,005
+held-out observed journeys. Its provider twin covers eight outcomes: normal paid, duplicate paid
+webhook, paid with lost create response, never paid, timeout before create, timeout after create,
+expired response, and conflicting amount.
+
+Generate the revision-bound JSON report without credentials or network access:
+
+    chakravyuh-payment-link-arena \
+      --code-revision "$(git rev-parse HEAD)" \
+      --output /tmp/payment-link-arena-v2.json
+
+The locked run finds 667 failed-without-recovery incidents, permits 577 exact links, and receives
+203 unique provider-paid confirmations. Chakravyuh matches the unsafe baseline's 203 confirmed
+recoveries with zero incorrect actions and zero duplicate link creations. The blind baseline makes
+757 incorrect link attempts. Synthetic gross recovery is ₹63,210; guarded net value is ₹51,670
+after explicit checker cost, while the blind baseline falls to negative ₹12,490. These are
+reproducible synthetic INR measurements, not merchant revenue or conversion claims. See
+[Payment Link Arena v2 architecture](docs/architecture/payment-link-recovery-arena-v2.md).
+
+For a judge, `/walkthrough` provides one linear four-minute path through a real Razorpay Test Mode
+failure, the connected money graph, bounded recovery, provider proof, and both sealed arenas.
+
 ## Production hardening and proof
 
 Operator identities now receive explicit scopes for incident reads, proposal creation, checker

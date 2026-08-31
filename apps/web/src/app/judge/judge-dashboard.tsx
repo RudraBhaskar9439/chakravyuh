@@ -4,7 +4,14 @@ import { type CSSProperties, createContext, useContext, useState } from "react";
 
 import type { ScaleEvidenceReport } from "./scale-evidence-report";
 
-const views = ["Tournament", "Recovery funnel", "Evidence mesh", "Chaos", "Exceptions"] as const;
+const views = [
+  "Tournament",
+  "Recovery funnel",
+  "Evidence mesh",
+  "Chaos",
+  "Exceptions",
+  "Failed recovery",
+] as const;
 type View = (typeof views)[number];
 
 const ScaleEvidenceContext = createContext<ScaleEvidenceReport | null>(null);
@@ -113,6 +120,7 @@ export function JudgeDashboard({ report }: { report: ScaleEvidenceReport }) {
           {view === "Evidence mesh" ? <EvidenceMesh /> : null}
           {view === "Chaos" ? <Chaos /> : null}
           {view === "Exceptions" ? <Exceptions /> : null}
+          {view === "Failed recovery" ? <FailedRecovery /> : null}
         </section>
 
         <footer className="judgeFooter">
@@ -401,6 +409,71 @@ function Exceptions() {
           consume their reserved budget.
         </p>
       </div>
+    </>
+  );
+}
+
+function FailedRecovery() {
+  const { paymentLinkProof, paymentLinkStrategies, proofRoots } = useScaleEvidence();
+  const maximum = Math.max(
+    ...paymentLinkStrategies.map((strategy) => Math.abs(strategy.netRupees)),
+  );
+  return (
+    <>
+      <ViewHeader
+        copy="The original arena remains immutable. This separately sealed extension runs the production failed-payment detector, dual control, Payment Link adapter, timeout reconciliation and webhook-only recovery rule."
+        eyebrow="Recovery Arena v2"
+        index="06"
+        title="A link is not revenue. A paid webhook is."
+      />
+      <div className="strategyGrid">
+        {paymentLinkStrategies.map((strategy) => (
+          <article
+            className={strategy.name === "Chakravyuh" ? "strategyCard winner" : "strategyCard"}
+            key={strategy.name}
+          >
+            <div className="strategyName">
+              <h3>{strategy.name}</h3>
+              {strategy.name === "Chakravyuh" ? <span>Selected</span> : null}
+            </div>
+            <strong className={strategy.netRupees < 0 ? "negativeValue" : ""}>
+              {formatRupees(strategy.netRupees)}
+            </strong>
+            <small>net recovery value</small>
+            <div className="netTrack" aria-hidden="true">
+              <span
+                className={strategy.netRupees < 0 ? "negative" : ""}
+                style={{ width: `${Math.max(2, (Math.abs(strategy.netRupees) / maximum) * 100)}%` }}
+              />
+            </div>
+            <dl>
+              <Stat label="Paid confirmations" value={String(strategy.confirmedRecoveries)} />
+              <Stat label="Link attempts" value={strategy.actions.toLocaleString("en-IN")} />
+              <Stat
+                label="Incorrect links"
+                value={strategy.incorrectActions.toLocaleString("en-IN")}
+                danger={strategy.incorrectActions > 0}
+              />
+              <Stat label="Gross recovered" value={formatRupees(strategy.recoveredRupees)} />
+            </dl>
+          </article>
+        ))}
+      </div>
+      <dl className="funnelFootnotes paymentLinkFootnotes">
+        <Stat label="Held-out journeys" value="10,005" />
+        <Stat label="Policy-eligible links" value={String(paymentLinkProof.eligibleActions)} />
+        <Stat label="Provider fault scenarios" value={String(paymentLinkProof.faultScenarios)} />
+        <Stat
+          label="Webhook deliveries → unique paid events"
+          value={`${paymentLinkProof.confirmationDeliveries} → ${paymentLinkProof.uniqueConfirmations}`}
+        />
+      </dl>
+      <p className="arenaBoundary">
+        Includes timeout before create, timeout after create, paid with lost response, duplicate
+        paid webhook, expired link, conflicting amount, and never-paid outcomes. Duplicate provider
+        mutations: <strong>0</strong>. Unconfirmed recovery credit: <strong>₹0</strong>.
+      </p>
+      <ProofHash label="Failed-payment arena report" value={proofRoots.paymentLinkRecovery} />
     </>
   );
 }

@@ -85,6 +85,7 @@ a {
 }
 .workspaceActions {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   align-items: center;
   margin-top: 42px;
@@ -152,7 +153,7 @@ a {
 }
 .workspaceProofs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   border-top: 1px solid var(--border);
   border-left: 1px solid var(--border);
 }
@@ -197,6 +198,155 @@ a {
 .workspaceFooter a {
   color: var(--gold);
   text-decoration: none;
+}
+
+.walkthroughShell {
+  width: min(1440px, calc(100% - 48px));
+  margin: 0 auto;
+}
+.walkthroughHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(360px, 0.7fr);
+  gap: clamp(50px, 8vw, 130px);
+  align-items: end;
+  min-height: 520px;
+  padding: 90px 30px 72px;
+  border-bottom: 1px solid var(--border);
+}
+.walkthroughHero h1 {
+  max-width: 900px;
+  margin: 0;
+  font-size: clamp(3.7rem, 7vw, 7.2rem);
+  letter-spacing: -0.075em;
+  line-height: 0.9;
+}
+.walkthroughIntro > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+.walkthroughIntro > a,
+.walkthroughSteps a {
+  display: inline-flex;
+  margin-top: 28px;
+  color: var(--gold);
+  font-size: 0.74rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+.walkthroughSteps {
+  border-left: 1px solid var(--border);
+}
+.walkthroughSteps > article {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1.3fr) minmax(300px, 0.7fr);
+  gap: 30px;
+  min-height: 290px;
+  padding: 48px 42px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgb(12 11 9 / 46%);
+}
+.walkthroughSteps > article:hover {
+  background: rgb(230 170 76 / 4%);
+}
+.walkthroughNumber,
+.walkthroughSteps article > div > p:first-child,
+.walkthroughSteps aside small,
+.walkthroughBoundary article span {
+  color: var(--gold);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.walkthroughSteps h2 {
+  max-width: 660px;
+  margin: 16px 0;
+  font-size: clamp(1.8rem, 3vw, 3rem);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+.walkthroughSteps article > div > p:last-child,
+.walkthroughSteps aside strong {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.7;
+}
+.walkthroughSteps aside {
+  align-self: stretch;
+  padding: 24px;
+  border: 1px solid var(--border);
+  background: rgb(17 16 13 / 58%);
+}
+.walkthroughSteps aside strong {
+  display: block;
+  margin-top: 18px;
+  color: var(--text);
+}
+.walkthroughBoundary {
+  padding: 100px 30px 120px;
+}
+.walkthroughBoundary h2 {
+  max-width: 800px;
+  margin: 0;
+  font-size: clamp(2.5rem, 5vw, 5rem);
+  letter-spacing: -0.06em;
+  line-height: 0.98;
+}
+.walkthroughBoundary > div {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 1000px;
+  margin-top: 48px;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.walkthroughBoundary article {
+  min-height: 190px;
+  padding: 28px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.walkthroughBoundary article p {
+  margin-top: 24px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.7;
+}
+@media (width <= 1000px) {
+  .walkthroughHero {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .walkthroughSteps > article {
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+  .walkthroughSteps aside {
+    grid-column: 2;
+  }
+}
+@media (width <= 650px) {
+  .walkthroughShell {
+    width: min(100% - 18px, 1440px);
+  }
+  .walkthroughHero {
+    padding: 64px 10px 48px;
+  }
+  .walkthroughSteps > article {
+    grid-template-columns: 1fr;
+    padding: 34px 22px;
+  }
+  .walkthroughSteps aside {
+    grid-column: 1;
+  }
+  .walkthroughBoundary {
+    padding: 78px 10px 90px;
+  }
+  .walkthroughBoundary > div {
+    grid-template-columns: 1fr;
+  }
 }
 
 .traceHero {
@@ -3319,7 +3469,7 @@ a {
 }
 .judgeTabs {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   margin-top: 32px;
   border-top: 1px solid var(--border);
   border-left: 1px solid var(--border);
@@ -3430,6 +3580,22 @@ a {
 }
 .negativeValue {
   color: var(--danger);
+}
+.paymentLinkFootnotes {
+  margin-top: 34px;
+}
+.arenaBoundary {
+  max-width: 980px;
+  margin: 26px 0 0;
+  padding: 22px 24px;
+  border-left: 2px solid var(--gold);
+  background: rgb(230 170 76 / 5%);
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.7;
+}
+.arenaBoundary strong {
+  color: var(--text);
 }
 .netTrack {
   height: 3px;
