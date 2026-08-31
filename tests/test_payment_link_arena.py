@@ -7,6 +7,7 @@ import pytest
 
 from chakravyuh.domain.enums import ActionType, IncidentType
 from chakravyuh.operations import payment_link_arena as arena_cli
+from chakravyuh.operations.payment_link_arena import PaymentLinkArenaVerificationError
 from chakravyuh.simulation.payment_link_arena import (
     PaymentLinkFault,
     PaymentLinkStrategyName,
@@ -87,3 +88,37 @@ def test_cli_writes_once_and_rejects_bad_revision(
     with pytest.raises(ValueError, match="40-character Git SHA"):
         arena_cli.main(["--code-revision", "short", "--seed-count", "10"])
     assert capsys.readouterr().out == ""
+
+
+def test_cli_replays_report_and_checks_external_trust_anchors(tmp_path: Path) -> None:
+    output = tmp_path / "report.json"
+    assert (
+        arena_cli.main(
+            ["--code-revision", _REVISION, "--seed-count", "10", "--output", str(output)]
+        )
+        == 0
+    )
+    report = json.loads(output.read_text())
+
+    assert (
+        arena_cli.main(
+            [
+                "--verify",
+                str(output),
+                "--expected-code-revision",
+                _REVISION,
+                "--expected-report-sha256",
+                report["report_sha256"],
+            ]
+        )
+        == 0
+    )
+    with pytest.raises(PaymentLinkArenaVerificationError, match="trusted SHA-256"):
+        arena_cli.main(
+            [
+                "--verify",
+                str(output),
+                "--expected-report-sha256",
+                "b" * 64,
+            ]
+        )

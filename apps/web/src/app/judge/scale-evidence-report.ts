@@ -16,7 +16,7 @@ const evidence = {
     liveAi: "7b91feec4b8ba77baf03c6f21f5a0f14462b977aa090fbf5705fdabc70e7c0d8",
     signedIngress: "abd03fab3f2869db03875515dcc541f8b440b9041090f415edef488d920abd48",
     fullPipeline: "d390a1625bd2de6fbdab6b45315b6563c2f527a303d97214ebc26b08bfe52915",
-    paymentLinkRecovery: "0148f1d1e0dbf43e6732c2be1d7e9788351799e1dbac13c827ef0dc569fa2796",
+    paymentLinkRecovery: "f5f689c51eda2076b6ef480f52832a250711448eebbf0a779fedda168142e72b",
   },
   strategies: [
     {

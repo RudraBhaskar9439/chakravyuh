@@ -371,6 +371,8 @@ recoveries with zero incorrect actions and zero duplicate link creations. The bl
 after explicit checker cost, while the blind baseline falls to negative ₹12,490. These are
 reproducible synthetic INR measurements, not merchant revenue or conversion claims. See
 [Payment Link Arena v2 architecture](docs/architecture/payment-link-recovery-arena-v2.md).
+The committed revision-bound report and replay instructions are recorded in
+[Payment Link Arena v2 evidence](docs/review/payment-link-arena-v2-evidence.md).
 
 For a judge, `/walkthrough` provides one linear four-minute path through a real Razorpay Test Mode
 failure, the connected money graph, bounded recovery, provider proof, and both sealed arenas.

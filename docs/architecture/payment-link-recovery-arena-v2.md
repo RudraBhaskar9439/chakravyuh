@@ -68,3 +68,12 @@ chakravyuh-payment-link-arena --code-revision "$(git rev-parse HEAD)"
 ```
 
 Use `--output PATH` to publish a new report. The command refuses to overwrite an existing artifact.
+Verification validates the typed nested hashes, external trust anchors, and a full deterministic
+replay:
+
+```bash
+chakravyuh-payment-link-arena \
+  --verify proof/phase-12/payment-link-arena-v2.json \
+  --expected-code-revision a5e5f870642c440ece752c4a1ec5a9638489fe37 \
+  --expected-report-sha256 f5f689c51eda2076b6ef480f52832a250711448eebbf0a779fedda168142e72b
+```
