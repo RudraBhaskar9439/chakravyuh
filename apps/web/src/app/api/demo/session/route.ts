@@ -20,7 +20,10 @@ export async function POST(request: Request) {
   const secret = getDemoSessionSecret();
   if (!secret) return errorResponse(503, "demo_session_not_configured");
   const current = readDemoSession(request, secret);
-  const session = current ? refreshDemoSession(current) : createDemoSession();
+  const session =
+    current && current.mutationCount < demoSessionMutationLimit
+      ? refreshDemoSession(current)
+      : createDemoSession();
   const response = sessionResponse(session);
   writeDemoSession(response.headers, session, secret);
   return response;
