@@ -54,6 +54,372 @@ a {
   color: inherit;
 }
 
+/* Cinematic product launch */
+.launchSequence {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  overflow: hidden;
+  color: var(--text);
+  background: radial-gradient(circle at 50% 48%, rgb(230 170 76 / 10%), transparent 28%), #070706;
+  opacity: 1;
+  transition:
+    opacity 520ms cubic-bezier(0.7, 0, 0.3, 1),
+    visibility 520ms;
+}
+.launchSequence.isExiting {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.launchGrid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(230 170 76 / 4%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(230 170 76 / 4%) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(circle at center, black 20%, transparent 76%);
+  opacity: 0;
+  animation: launchGridReveal 900ms ease 100ms forwards;
+}
+.launchSequence::before,
+.launchSequence::after {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(230 170 76 / 35%), transparent);
+  content: "";
+  transform: scaleX(0);
+  animation: launchRuleReveal 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.launchSequence::before {
+  top: 72px;
+}
+.launchSequence::after {
+  bottom: 76px;
+  animation-delay: 120ms;
+}
+.launchTopline {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  padding: 0 clamp(24px, 4vw, 70px);
+  color: #8f8779;
+  font-size: 0.61rem;
+  font-weight: 720;
+  letter-spacing: 0.18em;
+  opacity: 0;
+  animation: launchFadeUp 600ms ease 180ms forwards;
+}
+.launchTopline button {
+  padding: 9px 13px;
+  color: #8f8779;
+  border: 1px solid #393329;
+  border-radius: 999px;
+  background: rgb(8 8 6 / 62%);
+  font-size: 0.62rem;
+  letter-spacing: 0;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
+}
+.launchTopline button:hover {
+  color: var(--text);
+  border-color: var(--gold-soft);
+}
+.launchCanvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(1100px, 82vw);
+  transform: translate(-50%, -52%);
+}
+.launchCanvas svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+.launchPath {
+  fill: none;
+  stroke: url(#launch-line);
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  stroke-linecap: round;
+  stroke-width: 1.3;
+  opacity: 0.7;
+  animation: launchDrawPath 1050ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+.launchPathB {
+  animation-delay: 100ms;
+}
+.launchPathC,
+.launchPathD {
+  animation-delay: 330ms;
+}
+.launchPathE {
+  animation-delay: 620ms;
+}
+.launchPathF {
+  stroke: #5d4523;
+  animation-delay: 430ms;
+}
+.launchNode {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: launchNodeReveal 520ms cubic-bezier(0.2, 1.5, 0.45, 1) forwards;
+}
+.launchNodeEvidence,
+.launchNodePolicy {
+  animation-delay: 520ms;
+}
+.launchNodeDecision {
+  animation-delay: 850ms;
+}
+.launchNodeProvider {
+  animation-delay: 1.2s;
+}
+.launchNodeHalo,
+.launchResolvedHalo {
+  fill: rgb(230 170 76 / 7%);
+  stroke: #7a592d;
+  stroke-width: 1;
+}
+.launchNodeCore {
+  fill: url(#launch-core);
+}
+.launchResolvedHalo {
+  fill: rgb(98 208 155 / 8%);
+  stroke: #62d09b;
+}
+.launchResolvedCore {
+  fill: #62d09b;
+  filter: url(#launch-glow);
+}
+.launchSignal {
+  fill: #f2c774;
+  opacity: 0;
+  offset-path: path(
+    "M105 280 C260 280 302 118 470 162 C610 198 640 245 726 280 C860 280 914 280 1088 280"
+  );
+  animation: launchSignalTravel 1.35s cubic-bezier(0.55, 0, 0.25, 1) 650ms forwards;
+}
+.launchLabel {
+  position: absolute;
+  display: grid;
+  grid-template-columns: 24px auto;
+  column-gap: 8px;
+  color: var(--gold);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: launchFadeUp 480ms ease forwards;
+}
+.launchLabel span {
+  grid-row: 1 / 3;
+  color: #6e6558;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.54rem;
+}
+.launchLabel strong {
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+}
+.launchLabel small {
+  margin-top: 3px;
+  color: #716a5f;
+  font-size: 0.54rem;
+}
+.launchLabelPayment {
+  top: 50%;
+  left: 2%;
+  animation-delay: 380ms;
+}
+.launchLabelEvidence {
+  top: 23%;
+  left: 37%;
+  animation-delay: 760ms;
+}
+.launchLabelPolicy {
+  bottom: 20%;
+  left: 37%;
+  animation-delay: 880ms;
+}
+.launchLabelProvider {
+  top: 50%;
+  right: -1%;
+  animation-delay: 1.45s;
+}
+.launchIdentity {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  opacity: 0;
+  transform: translate(-50%, -42%) scale(0.96);
+  animation: launchIdentityReveal 740ms cubic-bezier(0.16, 1, 0.3, 1) 2.05s forwards;
+}
+.launchMark {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  color: var(--gold);
+  border: 1px solid #8c652f;
+  background: #0d0c09;
+  box-shadow:
+    0 0 0 10px rgb(230 170 76 / 3%),
+    0 24px 70px rgb(0 0 0 / 55%);
+  font-size: 1.8rem;
+}
+.launchIdentity h1,
+.launchIdentity p {
+  margin: 0;
+}
+.launchIdentity h1 {
+  font-size: clamp(2.1rem, 4vw, 4.2rem);
+  letter-spacing: -0.065em;
+  line-height: 0.94;
+}
+.launchIdentity p {
+  margin-top: 8px;
+  color: var(--gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+.launchFooter {
+  position: absolute;
+  z-index: 4;
+  right: clamp(24px, 4vw, 70px);
+  bottom: 0;
+  left: clamp(24px, 4vw, 70px);
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) repeat(4, auto);
+  gap: clamp(14px, 3vw, 42px);
+  align-items: center;
+  height: 76px;
+  color: #6d665b;
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  opacity: 0;
+  animation: launchFadeUp 600ms ease 520ms forwards;
+}
+.launchProgress {
+  height: 2px;
+  overflow: hidden;
+  background: #28231b;
+}
+.launchProgress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--healthy));
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: launchProgress 2.65s cubic-bezier(0.3, 0, 0.2, 1) 280ms forwards;
+}
+
+@keyframes launchGridReveal {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes launchRuleReveal {
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes launchDrawPath {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes launchNodeReveal {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes launchSignalTravel {
+  0% {
+    opacity: 0;
+    offset-distance: 0%;
+  }
+  10%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    offset-distance: 100%;
+  }
+}
+@keyframes launchFadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes launchIdentityReveal {
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes launchProgress {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (width <= 700px) {
+  .launchTopline {
+    height: 62px;
+  }
+  .launchSequence::before {
+    top: 62px;
+  }
+  .launchCanvas {
+    width: 128vw;
+  }
+  .launchLabelEvidence,
+  .launchLabelPolicy {
+    left: 38%;
+  }
+  .launchIdentity {
+    gap: 14px;
+  }
+  .launchMark {
+    width: 52px;
+    height: 52px;
+    font-size: 1.45rem;
+  }
+  .launchFooter {
+    grid-template-columns: 1fr auto;
+  }
+  .launchFooter > span:not(:last-child) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launchSequence {
+    display: none;
+  }
+}
+
 /* Product overview */
 .productOverview {
   width: min(1480px, calc(100% - 48px));
