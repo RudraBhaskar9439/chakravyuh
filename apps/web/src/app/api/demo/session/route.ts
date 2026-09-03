@@ -3,6 +3,7 @@ import {
   demoSessionMutationLimit,
   getDemoSessionSecret,
   readDemoSession,
+  refreshDemoSession,
   writeDemoSession,
 } from "../session-state";
 
@@ -18,7 +19,8 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return errorResponse(403, "cross_origin_demo_session_rejected");
   const secret = getDemoSessionSecret();
   if (!secret) return errorResponse(503, "demo_session_not_configured");
-  const session = readDemoSession(request, secret) ?? createDemoSession();
+  const current = readDemoSession(request, secret);
+  const session = current ? refreshDemoSession(current) : createDemoSession();
   const response = sessionResponse(session);
   writeDemoSession(response.headers, session, secret);
   return response;

@@ -30,6 +30,13 @@ export function createDemoSession(now = Date.now()): DemoSession {
   };
 }
 
+export function refreshDemoSession(session: DemoSession, now = Date.now()): DemoSession {
+  return {
+    ...session,
+    expiresAt: now + demoSessionTtlSeconds * 1000,
+  };
+}
+
 export function readDemoSession(request: Request, secret: string): DemoSession | null {
   const cookie = request.headers
     .get("Cookie")

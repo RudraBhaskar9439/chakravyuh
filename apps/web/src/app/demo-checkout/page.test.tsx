@@ -115,7 +115,7 @@ describe("Test Checkout", () => {
     expect(screen.getByText("STOPPED HERE")).toBeInTheDocument();
     expect(screen.getByText("Watching the capture boundary")).toBeInTheDocument();
     expect(screen.getByText("Waiting for deterministic detection")).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(6));
     const verificationCall = fetchMock.mock.calls.find(([input]) =>
       String(input).endsWith("/v1/demo/checkout/verifications"),
     );

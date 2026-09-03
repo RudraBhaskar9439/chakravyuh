@@ -11,6 +11,7 @@ const apiBase = "/api/demo";
 const checkoutScript = "https://checkout.razorpay.com/v1/checkout.js";
 const livePollIntervalMs = 10_000;
 const hiddenPollIntervalMs = 30_000;
+const sessionRefreshIntervalMs = 10 * 60_000;
 const activeVerificationStorageKey = "chakravyuh:active-verification:v1";
 
 type RecoveryScenario = "capture" | "failed";
@@ -118,6 +119,7 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [demoSession, setDemoSession] = useState<DemoSessionInfo | null>(null);
   const [systemReady, setSystemReady] = useState(false);
+  const demoSessionId = demoSession?.session_id ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -135,6 +137,30 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
       cancelled = true;
     };
   }, [scenario]);
+
+  useEffect(() => {
+    if (!demoSessionId) return;
+    let cancelled = false;
+
+    const refreshSession = async () => {
+      try {
+        const refreshed = await ensureDemoSession();
+        if (!cancelled) setDemoSession(refreshed);
+      } catch {
+        // A protected action will surface a friendly recovery path if renewal ultimately fails.
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refreshSession();
+    };
+    const timer = window.setInterval(() => void refreshSession(), sessionRefreshIntervalMs);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [demoSessionId]);
 
   useEffect(() => {
     if (window.Razorpay) {
@@ -265,6 +291,15 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
     setError(null);
     setTrackingError(null);
     try {
+      const activeSession = await ensureDemoSession();
+      if (activeSession.session_id !== demoSession?.session_id) {
+        setPrepared(null);
+        setVerification(null);
+        setLiveIncident(null);
+        setLiveActions([]);
+        clearActiveVerification(scenario);
+      }
+      setDemoSession(activeSession);
       const next = await fetchJson<PreparedCheckout>("/v1/demo/checkout/orders", {
         method: "POST",
       });
@@ -898,6 +933,14 @@ function verificationStorageKey(scenario: RecoveryScenario): string {
   return scenario === "capture"
     ? activeVerificationStorageKey
     : `${activeVerificationStorageKey}:failed`;
+}
+
+function clearActiveVerification(scenario: RecoveryScenario): void {
+  try {
+    window.sessionStorage.removeItem(verificationStorageKey(scenario));
+  } catch {
+    // Browser storage is optional for the live journey.
+  }
 }
 
 function isVerification(candidate: unknown): candidate is Verification {
