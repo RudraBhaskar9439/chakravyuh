@@ -1,0 +1,95 @@
+<svg width="1600" height="640" viewBox="0 0 1600 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1600" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#050604"/>
+      <stop offset="0.62" stop-color="#0A0A07"/>
+      <stop offset="1" stop-color="#151007"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1270 300) rotate(90) scale(310 410)">
+      <stop stop-color="#EBAF43" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#EBAF43" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="nodeGlow" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" stroke="#EBAF43" stroke-opacity="0.035"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="640" rx="28" fill="url(#background)"/>
+  <rect width="1600" height="640" rx="28" fill="url(#grid)"/>
+  <rect width="1600" height="640" rx="28" fill="url(#glow)"/>
+  <rect x="1" y="1" width="1598" height="638" rx="27" stroke="#EBAF43" stroke-opacity="0.18" stroke-width="2"/>
+
+  <g transform="translate(104 82)">
+    <rect width="64" height="64" rx="8" fill="#EBAF43" fill-opacity="0.08" stroke="#EBAF43" stroke-opacity="0.55"/>
+    <text x="32" y="43" text-anchor="middle" fill="#EBAF43" font-family="Inter, Arial, sans-serif" font-size="31" font-weight="700">च</text>
+    <text x="88" y="27" fill="#F6F0E4" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="700">CHAKRAVYUH</text>
+    <text x="88" y="53" fill="#AAA294" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="2.4">MONEY PATH OPERATIONS</text>
+  </g>
+
+  <g transform="translate(104 232)">
+    <text fill="#EBAF43" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="4">SELF-HEALING MONEY GRAPH</text>
+    <text y="90" fill="#F8F2E6" font-family="Inter, Arial, sans-serif" font-size="82" font-weight="760" letter-spacing="-4">Every rupee</text>
+    <text y="178" fill="#F8F2E6" font-family="Inter, Arial, sans-serif" font-size="82" font-weight="760" letter-spacing="-4">has a path.</text>
+    <text y="235" fill="#AAA294" font-family="Inter, Arial, sans-serif" font-size="21">Detect broken payment journeys. Reconstruct the evidence.</text>
+    <text y="269" fill="#AAA294" font-family="Inter, Arial, sans-serif" font-size="21">Recover only when policy and provider truth agree.</text>
+  </g>
+
+  <g stroke="#EBAF43" stroke-opacity="0.38" stroke-width="2">
+    <path d="M980 317H1112"/>
+    <path d="M1168 317H1295"/>
+    <path d="M1351 317H1468"/>
+    <path d="M1140 289L1210 208"/>
+    <path d="M1323 289L1270 208"/>
+    <path d="M1140 345L1210 426"/>
+    <path d="M1323 345L1270 426"/>
+  </g>
+
+  <g font-family="Inter, Arial, sans-serif" text-anchor="middle">
+    <g>
+      <circle cx="952" cy="317" r="28" fill="#0B1711" stroke="#54D6A0" stroke-width="2" filter="url(#nodeGlow)"/>
+      <circle cx="952" cy="317" r="7" fill="#54D6A0"/>
+      <text x="952" y="369" fill="#AAA294" font-size="12" letter-spacing="1.5">WEBHOOK</text>
+    </g>
+    <g>
+      <circle cx="1140" cy="317" r="28" fill="#101523" stroke="#73A7FF" stroke-width="2" filter="url(#nodeGlow)"/>
+      <circle cx="1140" cy="317" r="7" fill="#73A7FF"/>
+      <text x="1140" y="369" fill="#AAA294" font-size="12" letter-spacing="1.5">LEDGER</text>
+    </g>
+    <g>
+      <circle cx="1323" cy="317" r="28" fill="#19121F" stroke="#B886F8" stroke-width="2" filter="url(#nodeGlow)"/>
+      <circle cx="1323" cy="317" r="7" fill="#B886F8"/>
+      <text x="1323" y="369" fill="#AAA294" font-size="12" letter-spacing="1.5">EVIDENCE</text>
+    </g>
+    <g>
+      <circle cx="1496" cy="317" r="28" fill="#1C1508" stroke="#EBAF43" stroke-width="2" filter="url(#nodeGlow)"/>
+      <circle cx="1496" cy="317" r="7" fill="#EBAF43"/>
+      <text x="1496" y="369" fill="#AAA294" font-size="12" letter-spacing="1.5">RECOVERY</text>
+    </g>
+    <g>
+      <circle cx="1230" cy="185" r="22" fill="#151107" stroke="#EBAF43" stroke-opacity="0.75"/>
+      <text x="1230" y="190" fill="#EBAF43" font-size="14" font-weight="700">01</text>
+      <text x="1230" y="151" fill="#AAA294" font-size="11" letter-spacing="1.2">INVARIANT</text>
+    </g>
+    <g>
+      <circle cx="1230" cy="449" r="22" fill="#0A1713" stroke="#54D6A0" stroke-opacity="0.75"/>
+      <text x="1230" y="454" fill="#54D6A0" font-size="14" font-weight="700">✓</text>
+      <text x="1230" y="493" fill="#AAA294" font-size="11" letter-spacing="1.2">CONFIRMED</text>
+    </g>
+  </g>
+
+  <g transform="translate(930 548)" font-family="Inter, Arial, sans-serif" font-size="12" letter-spacing="1.3">
+    <text fill="#AAA294">VERIFY</text>
+    <circle cx="73" cy="-4" r="2.5" fill="#EBAF43"/>
+    <text x="91" fill="#AAA294">RECONSTRUCT</text>
+    <circle cx="213" cy="-4" r="2.5" fill="#EBAF43"/>
+    <text x="231" fill="#AAA294">EXPLAIN</text>
+    <circle cx="312" cy="-4" r="2.5" fill="#EBAF43"/>
+    <text x="330" fill="#AAA294">GOVERN</text>
+    <circle cx="411" cy="-4" r="2.5" fill="#EBAF43"/>
+    <text x="429" fill="#AAA294">CONFIRM</text>
+  </g>
+</svg>

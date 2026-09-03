@@ -1,470 +1,290 @@
-# Chakravyuh
+<div align="center">
 
-Chakravyuh is a self-healing money graph for Razorpay payment journeys. It detects missing or
-contradictory state transitions, assembles a bounded evidence path, and recovers money only through
-deterministic policy and independently approved actions.
+<img src="docs/assets/chakravyuh-readme-hero.svg" alt="Chakravyuh — Every rupee has a path" width="100%" />
 
-The deployed judge workspace is available at
-[`https://chakravyuh-web.vercel.app`](https://chakravyuh-web.vercel.app). Start at
-[`/payments/authorize`](https://chakravyuh-web.vercel.app/payments/authorize) to create a real ₹10
-Razorpay Test Mode authorization and follow that exact payment through detection, grounded AI
-diagnosis, maker-checker governance, exact execution, and webhook-confirmed resolution. Inspect a
-completed provider-backed recovery at
-[`/recoveries/verified`](https://chakravyuh-web.vercel.app/recoveries/verified), resolve any known
-identifier through [`/trace`](https://chakravyuh-web.vercel.app/trace), and challenge the sealed
-batch measurements at [`/judge`](https://chakravyuh-web.vercel.app/judge).
+<br />
 
-The second provider-backed journey at
-[`/payments/recover-failure`](https://chakravyuh-web.vercel.app/payments/recover-failure) starts with
-a deliberate Razorpay Test Mode failure. Chakravyuh verifies it from Razorpay, opens a deterministic
-revenue-loss incident, creates one expiring recovery link through the governed action plane, and
-waits for a signed `payment_link.paid` event before crediting recovery.
+**A self-healing money graph for payment revenue recovery.**
 
-The public judge journey never asks for an operator token. Scoped Test Mode authority remains on the
-server. AI remains non-executable: deterministic policy, immutable maker-checker approval,
-exact-amount preflight, and Test-Mode-only Razorpay adapters control every outbound operation.
+Chakravyuh reconstructs incomplete Razorpay payment journeys, grounds diagnosis in connected
+evidence, and permits recovery only through deterministic policy and independent approval.
 
-Repository policy: private access only. The source and generated evaluation artifacts must not be published without the owner's explicit approval.
+[Open the product](https://chakravyuh-web.vercel.app) ·
+[Run a Test Mode payment](https://chakravyuh-web.vercel.app/payments/authorize) ·
+[Inspect verified recovery](https://chakravyuh-web.vercel.app/recoveries/verified) ·
+[Trace an identifier](https://chakravyuh-web.vercel.app/trace) ·
+[Review scale evidence](https://chakravyuh-web.vercel.app/judge)
 
-## Architecture principles
+</div>
 
-- PostgreSQL is the authoritative event and financial state store.
-- Neo4j is a rebuildable graph projection, never the source of truth.
-- Every financial action passes through deterministic policy and approval checks.
-- AI produces structured diagnoses and proposals; it cannot execute tools directly.
-- Raw events are append-only and derived state is replayable.
-- External events are assumed to be duplicated, delayed, and out of order.
+---
 
-## Local prerequisites
+## Why Chakravyuh exists
+
+A payment can look successful at checkout while revenue silently stops between authorization,
+capture, order state, the merchant ledger, and downstream services. Each component may be locally
+correct; no component owns the complete journey.
+
+Blind retries are not a safe answer. They can duplicate actions, act on stale state, or recover the
+wrong amount. Chakravyuh treats revenue recovery as a **distributed-systems correctness problem**:
+
+1. verify signed provider evidence;
+2. reconstruct the complete temporal payment journey;
+3. detect missing or contradictory transitions deterministically;
+4. explain the smallest relevant evidence subgraph;
+5. apply a deterministic action policy and independent approval; and
+6. count recovery only after authoritative provider confirmation.
+
+> **AI can explain the evidence. It never receives the keys and cannot move money.**
+
+Built for **Razorpay Buildathon · Track 3: AI Revenue Recovery**.
+
+## Product walkthrough
+
+The primary journey creates a real ₹10 Razorpay **Test Mode** authorization and follows that exact
+payment through detection, diagnosis, governance, capture, and webhook-confirmed resolution.
+
+| Surface | Purpose |
+| --- | --- |
+| [Run payment](https://chakravyuh-web.vercel.app/payments/authorize) | Create the controlled Test Mode authorization and watch its state change |
+| [Money trace](https://chakravyuh-web.vercel.app/trace) | Resolve a payment, order, event, journey, or incident identifier |
+| [Verified recovery](https://chakravyuh-web.vercel.app/recoveries/verified) | Compare authoritative before/after provider snapshots and inspect receipts |
+| [Operations](https://chakravyuh-web.vercel.app/operations) | Explore the incident queue and bounded evidence mesh |
+| [Recovery Arena](https://chakravyuh-web.vercel.app/judge) | Challenge held-out evaluation, baselines, chaos outcomes, and proof hashes |
+| [Failure recovery](https://chakravyuh-web.vercel.app/payments/recover-failure) | Follow a failed payment into one governed, expiring payment-link recovery |
+
+The public walkthrough keeps scoped provider authority on the server and never asks the browser for
+an operator token.
+
+## How it works
+
+```mermaid
+flowchart LR
+    RP["Razorpay signed webhook"] --> IN["Durable webhook inbox"]
+    IN --> PG["Append-only PostgreSQL ledger"]
+    PG --> NR["Canonical normalizer"]
+    NR --> TR["Full-history temporal reducer"]
+    TR --> IV["Deterministic invariants"]
+    TR --> GP["Rebuildable Neo4j projection"]
+    IV --> EM["Bounded evidence mesh"]
+    GP --> EM
+    EM --> AI["Grounded AI diagnosis"]
+    IV --> DP["Deterministic recovery policy"]
+    AI -. "cited recommendation" .-> DP
+    DP --> MC["Maker-checker approval"]
+    MC --> PF["Authoritative provider preflight"]
+    PF --> EX["Exact bounded action"]
+    EX --> CF["Signed webhook confirmation"]
+    CF --> PG
+
+    AI -. "no credentials · no tools" .-> STOP["Cannot execute"]
+```
+
+### Recovery contract
+
+- **Truth:** PostgreSQL stores immutable provider events and content-hashed journey revisions.
+- **Order:** journeys are reduced from full event history using event time and stable tie-breakers,
+  not arrival order.
+- **Detection:** conservative invariants—not an LLM—own incident truth.
+- **Graph:** Neo4j is a rebuildable projection for connected evidence, never the source of truth.
+- **Diagnosis:** the model receives a bounded allowlisted graph and must return schema-valid claims
+  with real citations.
+- **Authority:** the server derives the target, action, currency, and exact amount from immutable
+  evidence; the model cannot choose them.
+- **Approval:** a proposal maker cannot approve their own money-moving action.
+- **Execution:** current provider state is fetched again before action; a persisted mutation
+  checkpoint prevents blind retries after ambiguous failure.
+- **Confirmation:** revenue is credited only after an authoritative signed provider webhook.
+
+## Safety boundary
+
+| Concern | Control |
+| --- | --- |
+| Forged webhook | HMAC verification over the exact raw body before JSON parsing |
+| Duplicate delivery | Provider event identity plus payload-conflict detection |
+| Delayed/out-of-order events | Full-history replay with stable ordering and immutable revisions |
+| Hallucinated diagnosis | Strict schema, bounded evidence, mandatory citations, deterministic guard |
+| Unsafe model action | No tools, credentials, endpoints, or execution capability exposed to AI |
+| Wrong target or amount | Server-derived proposal plus exact ID/status/currency/amount preflight |
+| Self-approval | Distinct maker and checker principals with scoped authority |
+| Timeout after mutation | Mutation-started checkpoint; reconcile by fetch, never blind retry |
+| Duplicate capture/link | Stable idempotency identity and stored provider execution receipt |
+| Dependency degradation | Bounded retries, visible dead letters, health gates, and fail-closed policy |
+
+## Evidence, not claims
+
+Results are deliberately separated by evidence class. Provider-backed rows use Razorpay Test Mode;
+arena and load rows are deterministic synthetic evaluations and are **not merchant revenue claims**.
+
+| Evidence class | Verified result |
+| --- | --- |
+| Razorpay Test Mode | One real hosted-checkout authorization recovered by exact capture and confirmed by signed `payment.captured` webhook |
+| Capture Recovery Arena | 10,005 held-out journeys; 4,002 expected incidents detected; 457 eligible captures selected; 402 provider-confirmed recoveries; **0 incorrect actions** |
+| Unsafe retry-all baseline | Same gross recovered value, but 3,545 incorrect actions and **−₹197,220** net value under the locked cost model |
+| Chakravyuh policy | **₹148,140** retained value after explicit checker cost under the same locked model |
+| Live AI sample | 100 calls; 99 accepted responses; 1 deterministic guard intervention; **0 unsafe effective decisions**; $0.127755 accounted cost |
+| Signed ingress and pipeline | 100,000 unique signed events + 10,000 confirmed redeliveries converged to 1,000 PostgreSQL and Neo4j journeys with zero dead letters |
+| Payment Link Arena v2 | 667 detected failures; 577 permitted links; 203 provider-confirmed payments; **0 incorrect actions and 0 duplicate links** |
+
+The committed proof pack binds canonical records, per-case results, the code revision, checksums, and
+a Merkle root. Start with [Recovery Arena architecture](docs/architecture/phase-12-recovery-arena.md),
+[final proof evidence](docs/review/phase-12h-evidence.md), and
+[payment-link evidence](docs/review/payment-link-arena-v2-evidence.md).
+
+## Architecture
+
+Chakravyuh is a modular Python service with independently scalable processing loops and a Next.js
+control plane.
+
+| Layer | Responsibility | Technology |
+| --- | --- | --- |
+| Edge | Hosted Checkout, signed webhook intake, operator and proof APIs | FastAPI, Pydantic |
+| Ledger | Raw events, canonical events, revisions, incidents, proposals, receipts | PostgreSQL 17, SQLAlchemy, Alembic |
+| Processing | Normalize, reduce, detect, diagnose, project, reconcile | Async Python workers |
+| Evidence graph | Rebuildable journey and evidence projection | Neo4j 5 |
+| Coordination | Distributed rate limiting and operational control | Redis 7 |
+| AI diagnosis | Structured, evidence-cited diagnosis with provider failover | OpenRouter / Gemini |
+| Product | Payment journey, graph, proof, trace, and arena interfaces | Next.js, React, TypeScript |
+| Delivery | Reproducible containers and hardened deployment templates | Docker, Kubernetes, Vercel, Render |
+
+Design decisions are recorded as ADRs, beginning with
+[PostgreSQL as authority](docs/adr/0002-postgres-is-authoritative.md),
+[AI proposes, policy decides](docs/adr/0003-ai-proposes-policy-decides.md), and
+[crash-safe Test Mode actions](docs/adr/0011-crash-safe-test-mode-actions.md).
+
+## Local development
+
+### Prerequisites
 
 - Python 3.12
-- uv
+- [uv](https://docs.astral.sh/uv/)
 - Node.js 24+
 - pnpm 11+
 - Docker with Compose
 
-## Bootstrap
-
-    cp .env.example .env
-    make bootstrap
-    make infra-up
-
-Run the API and web application in separate terminals:
-
-    make api
-    make worker
-    make projector
-    make diagnosis-worker
-    make web
-
-The API liveness endpoint is http://localhost:8000/health/live. The web application is available at http://localhost:3000.
-
-`make infra-up` waits for local dependencies and applies all database migrations. The readiness
-endpoint at http://localhost:8000/health/ready returns success only when PostgreSQL answers a real
-query.
-
-## Verified webhook intake
-
-Configure a Test Mode merchant identity, account identity, and webhook secret in `.env`, then use:
-
-    POST /v1/webhooks/razorpay/{merchant_id}
-
-The endpoint:
-
-- reads a size-bounded stream rather than an unbounded request body;
-- verifies `X-Razorpay-Signature` over the exact raw bytes before parsing JSON;
-- requires `X-Razorpay-Event-Id` as the provider idempotency identity;
-- supports the current and previous secret during safe secret rotation;
-- commits the verified body to PostgreSQL before returning 2xx;
-- returns `202` for a new event and `200` for an identical provider retry;
-- returns `409` if one provider event ID is reused with different content.
-
-PostgreSQL rejects row updates, deletes, and table truncation on the raw ledger. Provider events
-may arrive late or out of order; ordering is not inferred at intake.
-
-## Durable normalization worker
-
-The worker claims pending raw events directly from PostgreSQL and emits one canonical payment,
-order, refund, or payment-link event. Multiple worker replicas can run safely. Contract failures
-become visible dead letters; unexpected failures roll back to pending without a partial output.
-
-Run it locally after applying migrations:
-
-    make worker
-
-After deploying reviewed normalizer support, an authorized operator can replay one dead letter:
-
-    uv run chakravyuh-replay RAW_EVENT_UUID \
-      --requested-by operator@example.com \
-      --reason "Reviewed normalizer support deployed"
-
-Replay is intentionally a host/database-authorized operation rather than a public HTTP endpoint.
-See [Phase 3 architecture](docs/architecture/phase-3-durable-normalization.md) for the transaction
-and failure guarantees.
-
-## Temporal payment journeys
-
-Every committed normalized event marks its merchant correlation dirty in PostgreSQL. The same worker
-then rebuilds the correlation from its complete immutable history, using event time plus stable
-tie-breakers rather than arrival order. A successful reduction atomically writes:
-
-- one replaceable current state in `state.payment_journey_states`;
-- one immutable, content-hashed revision in `ledger.payment_journey_revisions`;
-- one immutable attempt record; and
-- the completed queue generation.
-
-Generate an offline proof without credentials or network access:
-
-    chakravyuh-simulate --scenario out_of_order_delivery --seed 42
-
-The output includes delivered events, expected payment status, reduced state, and its SHA-256 hash.
-Available scenarios cover success, authorization without capture, capture without order payment,
-failed-then-recovered payment, partial refund, out-of-order delivery, and duplicate delivery.
-
-After a reviewed reducer release or a corrected safety limit, an authorized operator can request a
-rebuild without deleting history:
-
-    chakravyuh-journey-replay merchant-id correlation-id \
-      --requested-by operator@example.com \
-      --reason "Reviewed temporal reducer release deployed"
-
-See [Phase 4 architecture](docs/architecture/phase-4-temporal-journeys.md) for ordering, transaction,
-and replay guarantees.
-
-## Rebuildable money graph
-
-The separate projector process leases dirty journey correlations from PostgreSQL and replaces one
-complete Neo4j subgraph per managed transaction. The graph contains merchants, payment journeys,
-financial entities, event evidence, and explicit provider-backed relationships. Raw webhook payloads
-and secrets are never copied into Neo4j.
-
-Run the projector alongside the main normalization/reduction worker:
-
-    make projector
-
-`GET /health/graph` checks both Neo4j connectivity and PostgreSQL-authoritative queue lag. It fails
-closed for an unreachable graph, dead letters, or lag beyond the configured threshold. After an
-operator reviews a graph-wide recovery, every journey can be re-enqueued under a new audited epoch:
-
-    uv run chakravyuh-graph-rebuild \
-      --requested-by operator@example.com \
-      --reason "Reviewed Neo4j recovery and projection rebuild"
-
-Epoch-plus-generation guards prevent an expired worker from overwriting newer graph state while
-allowing PostgreSQL to remain authoritative after disaster recovery. See
-[Phase 5 architecture](docs/architecture/phase-5-rebuildable-money-graph.md) for the complete
-transaction, crash, and observability contract.
-
-## Deterministic incidents
-
-Every journey-state commit now enqueues invariant evaluation in PostgreSQL. The main worker evaluates
-six conservative payment contracts at database time. It reschedules incomplete transitions to their
-exact grace-window deadline instead of raising a premature incident. A completed evaluation,
-current incident changes, immutable lifecycle revisions, and its queue checkpoint commit in one
-transaction.
-
-Run the evaluation-only held-out benchmark without credentials, databases, or network access:
-
-    chakravyuh-evaluate-invariants --seed-start 10000 --seed-count 100
-
-Each seed supplies six labelled positive faults and nine adversarial negative journeys. The JSON
-result reports exact-label precision, recall, F1, false-positive and false-negative counts, and an
-explicit manual-review cost. This is repeatable contract evidence on synthetic cases, not a claim of
-zero false negatives on real merchant traffic.
-
-Incident detection never calls Gemini or queries Neo4j. Evaluations and incident revisions are
-append-only; stable incident IDs survive evidence changes, resolution, and recurrence. See
-[Phase 6 architecture](docs/architecture/phase-6-invariants-and-incidents.md) for the rule, timing,
-transaction, and audit contract.
-
-## Grounded AI diagnosis
-
-Every non-resolved incident revision now advances an isolated diagnosis queue. The diagnosis worker
-loads the immutable PostgreSQL checkpoint, reads one bounded allowlisted Neo4j subgraph, requires an
-exact generation and state-hash match, and calls the explicitly configured model-provider chain
-with strict JSON Schema output, provider-specific privacy controls, and no tools. OpenRouter can be
-primary with direct Gemini as an independent application-level fallback:
-
-    CHAKRAVYUH_DIAGNOSIS_PRIMARY_PROVIDER=openrouter
-    CHAKRAVYUH_DIAGNOSIS_FALLBACK_PROVIDER=gemini
-    CHAKRAVYUH_OPENROUTER_API_KEY=stored-outside-git
-    CHAKRAVYUH_OPENROUTER_MODEL=google/gemini-3.5-flash-lite
-
-    make diagnosis-worker
-
-The deterministic post-model guard requires real citations including invariant evidence, an
-incident-allowlisted root cause and action, and minimum confidence. Anything unsafe or weak becomes
-an explicit abstention. The model cannot create or resolve incidents and its recommendation cannot
-execute. Receipts, attempts, prompt hashes, evidence hashes, retries, provider exhaustion, dead
-letters, and guard interventions are immutable audit records. See
-[Phase 7 architecture](docs/architecture/phase-7-grounded-ai-diagnosis.md) for the complete boundary.
-
-After the cause of a temporary provider or graph outage is verified as recovered, an operator can
-requeue exactly one dead-lettered diagnosis. The command records the operator, reason, prior stable
-error, source incident revision, and target version before returning the item to the queue:
-
-    chakravyuh-diagnosis-replay incident-uuid \
-      --requested-by operator-id \
-      --reason "Verified model capacity and graph health recovered"
-
-## Operator evidence mesh
-
-The internal operator API reads PostgreSQL incident truth and immutable diagnosis receipts through
-three authenticated endpoints under `/v1/operator`: overview, bounded cursor-paginated incident
-list, and incident detail. Every authorized read appends a principal-attributed access record and
-returns `Cache-Control: no-store`.
-
-Issue a high-entropy local credential:
-
-    uv run chakravyuh-operator-token --principal local-reviewer
-
-Store the one-time `operator_token` output in a password manager. Put only the emitted
-`environment_value` JSON into `CHAKRAVYUH_OPERATOR_TOKEN_HASHES`, restart the API, open
-http://localhost:3000, and paste the raw token for that browser session. The browser never writes it
-to local storage, cookies, a URL, or server-rendered output.
-
-The console renders the exact evidence mesh stored with the latest diagnosis, including its
-SHA-256 hash and incident revisions. Production transport must use TLS and an exact CORS allowlist. See
-[Phase 8 architecture](docs/architecture/phase-8-operator-control-plane.md) for the authentication,
-pagination, audit, and interface contract.
-
-## Guarded Test Mode recovery
-
-Phase 9 implements only two provider actions: an authoritative payment fetch and exact-amount
-capture of an `authorized` payment. All other model recommendations are recorded as policy denials.
-The outbound kill switch defaults off, and application startup rejects enabled actions unless the
-configured key begins with `rzp_test_`.
-
-For a local Test Mode proof, configure two different operator principals, retain only their token
-hashes in `CHAKRAVYUH_OPERATOR_TOKEN_HASHES`, and then set:
-
-    CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED=true
-
-A proposal is derived entirely on the server from the latest immutable diagnosis. Read-only fetch
-can execute after policy approval. Capture additionally requires a decision from a principal other
-than the proposal maker. Before capture, the adapter fetches current Razorpay state and verifies the
-payment ID, `authorized` status, exact integer amount, and currency. It persists a mutation-started
-checkpoint before the POST.
-
-Razorpay does not provide the general payment-capture idempotency header available on its payout
-APIs. Therefore, any crash or timeout after the checkpoint permits fetch-only reconciliation and
-never a blind capture retry. Every proposal, policy decision, checker decision, execution claim,
-mutation authorization, result, and operator access event is append-only. See
-[Phase 9 architecture](docs/architecture/phase-9-guarded-test-mode-actions.md) for the complete
-safety and failure contract.
-
-## Real Razorpay Test Checkout proof
-
-The verified checkout can create one fixed ₹10 Razorpay Test Mode order with per-order manual capture, launch the
-official hosted Checkout, and verify its signed success response against authoritative provider
-state. The capability has its own `test-checkout:operate` scope and kill switch, stores neither the
-Checkout signature nor raw provider bodies, and writes immutable order and verification hashes.
-
-After applying migrations, configure the separately scoped server-side demo principals and enable
-the capability only in an isolated local or staging environment:
-
-    CHAKRAVYUH_TEST_CHECKOUT_ENABLED=true
-
-Open `http://localhost:3000/payments/authorize` and authorize the displayed ₹10 Test Mode order using
-Razorpay's documented test credentials. Do not manually capture the payment. The browser never
-receives an operator credential.
-The screen proves the exact provider order, authorized payment, amount, uncaptured state, and
-verification hash. The public HTTPS webhook and final provider-backed incident-to-recovery run have
-also been completed and are recorded without provider secrets or customer data in the external
-evidence review.
-
-See [Phase 11 architecture](docs/architecture/phase-11-real-test-checkout.md) for the complete
-boundary, [Phase 11 checklist](docs/review/phase-11-checklist.md) for the passed gates, and
-[external evidence](docs/review/phase-11b-external-evidence.md) for the provider-backed run.
-
-## Recovery Arena
-
-The Recovery Arena measures batch recovery rather than extrapolating from one successful payment. Its locked
-v1 contract compares no intervention, retry all, and Chakravyuh over a 10,005-case held-out
-portfolio. It fixes an exact INR cost model, limits live model usage to 100 calls and $1, bounds the
-signed-ingress probe at 100,000 deliveries with concurrency 50, and credits synthetic revenue only
-after an authoritative `payment.captured` webhook.
-
-Print the canonical contract and held-out commitment without credentials, a database, or network:
-
-    chakravyuh-recovery-arena-contract
-
-Run the full 10,005-case held-out portfolio against no-intervention and naive retry-all baselines:
-
-    chakravyuh-recovery-arena-baselines
-
-Run the reproducible three-way tournament through Chakravyuh's reducer, detector, policy,
-maker-checker, execution checkpoint, provider twin, and confirmation scoring:
-
-    chakravyuh-recovery-arena-tournament
-
-Prepare the stratified 100-case live-AI evidence-mesh sample without making a network call:
-
-    chakravyuh-recovery-arena-live-ai
-
-Live execution is resumable, uses OpenRouter only, cannot move money, and requires both the API key
-and an explicit acknowledgement of the locked one-dollar ceiling:
-
-    chakravyuh-recovery-arena-live-ai --execute-live --acknowledge-max-cost-usd 1.00
-
-On the locked portfolio, Chakravyuh detects all 4,002 expected incident types, selects all 457
-eligible captures with zero incorrect actions, and produces 402 provider-confirmed recoveries. It
-matches retry-all's ₹157,280 recovered value while retaining ₹148,140 after explicit review cost;
-retry all falls to negative ₹197,220 after 3,545 incorrect actions. These are deterministic
-synthetic INR measurements, not merchant revenue claims.
-
-The held-out manifest exposes its seed range and generator version but contains no oracle outcome or
-recoverability label. The arena benchmark deliberately scores only exact capture in its locked v1
-contract. The production control plane also supports a bounded, non-notifying Test Mode payment
-link for `failed_without_recovery`; every other incident must stop, deny, or escalate. See
-[Phase 12 architecture](docs/architecture/phase-12-recovery-arena.md) and
-[ADR 0014](docs/adr/0014-held-out-counterfactual-recovery-arena.md). The separate live-AI sample
-completed 100 calls for a conservatively accounted $0.127755, with 99 accepted provider responses,
-one guard intervention, and zero unsafe effective decisions; see
-[Phase 12E evidence](docs/review/phase-12e-evidence.md). The full local pipeline proof then accepted
-100,000 unique signed events plus 10,000 confirmed redeliveries and converged to 1,000 PostgreSQL and
-Neo4j journeys with zero dead letters, retries, lease losses, or incidents; see
-[Phase 12F evidence](docs/review/phase-12f-evidence.md).
-
-Start the web app and open `http://localhost:3000/judge` for the read-only Recovery Arena evidence
-room. It keeps held-out synthetic results, live-AI measurements, the real Razorpay Test Mode proof,
-and local scale results visibly separate. Its tournament, recovery funnel, connected evidence mesh,
-chaos, and honest exception views expose proof hashes but import no execution client and offer no
-money-action control. See [Phase 12G evidence](docs/review/phase-12g-evidence.md).
-
-Build the final machine- and human-readable proof pack against an exact full Git revision, then
-verify both that revision and the printed root:
-
-    uv run chakravyuh-recovery-proof-pack build \
-      --output-dir /tmp/chakravyuh-phase-12-verification \
-      --code-revision 95e27f09b69c869f4da60376967f6159b5a5f36f
-    uv run chakravyuh-recovery-proof-pack verify \
-      --input-dir proof/phase-12 \
-      --expected-code-revision 95e27f09b69c869f4da60376967f6159b5a5f36f \
-      --expected-proof-root f1eb7fd4ca6263ca9212bd3897340bc6fefabcb06a23a09c6d2a58c3e2e1cd6f
-
-Generation refuses to overwrite an existing directory. The verifier checks the outer checksum
-file, typed manifest, every canonical JSONL record and embedded result hash, the per-case Merkle
-root, and optional external trust anchors. The committed `proof/phase-12` directory can be checked
-with `make proof-pack-verify` and contains no credential, customer, or live-provider payload.
-Exact artifact commitments and final release gates are recorded in
-[Phase 12H evidence](docs/review/phase-12h-evidence.md).
-
-### Failed-payment Recovery Arena v2
-
-The v1 capture proof remains immutable. A separate v2 benchmark now runs the provider-backed
-`failed_without_recovery -> create_payment_link -> payment_link.paid` path over the same 10,005
-held-out observed journeys. Its provider twin covers eight outcomes: normal paid, duplicate paid
-webhook, paid with lost create response, never paid, timeout before create, timeout after create,
-expired response, and conflicting amount.
-
-Generate the revision-bound JSON report without credentials or network access:
-
-    chakravyuh-payment-link-arena \
-      --code-revision "$(git rev-parse HEAD)" \
-      --output /tmp/payment-link-arena-v2.json
-
-The locked run finds 667 failed-without-recovery incidents, permits 577 exact links, and receives
-203 unique provider-paid confirmations. Chakravyuh matches the unsafe baseline's 203 confirmed
-recoveries with zero incorrect actions and zero duplicate link creations. The blind baseline makes
-757 incorrect link attempts. Synthetic gross recovery is ₹63,210; guarded net value is ₹51,670
-after explicit checker cost, while the blind baseline falls to negative ₹12,490. These are
-reproducible synthetic INR measurements, not merchant revenue or conversion claims. See
-[Payment Link Arena v2 architecture](docs/architecture/payment-link-recovery-arena-v2.md).
-The committed revision-bound report and replay instructions are recorded in
-[Payment Link Arena v2 evidence](docs/review/payment-link-arena-v2-evidence.md).
-
-For a judge, `/walkthrough` provides one linear four-minute path through a real Razorpay Test Mode
-failure, the connected money graph, bounded recovery, provider proof, and both sealed arenas.
-
-## Production hardening and proof
-
-Operator identities now receive explicit scopes for incident reads, proposal creation, checker
-decisions, execution requests, and metric scrapes. Local/test environments retain a bounded
-in-process limiter for development; production refuses configured operator tokens unless every
-principal has explicit scopes and the cluster-wide Redis limiter is selected. Limiter failure denies
-authentication.
-
-Run the complete offline judge proof without credentials or services:
-
-    uv run chakravyuh-judge-demo --seed-start 50000 --seed-count 100
-
-It reports held-out exact-label precision/recall and false-positive/false-negative counts, duplicate
-and out-of-order state-hash checks, recovery-policy safety checks, local latency/throughput, and a
-stable proof SHA-256. This is evidence on labelled synthetic cases, not a guarantee about unseen
-merchant traffic.
-
-For an authorized isolated environment, `chakravyuh-load-probe` sends bounded signed webhook events
-and proves both durable new-event acknowledgements and duplicate retries. The secret is accepted only
-through `CHAKRAVYUH_LOAD_WEBHOOK_SECRET`; remote targets require an explicit acknowledgment flag.
-The Phase 12 scale form groups events into bounded journeys and uses idempotent transport retries:
-
-    chakravyuh-load-probe \
-      --base-url http://127.0.0.1:8000 \
-      --merchant-id merchant_test \
-      --account-id acc_test \
-      --run-id scale01 \
-      --unique-events 100000 \
-      --journey-count 1000 \
-      --duplicate-deliveries 10000 \
-      --concurrency 50
-
-After that report passes, an explicitly isolated and migrated PostgreSQL/Neo4j environment can be
-drained through all four production workers:
-
-    chakravyuh-pipeline-scale-proof \
-      --merchant-id merchant_test \
-      --run-id scale01 \
-      --expected-events 100000 \
-      --expected-journeys 1000 \
-      --ingress-report ingress.json \
-      --acknowledge-isolated-database
-
-Never point the drain command at production. It rejects production configuration but still requires
-an operator to supply a disposable, isolated database because it consumes all pending work in that
-database.
-See the [judge demo](docs/demo/judge-demo.md) for the exact flow.
-
-Authenticated Prometheus metrics are available at `GET /internal/metrics` to a principal holding only
-`metrics:read`. Labels contain registered route templates, method, and status—never merchant or
-payment identifiers.
-
-The Kubernetes release template under `deploy/kubernetes` separates migration, API, processors, and
-web workloads, commits no Secret, and enforces non-root/read-only containers, probes, resources,
-disruption budgets, and default-deny networking. It deliberately contains placeholder origins and
-external dependency addresses. Follow the
-[production runbook](docs/operations/production-runbook.md) and replace image tags with registry
-digests before applying it. See
-[Phase 10 architecture](docs/architecture/phase-10-production-hardening.md) for the complete control
-and evidence contract.
-
-## Quality gate
-
-    make check
-
-The gate runs Python linting, formatting, strict type checking, tests with branch coverage, web linting, web tests, and a production web build.
-
-PostgreSQL and Neo4j integration proofs run when `CHAKRAVYUH_TEST_POSTGRES_DSN` and
-`CHAKRAVYUH_TEST_NEO4J_URI` are defined. CI always runs them against isolated services.
-
-## Migrations
-
-    make migrate
-    make migration-check
-
-Application startup never edits the schema implicitly. A release must apply the reviewed Alembic
-migrations before starting the API and worker processes.
-
-## Repository boundaries
-
-    src/chakravyuh/domain          Pure domain contracts and invariants
-    src/chakravyuh/application     Use cases and ports
-    src/chakravyuh/infrastructure  Database, graph, queue, and provider adapters
-    src/chakravyuh/api             HTTP transport
-    src/chakravyuh/worker          Asynchronous process entrypoint
-    src/chakravyuh/projector_worker Neo4j projection process entrypoint
-    src/chakravyuh/diagnosis_worker Evidence-grounded model diagnosis process entrypoint
-    apps/web                       Operator interface
-    docs                           Architecture decisions and review evidence
-
-Synced material under sources/ is reference-only and is not used or modified by the application.
+### 1. Bootstrap
+
+```bash
+git clone <private-repository-url>
+cd chakravyuh
+cp .env.example .env
+make bootstrap
+make infra-up
+```
+
+`make infra-up` starts PostgreSQL, Neo4j, and Redis, waits for readiness, and applies reviewed
+database migrations.
+
+### 2. Start the application
+
+Run each long-lived process in its own terminal:
+
+```bash
+make api
+make worker
+make projector
+make diagnosis-worker
+make web
+```
+
+Then open:
+
+- Web application: <http://localhost:3000>
+- API liveness: <http://localhost:8000/health/live>
+- API readiness: <http://localhost:8000/health/ready>
+- Graph health: <http://localhost:8000/health/graph>
+
+### 3. Configure optional provider-backed flows
+
+The default configuration is safe and local. Razorpay actions and Test Checkout remain disabled
+until explicitly enabled with **Test Mode** credentials. Model diagnosis is also optional.
+
+```dotenv
+CHAKRAVYUH_RAZORPAY_KEY_ID=rzp_test_...
+CHAKRAVYUH_RAZORPAY_KEY_SECRET=...
+CHAKRAVYUH_RAZORPAY_WEBHOOK_SECRET=...
+CHAKRAVYUH_RAZORPAY_ACTIONS_ENABLED=true
+CHAKRAVYUH_TEST_CHECKOUT_ENABLED=true
+
+CHAKRAVYUH_DIAGNOSIS_PRIMARY_PROVIDER=openrouter
+CHAKRAVYUH_OPENROUTER_API_KEY=...
+```
+
+Never commit `.env`, raw operator tokens, provider secrets, webhook bodies, or customer data. See
+[`.env.example`](.env.example) for every option and [SECURITY.md](SECURITY.md) for disclosure and
+credential-handling rules.
+
+## Reproduce the proof
+
+Most evaluation commands require no credentials, services, or network access.
+
+```bash
+# Compact deterministic proof
+make judge-proof
+
+# Locked three-way held-out tournament
+uv run chakravyuh-recovery-arena-tournament
+
+# Verify the committed machine-readable proof pack
+make proof-pack-verify
+
+# Exercise duplicate and out-of-order temporal reduction
+uv run chakravyuh-simulate --scenario out_of_order_delivery --seed 42
+
+# Run the full engineering quality gate
+make check
+```
+
+`make check` runs Python linting and formatting checks, strict mypy, branch-covered tests, web
+linting, web tests, and a production Next.js build. PostgreSQL and Neo4j integration proofs run in
+CI against isolated services.
+
+## Repository map
+
+```text
+src/chakravyuh/
+├── domain/              Pure contracts, invariants, policies, and state machines
+├── application/         Use cases and ports
+├── infrastructure/      PostgreSQL, Neo4j, Redis, model, and Razorpay adapters
+├── api/                 HTTP transport and authentication boundary
+├── worker/              Intake, normalization, reduction, and detection loops
+├── projector_worker/    Rebuildable Neo4j projection loop
+└── diagnosis_worker/    Isolated evidence-grounded AI loop
+
+apps/web/                Next.js product and proof interface
+deploy/kubernetes/       Hardened deployment templates
+docs/adr/                Architecture decision records
+docs/architecture/       Component guarantees and failure contracts
+docs/operations/         Production runbook
+docs/review/             Reproducible implementation evidence
+proof/phase-12/          Revision-bound machine-readable proof pack
+tests/                   Unit, contract, integration, chaos, and policy tests
+```
+
+## Documentation
+
+| Topic | Document |
+| --- | --- |
+| Complete reviewer flow | [Judge demo](docs/demo/judge-demo.md) |
+| Trusted webhook intake | [Durable normalization](docs/architecture/phase-3-durable-normalization.md) |
+| Temporal reconstruction | [Temporal journeys](docs/architecture/phase-4-temporal-journeys.md) |
+| Evidence graph | [Rebuildable money graph](docs/architecture/phase-5-rebuildable-money-graph.md) |
+| Incident correctness | [Invariants and incidents](docs/architecture/phase-6-invariants-and-incidents.md) |
+| AI boundary | [Grounded diagnosis](docs/architecture/phase-7-grounded-ai-diagnosis.md) |
+| Governed recovery | [Guarded Test Mode actions](docs/architecture/phase-9-guarded-test-mode-actions.md) |
+| Production operations | [Production runbook](docs/operations/production-runbook.md) |
+| Security analysis | [Threat model](docs/security/threat-model.md) |
+
+## Scope and status
+
+- Provider mutations are restricted to allowlisted Razorpay **Test Mode** operations.
+- Captures are exact-amount only; other model recommendations are recorded as denials.
+- Synthetic arena results establish repeatable behavior under a locked model, not future merchant
+  performance or zero-error guarantees on unseen traffic.
+- Production deployment requires reviewed secrets, TLS, exact CORS and host allowlists, Redis-backed
+  rate limiting, monitoring, retention policy, and the controls in the production runbook.
+
+## Repository policy
+
+This is a private, proprietary buildathon repository. Source code, generated proof artifacts, and
+media must not be published or redistributed without the owner's explicit permission.
