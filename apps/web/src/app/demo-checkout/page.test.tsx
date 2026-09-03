@@ -37,12 +37,12 @@ describe("Test Checkout", () => {
     render(<DemoCheckoutPage />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Follow a payment end to end." }),
+      screen.getByRole("heading", { level: 1, name: "Recover an uncaptured payment." }),
     ).toBeInTheDocument();
     expect(screen.getByText(/fixed ₹10 Razorpay Test Mode payment/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Operator access token")).not.toBeInTheDocument();
-    expect(await screen.findByText(/Isolated session judge-se/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open Razorpay Checkout" })).toBeEnabled();
+    expect(await screen.findByText(/Secure session/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Authorize ₹10 in Razorpay" })).toBeEnabled();
   });
 
   it("creates the server-side order and verifies the Checkout proof", async () => {
@@ -89,8 +89,8 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
-    await screen.findByText(/Isolated session judge-se/i);
-    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
+    await screen.findByText(/Secure session/i);
+    fireEvent.click(screen.getByRole("button", { name: "Authorize ₹10 in Razorpay" }));
     await waitFor(() => expect(opened).toBe(true));
     expect(checkoutOptions).toMatchObject({
       amount: 1000,
@@ -167,8 +167,8 @@ describe("Test Checkout", () => {
 
     render(<TestCheckout scenario="failed" />);
 
-    await screen.findByText(/Isolated session judge-se/i);
-    fireEvent.click(screen.getByRole("button", { name: "Open Checkout and trigger failure" }));
+    await screen.findByText(/Secure session/i);
+    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay and trigger failure" }));
     await waitFor(() => expect(failedHandler).toBeDefined());
     failedHandler?.({
       error: { metadata: { order_id: "order_123", payment_id: "pay_failed" } },
@@ -244,8 +244,8 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
-    await screen.findByText(/Isolated session judge-se/i);
-    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
+    await screen.findByText(/Secure session/i);
+    fireEvent.click(screen.getByRole("button", { name: "Authorize ₹10 in Razorpay" }));
     await waitFor(() => expect(handler).toBeDefined());
     handler?.({
       razorpay_order_id: "order_123",
@@ -266,15 +266,18 @@ describe("Test Checkout", () => {
     window.sessionStorage.setItem(
       "chakravyuh:active-verification:v1",
       JSON.stringify({
-        verification_id: "22222222-2222-4222-8222-222222222222",
-        verification_hash: "a".repeat(64),
-        payment: {
-          payment_id: "pay_persisted",
-          order_id: "order_persisted",
-          status: "authorized",
-          amount_subunits: 1000,
-          currency: "INR",
-          captured: false,
+        session_id: "judge-session-1234",
+        verification: {
+          verification_id: "22222222-2222-4222-8222-222222222222",
+          verification_hash: "a".repeat(64),
+          payment: {
+            payment_id: "pay_persisted",
+            order_id: "order_persisted",
+            status: "authorized",
+            amount_subunits: 1000,
+            currency: "INR",
+            captured: false,
+          },
         },
       }),
     );
@@ -294,9 +297,9 @@ describe("Test Checkout", () => {
     render(<DemoCheckoutPage />);
 
     expect(await screen.findByText("Active transaction")).toBeInTheDocument();
-    expect(await screen.findByText(/Isolated session judge-se/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Secure session/i)).toBeInTheDocument();
     expect(screen.getAllByText("pay_persisted").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Start another ₹10 payment" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Start another transaction" })).toBeEnabled();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   });
 
@@ -376,8 +379,8 @@ describe("Test Checkout", () => {
     });
     render(<DemoCheckoutPage />);
 
-    await screen.findByText(/Isolated session judge-se/i);
-    fireEvent.click(screen.getByRole("button", { name: "Open Razorpay Checkout" }));
+    await screen.findByText(/Secure session/i);
+    fireEvent.click(screen.getByRole("button", { name: "Authorize ₹10 in Razorpay" }));
     await waitFor(() => expect(handler).toBeDefined());
     handler?.({
       razorpay_order_id: "order_123",
@@ -419,7 +422,7 @@ describe("Test Checkout", () => {
         "Razorpay Checkout loaded without initializing. Reload and try again.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open Razorpay Checkout" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Authorize ₹10 in Razorpay" })).toBeDisabled();
   });
 });
 

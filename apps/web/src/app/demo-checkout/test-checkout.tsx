@@ -47,6 +47,11 @@ type Verification = {
   };
 };
 
+type StoredVerification = {
+  session_id: string;
+  verification: Verification;
+};
+
 type FailureEvidence = {
   evidence_id: string;
   evidence_hash: string;
@@ -115,15 +120,13 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
   const [systemReady, setSystemReady] = useState(false);
 
   useEffect(() => {
-    const restored = restoreActiveVerification(scenario);
-    if (restored) setVerification(restored);
-  }, [scenario]);
-
-  useEffect(() => {
     let cancelled = false;
     void ensureDemoSession()
       .then((session) => {
-        if (!cancelled) setDemoSession(session);
+        if (!cancelled) {
+          setDemoSession(session);
+          setVerification(restoreActiveVerification(scenario, session.session_id));
+        }
       })
       .catch((failure) => {
         if (!cancelled) setError(message(failure));
@@ -131,7 +134,7 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [scenario]);
 
   useEffect(() => {
     if (window.Razorpay) {
@@ -295,7 +298,7 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
         method: "POST",
         body: proof,
       });
-      persistActiveVerification(verified, "capture");
+      persistActiveVerification(verified, "capture", demoSession?.session_id ?? null);
       setLiveIncident(null);
       setLiveActions([]);
       setVerification(verified);
@@ -330,7 +333,7 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
         verification_hash: failed.evidence_hash,
         payment: failed.payment,
       };
-      persistActiveVerification(tracked, "failed");
+      persistActiveVerification(tracked, "failed", demoSession?.session_id ?? null);
       setLiveIncident(null);
       setLiveActions([]);
       setVerification(tracked);
@@ -365,13 +368,14 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
 
   return (
     <main className="checkoutShell">
-      <header className="checkoutTopbar">
-        <a href="/">← Judge workspace</a>
-        <div>
-          <a href="/recoveries/verified">Verified recovery</a>
-          <span>Razorpay Test Mode only</span>
-        </div>
-      </header>
+      <nav className="recoveryModeSwitch" aria-label="Recovery workflow">
+        <a className={scenario === "capture" ? "active" : ""} href="/payments/authorize">
+          Uncaptured authorization
+        </a>
+        <a className={scenario === "failed" ? "active" : ""} href="/payments/recover-failure">
+          Failed payment
+        </a>
+      </nav>
       <section className="checkoutHero">
         <p className="eyebrow">
           {scenario === "failed"
@@ -379,9 +383,7 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
             : "Live authorization · controlled recovery"}
         </p>
         <h1>
-          {scenario === "failed"
-            ? "Recover a payment that did not convert."
-            : "Follow a payment end to end."}
+          {scenario === "failed" ? "Recover a failed payment." : "Recover an uncaptured payment."}
         </h1>
         <p>
           {scenario === "failed"
@@ -394,8 +396,8 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
 
       <section className="checkoutGrid">
         <article className="checkoutCard">
-          <span className="stepNumber">01</span>
-          <h2>{scenario === "failed" ? "Attempt ₹10" : "Authorize ₹10"}</h2>
+          <span className="stepNumber">01 · CREATE TRANSACTION</span>
+          <h2>{scenario === "failed" ? "Trigger a ₹10 failure" : "Authorize ₹10"}</h2>
           <p>
             {scenario === "failed"
               ? "Use Razorpay’s Test Mode failure option on the bank screen. The server independently verifies the failure."
@@ -406,23 +408,23 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
               {busy
                 ? "Waiting for authorization…"
                 : verification
-                  ? "Start another ₹10 payment"
+                  ? "Start another transaction"
                   : scenario === "failed"
-                    ? "Open Checkout and trigger failure"
-                    : "Open Razorpay Checkout"}
+                    ? "Open Razorpay and trigger failure"
+                    : "Authorize ₹10 in Razorpay"}
             </button>
           </form>
           <small>
             {!demoSession
-              ? "Establishing an isolated judge session…"
+              ? "Establishing a secure recovery session…"
               : scriptReady
-                ? `Isolated session ${demoSession.session_id.slice(0, 8)} · authority expires automatically.`
+                ? `Secure session ${demoSession.session_id.slice(0, 8)} · expires automatically.`
                 : "Loading Razorpay Checkout…"}
           </small>
         </article>
 
         <article className="checkoutCard proofCard">
-          <span className="stepNumber">02</span>
+          <span className="stepNumber">02 · VERIFY PROVIDER STATE</span>
           <h2>
             {verification?.payment.status === "failed"
               ? "Verified failure"
@@ -486,7 +488,7 @@ export function TestCheckout({ scenario = "capture" }: { scenario?: RecoveryScen
           onApprove={(proposalId) =>
             void runLiveAction("approve", `/v1/operator/actions/${proposalId}/decisions`, {
               decision: "approved",
-              rationale: "Independently verified live Test Mode recovery evidence.",
+              rationale: "Independently verified the payment evidence and policy boundary.",
             })
           }
           onExecute={(proposalId) =>
@@ -770,7 +772,7 @@ function LiveRecovery({
               >
                 {scenario === "failed"
                   ? "Inspect the complete money trace →"
-                  : "Open the judge-verifiable proof room →"}
+                  : "Open the verification record →"}
               </a>
             </div>
           </div>
@@ -859,21 +861,32 @@ function formatConfidence(value: number | undefined): string {
   return value === undefined ? "pending" : `${Math.round(value * 100)}%`;
 }
 
-function persistActiveVerification(verification: Verification, scenario: RecoveryScenario): void {
+function persistActiveVerification(
+  verification: Verification,
+  scenario: RecoveryScenario,
+  sessionId: string | null,
+): void {
+  if (!sessionId) return;
   try {
-    window.sessionStorage.setItem(verificationStorageKey(scenario), JSON.stringify(verification));
+    const stored: StoredVerification = { session_id: sessionId, verification };
+    window.sessionStorage.setItem(verificationStorageKey(scenario), JSON.stringify(stored));
   } catch {
     // The live journey still works when browser storage is unavailable.
   }
 }
 
-function restoreActiveVerification(scenario: RecoveryScenario): Verification | null {
+function restoreActiveVerification(
+  scenario: RecoveryScenario,
+  sessionId: string,
+): Verification | null {
   const storageKey = verificationStorageKey(scenario);
   try {
     const serialized = window.sessionStorage.getItem(storageKey);
     if (!serialized) return null;
-    const candidate = JSON.parse(serialized) as unknown;
-    if (isVerification(candidate)) return candidate;
+    const candidate = JSON.parse(serialized) as Partial<StoredVerification>;
+    if (candidate.session_id === sessionId && isVerification(candidate.verification)) {
+      return candidate.verification;
+    }
     window.sessionStorage.removeItem(storageKey);
   } catch {
     window.sessionStorage.removeItem(storageKey);

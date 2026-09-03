@@ -1,5 +1,5 @@
-import { JudgeWorkspace } from "./judge-workspace";
+import { ProductOverview } from "./product-overview";
 
 export default function Home() {
-  return <JudgeWorkspace />;
+  return <ProductOverview />;
 }

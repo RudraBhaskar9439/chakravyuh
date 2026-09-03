@@ -29,9 +29,9 @@ describe("Money Trace", () => {
     fireEvent.change(screen.getByLabelText(/Payment, order/i), { target: { value: hash } });
     fireEvent.click(screen.getByRole("button", { name: "Trace money" }));
     await waitFor(() => expect(screen.getByText("Scale evidence report")).toBeInTheDocument());
-    expect(screen.getByRole("link", { name: /Open verified scale evidence/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open reliability report/i })).toHaveAttribute(
       "href",
-      "/judge",
+      "/reliability",
     );
   });
 });

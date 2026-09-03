@@ -10,16 +10,22 @@ type BackendDemoReadiness = {
   checks?: Record<string, "ok" | "error">;
 };
 
+export const maxDuration = 45;
+
 export async function GET() {
   const apiBase = process.env.CHAKRAVYUH_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL;
   if (!apiBase) return readinessResponse(unconfiguredChecks(), 503);
 
-  const [live, ready, graph, demo] = await Promise.all([
-    probe(new URL("/health/live", apiBase)),
-    probe(new URL("/health/ready", apiBase)),
-    probe(new URL("/health/graph", apiBase)),
-    probe(new URL("/health/demo", apiBase)),
-  ]);
+  // Wake the API before probing dependencies. Free-tier hosts may need several seconds to resume;
+  // hitting every dependency concurrently during that window creates a misleading hard failure.
+  const live = await probe(new URL("/health/live", apiBase), 25_000);
+  const [ready, graph, demo] = live.ok
+    ? await Promise.all([
+        probe(new URL("/health/ready", apiBase), 12_000),
+        probe(new URL("/health/graph", apiBase), 12_000),
+        probe(new URL("/health/demo", apiBase), 12_000),
+      ])
+    : [unavailableProbe, unavailableProbe, unavailableProbe];
   const demoPayload = demo.payload as BackendDemoReadiness | null;
   const capability = (name: string) => demoPayload?.checks?.[name] === "ok";
   const authorityConfigured = Boolean(
@@ -67,19 +73,21 @@ export async function GET() {
     ),
     check(
       "session",
-      "Isolated judge authority",
+      "Recovery authority",
       authorityConfigured,
-      authorityConfigured ? "Maker, checker and executor scoped" : "Judge authority unavailable",
+      authorityConfigured ? "Maker, checker and executor scoped" : "Recovery authority unavailable",
     ),
   ];
   return readinessResponse(checks, checks.every((item) => item.status === "ready") ? 200 : 503);
 }
 
-async function probe(url: URL): Promise<{ ok: boolean; payload: unknown }> {
+const unavailableProbe = { ok: false, payload: null };
+
+async function probe(url: URL, timeoutMs: number): Promise<{ ok: boolean; payload: unknown }> {
   try {
     const response = await fetch(url, {
       cache: "no-store",
-      signal: AbortSignal.timeout(5_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     return { ok: response.ok, payload: await response.json().catch(() => null) };
   } catch {
@@ -110,6 +118,6 @@ function unconfiguredChecks(): Check[] {
     check("provider", "Razorpay credentials", false, "Configuration unavailable"),
     check("ai", "AI diagnosis route", false, "Configuration unavailable"),
     check("webhook", "Webhook verifier", false, "Configuration unavailable"),
-    check("session", "Isolated judge authority", false, "Readiness unavailable"),
+    check("session", "Recovery authority", false, "Readiness unavailable"),
   ];
 }

@@ -6,7 +6,7 @@ import { ProductNavigation } from "./product-navigation";
 
 export const metadata: Metadata = {
   title: "Chakravyuh · Payment Recovery Control",
-  description: "Detect, govern, and confirm recovery for payment lifecycles in Razorpay Test Mode",
+  description: "Detect, govern, execute, and verify payment recovery with evidence-first controls",
 };
 
 type RootLayoutProps = Readonly<{

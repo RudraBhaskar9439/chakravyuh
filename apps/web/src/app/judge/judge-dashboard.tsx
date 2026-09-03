@@ -130,7 +130,7 @@ export function JudgeDashboard({ report }: { report: ScaleEvidenceReport }) {
           </p>
           <div>
             <a href="/recoveries/verified">View the verified recovery →</a>
-            <a href="/payments/authorize">Authorize a Test Mode payment →</a>
+            <a href="/payments/authorize">Start a Test Mode recovery →</a>
           </div>
         </footer>
       </main>

@@ -7,54 +7,47 @@ import { usePathname, useRouter } from "next/navigation";
 const destinations = [
   { href: "/", label: "Overview", matches: (path: string) => path === "/" },
   {
-    href: "/walkthrough",
-    label: "Guided tour",
-    matches: (path: string) => path === "/walkthrough",
-  },
-  {
     href: "/payments/authorize",
-    label: "Capture recovery",
-    matches: (path: string) => path === "/payments/authorize" || path === "/demo-checkout",
-  },
-  {
-    href: "/payments/recover-failure",
-    label: "Revenue recovery",
-    matches: (path: string) => path === "/payments/recover-failure",
+    label: "Recover",
+    matches: (path: string) =>
+      path === "/payments/authorize" ||
+      path === "/payments/recover-failure" ||
+      path === "/demo-checkout",
   },
   {
     href: "/recoveries/verified",
-    label: "Live proof",
+    label: "Verify",
     matches: (path: string) => path === "/recoveries/verified" || path === "/recovery-story",
   },
   {
     href: "/trace",
-    label: "Money trace",
+    label: "Trace",
     matches: (path: string) => path === "/trace",
   },
   {
-    href: "/judge",
-    label: "Scale evidence",
+    href: "/reliability",
+    label: "Reliability",
     matches: (path: string) => path === "/judge" || path === "/reliability",
   },
 ] as const;
 
 const pageNames: Record<string, string> = {
-  "/": "Operations overview",
-  "/demo-checkout": "Run payment",
-  "/judge": "Scale evidence",
-  "/payments/authorize": "Run payment",
-  "/payments/recover-failure": "Recover failed payment",
+  "/": "Control center",
+  "/demo-checkout": "Payment recovery",
+  "/judge": "Reliability",
+  "/payments/authorize": "Authorization recovery",
+  "/payments/recover-failure": "Failure recovery",
   "/operations": "Secure operations",
-  "/recoveries/verified": "Live recovery proof",
-  "/recovery-story": "Recovery story",
-  "/reliability": "Scale evidence",
+  "/recoveries/verified": "Verification ledger",
+  "/recovery-story": "Recovery record",
+  "/reliability": "Reliability",
   "/trace": "Money Trace",
-  "/walkthrough": "Guided walkthrough",
+  "/walkthrough": "Platform overview",
 };
 
 const fallbackRoutes: Record<string, string> = {
   "/demo-checkout": "/",
-  "/judge": "/recoveries/verified",
+  "/judge": "/reliability",
   "/payments/authorize": "/",
   "/payments/recover-failure": "/",
   "/recoveries/verified": "/payments/authorize",
@@ -93,10 +86,12 @@ export function ProductNavigation() {
     <header className="productNavShell">
       <div className="productNavInner">
         <div className="productNavContext">
-          <button aria-label="Go back to the previous page" onClick={goBack} type="button">
-            <span aria-hidden="true">←</span>
-            Back
-          </button>
+          {pathname !== "/" ? (
+            <button aria-label="Go back to the previous page" onClick={goBack} type="button">
+              <span aria-hidden="true">←</span>
+              Back
+            </button>
+          ) : null}
           <Link className="productNavBrand" href="/" aria-label="Chakravyuh overview">
             <span aria-hidden="true">च</span>
             <strong>Chakravyuh</strong>

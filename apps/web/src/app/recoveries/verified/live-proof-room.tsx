@@ -122,12 +122,12 @@ export function LiveProofRoom({ paymentId }: { paymentId?: string }) {
           </span>
           <span>
             <strong>Chakravyuh</strong>
-            <small>Live proof room</small>
+            <small>Verification ledger</small>
           </span>
         </a>
         <nav aria-label="Proof navigation">
-          <a href="/payments/authorize">Run a transaction</a>
-          <a href="/judge">Scale evidence</a>
+          <a href="/payments/authorize">Start recovery</a>
+          <a href="/reliability">Reliability</a>
           <a href="/trace">Money Trace</a>
         </nav>
         <div className="proofLiveBadge">

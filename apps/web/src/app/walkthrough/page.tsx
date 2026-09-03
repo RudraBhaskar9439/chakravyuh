@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Guided Walkthrough · Chakravyuh",
-  description: "A four-minute, evidence-first walkthrough of failed-payment recovery",
+  title: "Platform Overview · Chakravyuh",
+  description: "How Chakravyuh detects, governs, and verifies payment recovery",
 };
 
 const steps = [
@@ -35,11 +35,11 @@ const steps = [
   },
   {
     number: "04",
-    eyebrow: "Challenge the claim",
+    eyebrow: "Verify the outcome",
     title: "Separate a successful request from recovered revenue",
     copy: "Only a signed payment_link.paid webhook resolves the incident. The sealed arenas expose unsafe baselines, duplicate delivery, provider faults and uncredited outcomes.",
-    action: "Open sealed scale evidence",
-    href: "/judge",
+    action: "Open reliability report",
+    href: "/reliability",
     proof: "10,005 journeys · 8 link faults · 0 duplicate mutations",
   },
 ] as const;
@@ -49,8 +49,8 @@ export default function WalkthroughPage() {
     <main className="walkthroughShell">
       <header className="walkthroughHero">
         <div>
-          <p className="eyebrow">Judge walkthrough · approximately four minutes</p>
-          <h1>One failed payment. Every claim visible.</h1>
+          <p className="eyebrow">Platform overview</p>
+          <h1>From payment failure to verified recovery.</h1>
         </div>
         <div className="walkthroughIntro">
           <p>
@@ -63,7 +63,7 @@ export default function WalkthroughPage() {
         </div>
       </header>
 
-      <section className="walkthroughSteps" aria-label="Walkthrough steps">
+      <section className="walkthroughSteps" aria-label="Recovery control stages">
         {steps.map((step) => (
           <article key={step.number}>
             <span className="walkthroughNumber">{step.number}</span>
@@ -82,18 +82,18 @@ export default function WalkthroughPage() {
       </section>
 
       <section className="walkthroughBoundary">
-        <p className="eyebrow">Truth boundary</p>
-        <h2>What this proves—and what it does not.</h2>
+        <p className="eyebrow">Evidence boundary</p>
+        <h2>Measured proof with explicit operational limits.</h2>
         <div>
           <article>
-            <span>Proves</span>
+            <span>Measured proof</span>
             <p>
               Real Razorpay Test Mode semantics, production control flow, deterministic replay,
               bounded provider mutation and reproducible synthetic scale measurements.
             </p>
           </article>
           <article>
-            <span>Does not claim</span>
+            <span>Operational limits</span>
             <p>
               Live customer funds, merchant conversion lift, a production SLA, or external design
               partner validation. Those require a governed merchant pilot.

@@ -167,7 +167,7 @@ function ScaleResult({ result }: { result: Extract<TraceResult, { kind: "scale" 
       <h2>{result.label}</h2>
       <code>{result.hash}</code>
       <p>The value is bound into Chakravyuh’s content-addressed scale evidence report.</p>
-      <a href="/judge">Open verified scale evidence →</a>
+      <a href="/reliability">Open reliability report →</a>
     </section>
   );
 }

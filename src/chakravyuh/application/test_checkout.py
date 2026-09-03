@@ -43,7 +43,7 @@ class RazorpayTestCheckoutControlPlane:
         amount_subunits: int,
         ttl_seconds: int,
         display_name: str = "Chakravyuh",
-        description: str = "Evidence-first payment recovery demonstration",
+        description: str = "Evidence-first payment recovery",
     ) -> None:
         self._repository = repository
         self._gateway = gateway

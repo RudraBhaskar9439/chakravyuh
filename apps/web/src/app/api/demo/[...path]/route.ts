@@ -9,6 +9,8 @@ import {
 
 type DemoRole = "maker" | "checker" | "executor";
 
+export const maxDuration = 45;
+
 type RouteContext = {
   params: Promise<{ path: string[] }>;
 };
@@ -122,6 +124,7 @@ async function forward(request: Request, context: RouteContext, method: "GET" | 
       body: requestBody,
       cache: "no-store",
       redirect: "manual",
+      signal: AbortSignal.timeout(30_000),
     });
     const headers = new Headers({
       "Cache-Control": "no-store",
@@ -135,8 +138,13 @@ async function forward(request: Request, context: RouteContext, method: "GET" | 
       writeDemoSession(headers, evolveDemoSession(session, extractOwnedIds(path, body)), secret);
     }
     return new Response(body, { status: upstream.status, headers });
-  } catch {
-    return errorResponse(502, "demo_gateway_upstream_unavailable");
+  } catch (failure) {
+    return errorResponse(
+      failure instanceof Error && failure.name === "TimeoutError" ? 504 : 502,
+      failure instanceof Error && failure.name === "TimeoutError"
+        ? "recovery_service_timed_out"
+        : "recovery_service_unavailable",
+    );
   }
 }
 

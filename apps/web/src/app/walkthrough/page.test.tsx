@@ -5,12 +5,12 @@ import WalkthroughPage from "./page";
 
 afterEach(cleanup);
 
-describe("guided judge walkthrough", () => {
+describe("platform overview", () => {
   it("provides one linear evidence-first route without credentials", () => {
     render(<WalkthroughPage />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: /Every claim visible/i }),
+      screen.getByRole("heading", { level: 1, name: /verified recovery/i }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /₹10 failure/i })[0]).toHaveAttribute(
       "href",
@@ -20,11 +20,14 @@ describe("guided judge walkthrough", () => {
       "href",
       "/trace",
     );
-    expect(screen.getByRole("link", { name: /Open sealed scale evidence/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open reliability report/i })).toHaveAttribute(
       "href",
-      "/judge",
+      "/reliability",
     );
-    expect(screen.getByText("What this proves—and what it does not.")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Measured proof with explicit operational limits/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/judge/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/token/i)).not.toBeInTheDocument();
   });
 });

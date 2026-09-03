@@ -5,7 +5,7 @@ import { ProductNavigation } from "./product-navigation";
 
 const back = vi.fn();
 const push = vi.fn();
-let pathname = "/judge";
+let pathname = "/reliability";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname,
@@ -16,7 +16,7 @@ describe("product navigation", () => {
   afterEach(cleanup);
 
   beforeEach(() => {
-    pathname = "/judge";
+    pathname = "/reliability";
     back.mockClear();
     push.mockClear();
     window.sessionStorage.clear();
@@ -25,9 +25,9 @@ describe("product navigation", () => {
   it("provides an obvious route out of scale evidence", () => {
     render(<ProductNavigation />);
 
-    expect(screen.getByText("Scale evidence", { selector: "p" })).toBeInTheDocument();
+    expect(screen.getByText("Reliability", { selector: "p" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Scale evidence" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Reliability" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -41,9 +41,9 @@ describe("product navigation", () => {
     window.history.replaceState({}, "", "/recoveries/verified?payment_id=pay_exact");
     const { unmount } = render(<ProductNavigation />);
 
-    fireEvent.click(screen.getByRole("link", { name: "Scale evidence" }), { ctrlKey: true });
+    fireEvent.click(screen.getByRole("link", { name: "Reliability" }), { ctrlKey: true });
     unmount();
-    pathname = "/judge";
+    pathname = "/reliability";
     render(<ProductNavigation />);
     fireEvent.click(screen.getByRole("button", { name: "Go back to the previous page" }));
 
@@ -54,9 +54,6 @@ describe("product navigation", () => {
     pathname = "/recovery-story";
     render(<ProductNavigation />);
 
-    expect(screen.getByRole("link", { name: "Live proof" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(screen.getByRole("link", { name: "Verify" })).toHaveAttribute("aria-current", "page");
   });
 });
